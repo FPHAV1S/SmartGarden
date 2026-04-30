@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IrrigationSystem.Web", "Irr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IrrigationSystem.Worker", "IrrigationSystem.Worker\IrrigationSystem.Worker.csproj", "{178B38A6-E76B-44E3-8C5F-359F4A7341A7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IrrigationSystem.Tests", "IrrigationSystem.Tests\IrrigationSystem.Tests.csproj", "{8A4F5E1A-6B7D-4F08-A01C-37D5A34F3B98}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -24,5 +26,9 @@ Global
 		{178B38A6-E76B-44E3-8C5F-359F4A7341A7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{178B38A6-E76B-44E3-8C5F-359F4A7341A7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{178B38A6-E76B-44E3-8C5F-359F4A7341A7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8A4F5E1A-6B7D-4F08-A01C-37D5A34F3B98}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8A4F5E1A-6B7D-4F08-A01C-37D5A34F3B98}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8A4F5E1A-6B7D-4F08-A01C-37D5A34F3B98}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8A4F5E1A-6B7D-4F08-A01C-37D5A34F3B98}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

@@ -63,6 +63,7 @@ SmartGarden/
     |-- hash_passwords.py
     `-- irrigation_project/
         |-- IrrigationSystem.sln
+        |-- IrrigationSystem.Tests/
         |-- IrrigationSystem.Web/
         `-- IrrigationSystem.Worker/
 ```
@@ -115,6 +116,26 @@ Password: 1203
 ```
 
 The web login password and the PostgreSQL role password are different.
+
+## Tests
+
+The repository includes a lightweight test runner that does not require a live
+database, MQTT broker, or ESP32. It checks application defaults, API validation,
+password hashing, schema/config files, and the ESP32-to-web API contract.
+
+Run it with:
+
+```bash
+cd raspberry-pi/irrigation_project/IrrigationSystem.Tests
+dotnet run
+```
+
+Or from the solution folder:
+
+```bash
+cd raspberry-pi/irrigation_project
+dotnet run --project IrrigationSystem.Tests
+```
 
 ## Getting Data Into the Dashboard
 
