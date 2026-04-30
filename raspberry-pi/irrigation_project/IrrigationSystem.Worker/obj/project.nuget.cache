@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "w2xZGZF3Y54=",
+  "dgSpecHash": "cdwSFx+JPA8=",
   "success": true,
-  "projectFilePath": "D:\\SmartGarden\\irrigation_project\\IrrigationSystem.Worker\\IrrigationSystem.Worker.csproj",
+  "projectFilePath": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Worker\\IrrigationSystem.Worker.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\dp222\\.nuget\\packages\\microsoft.extensions.configuration\\8.0.0\\microsoft.extensions.configuration.8.0.0.nupkg.sha512",
     "C:\\Users\\dp222\\.nuget\\packages\\microsoft.extensions.configuration.abstractions\\8.0.0\\microsoft.extensions.configuration.abstractions.8.0.0.nupkg.sha512",

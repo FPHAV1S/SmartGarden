@@ -1,20 +1,20 @@
 {
   "format": 1,
   "restore": {
-    "/home/gardenbrain/irrigation_project/IrrigationSystem.Web/IrrigationSystem.Web.csproj": {}
+    "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\IrrigationSystem.Web.csproj": {}
   },
   "projects": {
-    "/home/gardenbrain/irrigation_project/IrrigationSystem.Web/IrrigationSystem.Web.csproj": {
+    "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\IrrigationSystem.Web.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/home/gardenbrain/irrigation_project/IrrigationSystem.Web/IrrigationSystem.Web.csproj",
+        "projectUniqueName": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\IrrigationSystem.Web.csproj",
         "projectName": "IrrigationSystem.Web",
-        "projectPath": "/home/gardenbrain/irrigation_project/IrrigationSystem.Web/IrrigationSystem.Web.csproj",
-        "packagesPath": "/home/gardenbrain/.nuget/packages/",
-        "outputPath": "/home/gardenbrain/irrigation_project/IrrigationSystem.Web/obj/",
+        "projectPath": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\IrrigationSystem.Web.csproj",
+        "packagesPath": "C:\\Users\\dp222\\.nuget\\packages\\",
+        "outputPath": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "/home/gardenbrain/.nuget/NuGet/NuGet.Config"
+          "C:\\Users\\dp222\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net8.0"
@@ -79,7 +79,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "/home/gardenbrain/.dotnet/sdk/8.0.418/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.420/PortableRuntimeIdentifierGraph.json"
         }
       }
     }
