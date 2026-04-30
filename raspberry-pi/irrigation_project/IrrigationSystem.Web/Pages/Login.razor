@@ -1,0 +1,163 @@
+@page "/login"
+@layout LoginLayout
+@inject NavigationManager Navigation
+@inject HttpClient Http
+@inject IJSRuntime JS
+
+<PageTitle>Login - Irrigation System</PageTitle>
+
+<div class="login-container">
+    <div class="login-card">
+        <div class="login-header">
+            <h2>🌱 SmartGarden</h2>
+            <p>Smart Irrigation System</p>
+        </div>
+
+        @if (IsBlocked)
+        {
+            <div class="error-message blocked">
+                🔒 Too many failed attempts. Your IP is blocked for 30 minutes.
+            </div>
+        }
+        else
+        {
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" @bind="Username" class="form-input" placeholder="Enter username" />
+            </div>
+
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" @bind="Password" class="form-input" placeholder="Enter password" @onkeyup="HandleKeyPress" />
+            </div>
+
+            @if (!string.IsNullOrEmpty(ErrorMessage))
+            {
+                <div class="error-message">
+                    ⚠️ @ErrorMessage
+                </div>
+            }
+
+            @if (RemainingAttempts < 3 && RemainingAttempts > 0)
+            {
+                <div class="warning-message">
+                    ⚠️ @RemainingAttempts attempt(s) remaining before IP block
+                </div>
+            }
+
+            <button type="button" class="btn-login" @onclick="HandleLogin" disabled="@IsLoggingIn">
+                @if (IsLoggingIn)
+                {
+                    <span>Logging in...</span>
+                }
+                else
+                {
+                    <span>Login</span>
+                }
+            </button>
+        }
+    </div>
+</div>
+
+@code {
+    private string Username = string.Empty;
+    private string Password = string.Empty;
+    private string ErrorMessage = string.Empty;
+    private bool IsLoggingIn = false;
+    private bool IsBlocked = false;
+    private int RemainingAttempts = 3;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var response = await Http.GetAsync("/api/login/remaining");
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                var result = System.Text.Json.JsonSerializer.Deserialize<RemainingResponse>(json);
+                RemainingAttempts = result?.remainingAttempts ?? 3;
+                IsBlocked = RemainingAttempts == 0;
+            }
+        }
+        catch { }
+    }
+
+    private async Task HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !IsLoggingIn)
+        {
+            await HandleLogin();
+        }
+    }
+
+    private async Task HandleLogin()
+    {
+        if (string.IsNullOrWhiteSpace(Username) || string.IsNullOrWhiteSpace(Password))
+        {
+            ErrorMessage = "Please enter both username and password";
+            Console.WriteLine("Empty username or password");
+            return;
+        }
+
+        Console.WriteLine($"Attempting login for user: {Username}");
+        IsLoggingIn = true;
+        ErrorMessage = string.Empty;
+
+        try
+        {
+            var loginData = new { username = Username, password = Password };
+            var response = await Http.PostAsJsonAsync("/api/login", loginData);
+            Console.WriteLine($"Login response status: {response.StatusCode}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                var result = System.Text.Json.JsonSerializer.Deserialize<LoginResponse>(json);
+                Console.WriteLine($"Login result: success={result?.success}, remaining={result?.remainingAttempts}");
+
+                if (result?.success == true)
+                {
+                    Console.WriteLine("Login successful, waiting for cookie then redirecting...");
+                    await Task.Delay(500);
+                    await JS.InvokeVoidAsync("eval", "window.location.href = '/'");
+                    return;
+                }
+                else
+                {
+                    RemainingAttempts = result?.remainingAttempts ?? 0;
+                    Console.WriteLine($"Login failed, remaining attempts: {RemainingAttempts}");
+                    
+                    if (RemainingAttempts == 0)
+                    {
+                        IsBlocked = true;
+                    }
+                    else
+                    {
+                        ErrorMessage = "Invalid username or password";
+                    }
+
+                    Password = string.Empty;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Login exception: {ex.Message}");
+            ErrorMessage = "An error occurred during login";
+        }
+
+        IsLoggingIn = false;
+    }
+
+    private class LoginResponse
+    {
+        public bool success { get; set; }
+        public int remainingAttempts { get; set; }
+    }
+
+    private class RemainingResponse
+    {
+        public int remainingAttempts { get; set; }
+    }
+}

@@ -1,0 +1,90 @@
+@page "/zones"
+@layout MainLayout
+@inject SensorDataService DataService
+
+<PageTitle>Zones - Irrigation System</PageTitle>
+
+<div class="zones-page">
+    <h3>Zone Management</h3>
+
+    @if (IsLoading)
+    {
+        <p>Loading zones...</p>
+    }
+    else
+    {
+        <div class="zones-list">
+            @foreach (var zone in ZonesList)
+            {
+                <div class="zone-edit-card">
+                    <div class="zone-edit-header">
+                        <h4>Zone @zone.Id</h4>
+                        <div class="zone-status">
+                            <label class="toggle-switch">
+                                <input type="checkbox" @bind="zone.IsActive" @bind:after="() => SaveZone(zone)" />
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span class="status-text">@(zone.IsActive ? "Active" : "Inactive")</span>
+                        </div>
+                    </div>
+
+                    <div class="zone-edit-form">
+                        <div class="form-group">
+                            <label>Zone Name</label>
+                            <input type="text" @bind="zone.Name" @bind:after="() => SaveZone(zone)" class="form-input" />
+                        </div>
+
+                        <div class="form-group">
+                            <label>Plant Type</label>
+                            <input type="text" @bind="zone.PlantType" @bind:after="() => SaveZone(zone)" class="form-input" placeholder="e.g., Tomatoes, Basil" />
+                        </div>
+
+                        <div class="form-group">
+                            <label>Moisture Threshold (%)</label>
+                            <div class="threshold-control">
+                                <input type="range" min="10" max="80" step="1" @bind="zone.MoistureThreshold" @bind:after="() => SaveZone(zone)" class="threshold-slider" />
+                                <span class="threshold-value">@zone.MoistureThreshold.ToString("F0")%</span>
+                            </div>
+                            <small>Water when moisture drops below this level</small>
+                        </div>
+                    </div>
+
+                    @if (SavedZoneId == zone.Id)
+                    {
+                        <div class="save-indicator">✓ Saved</div>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<Zone> ZonesList = new();
+    private bool IsLoading = true;
+    private int SavedZoneId = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadZones();
+    }
+
+    private async Task LoadZones()
+    {
+        IsLoading = true;
+        ZonesList = await DataService.GetZonesAsync();
+        IsLoading = false;
+    }
+
+    private async Task SaveZone(Zone zone)
+    {
+        var success = await DataService.UpdateZoneAsync(zone.Id, zone.Name, zone.PlantType, zone.MoistureThreshold, zone.IsActive);
+        
+        if (success)
+        {
+            SavedZoneId = zone.Id;
+            await Task.Delay(2000);
+            SavedZoneId = 0;
+        }
+    }
+}

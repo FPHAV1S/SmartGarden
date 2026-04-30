@@ -1,0 +1,336 @@
+@using IrrigationSystem.Web.Models
+@using IrrigationSystem.Web.Services
+@page "/settings"
+@layout MainLayout
+@inject SensorDataService DataService
+@inject AdaptiveWateringService AdaptiveService
+@inject DemoModeService DemoService
+@implements IDisposable
+
+<PageTitle>Settings - Irrigation System</PageTitle>
+
+<div class="settings-page">
+    <h3>System Settings</h3>
+
+    @if (SystemConfig == null)
+    {
+        <p>Loading settings...</p>
+    }
+    else
+    {
+        <div class="settings-section">
+            <h4>System Control</h4>
+            
+            <div class="settings-grid">
+                <div class="setting-item">
+                    <label class="toggle-label">
+                        <input type="checkbox" @bind="SystemConfig.AutoWateringEnabled" @bind:after="SaveSettingsImmediate" class="toggle-input" />
+                        <span class="toggle-slider-sm"></span>
+                        <span class="toggle-text">Automatic Watering</span>
+                    </label>
+                    <small>Enable or disable automatic watering based on moisture levels</small>
+                </div>
+
+                <div class="setting-item">
+                    <label>Default Watering Duration (seconds)</label>
+                    <input type="number" min="5" max="60" @bind="SystemConfig.DefaultWateringDuration" @bind:after="SaveSettings" class="form-input" />
+                    <small>How long to water each zone (5-60 seconds)</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <h4>Night Mode Schedule</h4>
+            <p>Restrict watering to nighttime hours to reduce evaporation</p>
+            
+            <div class="settings-grid">
+                <div class="setting-item">
+                    <label class="toggle-label">
+                        <input type="checkbox" @bind="SystemConfig.NightModeEnabled" @bind:after="SaveSettingsImmediate" class="toggle-input" />
+                        <span class="toggle-slider-sm"></span>
+                        <span class="toggle-text">Enable Night Mode</span>
+                    </label>
+                    <small>Only water during specified hours</small>
+                </div>
+
+                @if (SystemConfig.NightModeEnabled)
+                {
+                    <div class="setting-item">
+                        <label>Start Hour (24h format)</label>
+                        <input type="number" min="0" max="23" @bind="SystemConfig.NightModeStartHour" @bind:after="SaveSettings" class="form-input" />
+                        <small>Watering allowed from @SystemConfig.NightModeStartHour:00</small>
+                    </div>
+
+                    <div class="setting-item">
+                        <label>End Hour (24h format)</label>
+                        <input type="number" min="0" max="23" @bind="SystemConfig.NightModeEndHour" @bind:after="SaveSettings" class="form-input" />
+                        <small>Watering allowed until @SystemConfig.NightModeEndHour:00</small>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <h4>Eco Mode</h4>
+            
+            <div class="setting-item">
+                <label class="toggle-label">
+                    <input type="checkbox" @bind="SystemConfig.EcoModeEnabled" @bind:after="SaveSettingsImmediate" class="toggle-input" />
+                    <span class="toggle-slider-sm"></span>
+                    <span class="toggle-text">Enable Eco Mode</span>
+                </label>
+                <small>Reduce watering frequency to conserve water and battery</small>
+            </div>
+        </div>
+    }
+
+    <div class="settings-section">
+        <h4>Adaptive Watering AI</h4>
+        <p>The adaptive algorithm analyzes irrigation history and automatically adjusts moisture thresholds for optimal watering.</p>
+        
+        <button class="btn-primary" @onclick="RunAdaptiveAnalysis" disabled="@IsRunning">
+            @if (IsRunning)
+            {
+                <span>⏳ Running Analysis...</span>
+            }
+            else
+            {
+                <span>▶️ Run Adaptive Analysis Now</span>
+            }
+        </button>
+
+        @if (AnalysisComplete)
+        {
+            <div class="success-message">✓ Analysis complete! Check logs below for threshold changes.</div>
+        }
+    </div>
+
+    <div class="settings-section">
+        <h4>Database Maintenance</h4>
+        <p>Clean up old sensor readings to save storage space</p>
+        
+        <div class="cleanup-controls">
+            <label>Keep data from last:</label>
+            <select @bind="DaysToKeep" class="form-input-inline">
+                <option value="7">7 days</option>
+                <option value="14">14 days</option>
+                <option value="30">30 days</option>
+                <option value="60">60 days</option>
+                <option value="90">90 days</option>
+            </select>
+            
+            <button class="btn-warning" @onclick="CleanDatabase" disabled="@IsCleaning">
+                @if (IsCleaning)
+                {
+                    <span>🗑️ Cleaning...</span>
+                }
+                else
+                {
+                    <span>🗑️ Clean Old Data</span>
+                }
+            </button>
+        </div>
+
+        @if (CleanupComplete)
+        {
+            <div class="success-message">✓ Deleted @DeletedRecords old sensor readings</div>
+        }
+    </div>
+
+    <div class="settings-section">
+        <h4>Recent System Logs</h4>
+        
+        @if (IsLoadingLogs)
+        {
+            <p>Loading logs...</p>
+        }
+        else if (SystemLogs.Count == 0)
+        {
+            <p>No logs yet.</p>
+        }
+        else
+        {
+            <div class="logs-container">
+                @foreach (var log in SystemLogs)
+                {
+                    <div class="log-entry @log.Level.ToLower()">
+                        <span class="log-time">@log.LoggedAt.ToString("MM/dd HH:mm:ss")</span>
+                        <span class="log-level">[@log.Level]</span>
+                        <span class="log-message">@log.Message</span>
+                    </div>
+                }
+            </div>
+        }
+
+        <button class="btn-secondary" @onclick="LoadLogs">🔄 Refresh Logs</button>
+    </div>
+
+    <div class="settings-section">
+        <h4>Demo Mode</h4>
+        <p>Use simulated sensor readings instead of real hardware.</p>
+
+        <button class="btn-secondary" @onclick="ToggleDemoMode">
+            @if (IsDemoMode)
+            {
+                <span>🛑 Disable Demo Mode</span>
+            }
+            else
+            {
+                <span>▶️ Enable Demo Mode</span>
+            }
+        </button>
+
+        @if (IsDemoMode)
+        {
+            <div class="success-message mt-2">🎭 Demo mode is currently <strong>enabled</strong>.</div>
+        }
+    </div>
+
+    <div class="settings-section">
+        <h4>System Information</h4>
+        <div class="info-grid">
+            <div class="info-item">
+                <span class="info-label">Total Zones:</span>
+                <span class="info-value">3</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Database:</span>
+                <span class="info-value">PostgreSQL</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">MQTT Broker:</span>
+                <span class="info-value">Mosquitto</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Auto-refresh:</span>
+                <span class="info-value">5 seconds</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private SystemSettings? SystemConfig;
+    private List<SystemLog> SystemLogs = new();
+    
+    private bool IsLoadingLogs = true;
+    private bool IsRunning = false;
+    private bool AnalysisComplete = false;
+    private bool IsCleaning = false;
+    private bool CleanupComplete = false;
+
+    private bool IsDemoMode = false;
+
+    private int DaysToKeep = 30;
+    private int DeletedRecords = 0;
+    
+    private System.Threading.Timer? SaveTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSettings();
+        await LoadLogs();
+
+        IsDemoMode = DemoService.IsDemoMode;
+    }
+
+    public void Dispose()
+    {
+        SaveTimer?.Dispose();
+    }
+
+    private async Task LoadSettings()
+    {
+        SystemConfig = await DataService.GetSystemSettingsAsync();
+        if (SystemConfig == null)
+        {
+            SystemConfig = new SystemSettings();
+        }
+    }
+
+    private async Task SaveSettingsImmediate()
+    {
+        if (SystemConfig != null)
+        {
+            await DataService.UpdateSystemSettingsAsync(SystemConfig);
+            await LoadLogs();
+        }
+    }
+
+    private void SaveSettings()
+    {
+        SaveTimer?.Dispose();
+        SaveTimer = new System.Threading.Timer(async _ =>
+        {
+            if (SystemConfig != null)
+            {
+                await DataService.UpdateSystemSettingsAsync(SystemConfig);
+            }
+        }, null, 500, Timeout.Infinite);
+    }
+
+    private async Task LoadLogs()
+    {
+        IsLoadingLogs = true;
+        SystemLogs = await DataService.GetRecentLogsAsync(20);
+        IsLoadingLogs = false;
+    }
+
+    private async Task ToggleDemoMode()
+    {
+        if (IsDemoMode)
+        {
+            DemoService.DisableDemoMode();
+            IsDemoMode = false;
+        }
+        else
+        {
+            DemoService.EnableDemoMode();
+            IsDemoMode = true;
+        }
+
+        await LoadLogs();
+    }
+
+    private async Task RunAdaptiveAnalysis()
+    {
+        IsRunning = true;
+        AnalysisComplete = false;
+
+        try
+        {
+            await AdaptiveService.RunAdaptiveAnalysisAsync();
+            await Task.Delay(1000);
+            await LoadLogs();
+            AnalysisComplete = true;
+            await Task.Delay(3000);
+            AnalysisComplete = false;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+        finally
+        {
+            IsRunning = false;
+        }
+    }
+
+    private async Task CleanDatabase()
+    {
+        IsCleaning = true;
+        CleanupComplete = false;
+
+        try
+        {
+            DeletedRecords = await DataService.CleanOldDataAsync(DaysToKeep);
+            CleanupComplete = true;
+            await Task.Delay(3000);
+            CleanupComplete = false;
+        }
+        finally
+        {
+            IsCleaning = false;
+        }
+    }
+}

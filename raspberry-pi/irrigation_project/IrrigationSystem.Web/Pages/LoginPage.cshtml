@@ -1,0 +1,59 @@
+@page "/loginpage"
+@model IrrigationSystem.Web.Pages.LoginPageModel
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login - Irrigation System</title>
+    <link href="~/css/login.css" rel="stylesheet" />
+</head>
+<body class="login-body">
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <h2>SmartGarden</h2>
+                <p>Smart Irrigation System</p>
+            </div>
+
+            @if (Model.IsBlocked)
+            {
+                <div class="error-message blocked">
+                    🔒 Too many failed attempts. Your IP is blocked for 30 minutes.
+                </div>
+            }
+            else
+            {
+                <form method="post">
+                    @Html.AntiForgeryToken()
+                    
+                    <div class="form-group">
+                        <label>Username</label>
+                        <input type="text" name="Username" class="form-input" placeholder="Enter username" required />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" name="Password" class="form-input" placeholder="Enter password" required />
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+                    {
+                        <div class="error-message">
+                            ⚠️ @Model.ErrorMessage
+                        </div>
+                    }
+
+                    @if (Model.RemainingAttempts < 3 && Model.RemainingAttempts > 0)
+                    {
+                        <div class="warning-message">
+                            ⚠️ @Model.RemainingAttempts attempt(s) remaining before IP block
+                        </div>
+                    }
+
+                    <button type="submit" class="btn-login">Login</button>
+                </form>
+            }
+        </div>
+    </div>
+</body>
+</html>

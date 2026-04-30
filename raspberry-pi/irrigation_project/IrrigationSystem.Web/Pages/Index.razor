@@ -1,0 +1,128 @@
+@page "/"
+@layout MainLayout
+@inject SensorDataService DataService
+@inject MqttService MqttService
+@implements IDisposable
+
+<PageTitle>Dashboard - Irrigation System</PageTitle>
+
+<div class="dashboard">
+    <h3>Live Sensor Data</h3>
+
+    @if (IsLoading)
+    {
+        <p>Loading sensor data...</p>
+    }
+    else if (Zones.Count == 0)
+    {
+        <p>No zones configured yet.</p>
+    }
+    else
+    {
+        <div class="zone-grid">
+            @foreach (var zone in Zones)
+            {
+                var reading = GetLatestReading(zone.Id);
+                <div class="zone-card">
+                    <div class="zone-header">
+                        <h4>@zone.Name</h4>
+                        <span class="status-indicator @(zone.IsActive ? "active" : "inactive")"></span>
+                    </div>
+
+                    @if (reading != null)
+                    {
+                        <div class="sensor-data">
+                            <div class="sensor-item">
+                                <span class="label">Moisture:</span>
+                                <span class="value">@reading.Moisture?.ToString("F1")%</span>
+                            </div>
+                            <div class="sensor-item">
+                                <span class="label">Temperature:</span>
+                                <span class="value">@reading.Temperature?.ToString("F1")°C</span>
+                            </div>
+                            <div class="sensor-item">
+                                <span class="label">Humidity:</span>
+                                <span class="value">@reading.Humidity?.ToString("F1")%</span>
+                            </div>
+                            <div class="last-update">
+                                Updated: @reading.RecordedAt.ToString("HH:mm:ss")
+                            </div>
+                        </div>
+
+                        <div class="moisture-bar">
+                            <div class="moisture-fill" style="width: @(reading.Moisture ?? 0)%"></div>
+                        </div>
+
+                        <button class="btn-water" @onclick="() => WaterZone(zone.Id)">
+                            💧 Water Now
+                        </button>
+                    }
+                    else
+                    {
+                        <p class="no-data">No sensor data available</p>
+                    }
+                </div>
+            }
+        </div>
+    }
+
+    <button class="btn-refresh" @onclick="RefreshData">🔄 Refresh</button>
+</div>
+
+@code {
+    private List<Zone> Zones = new();
+    private List<SensorReading> LatestReadings = new();
+    private bool IsLoading = true;
+    private System.Threading.Timer? RefreshTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+        
+        RefreshTimer = new System.Threading.Timer(async _ =>
+        {
+            await LoadData();
+            await InvokeAsync(StateHasChanged);
+        }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
+    }
+
+    private async Task LoadData()
+    {
+        IsLoading = true;
+        Zones = await DataService.GetZonesAsync();
+        LatestReadings = await DataService.GetLatestReadingsAsync();
+        IsLoading = false;
+    }
+
+    private SensorReading? GetLatestReading(int zoneId)
+    {
+        return LatestReadings.FirstOrDefault(r => r.ZoneId == zoneId);
+    }
+
+    private async Task RefreshData()
+    {
+        await LoadData();
+    }
+
+    private async Task WaterZone(int zoneId)
+    {
+        var reading = GetLatestReading(zoneId);
+        var moistureBefore = reading?.Moisture;
+
+        var eventId = await DataService.StartIrrigationEventAsync(zoneId, "Manual", moistureBefore);
+        
+        var success = await MqttService.OpenValveAsync(zoneId, 10);
+        
+        if (success)
+        {
+            await Task.Delay(10000);
+            await MqttService.CloseValveAsync(zoneId);
+            await DataService.EndIrrigationEventAsync(eventId, 10, null);
+        }
+    }
+
+    public void Dispose()
+    {
+        RefreshTimer?.Dispose();
+    }
+}

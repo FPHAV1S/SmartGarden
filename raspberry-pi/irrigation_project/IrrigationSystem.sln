@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IrrigationSystem.Web", "IrrigationSystem.Web\IrrigationSystem.Web.csproj", "{AB7C5006-9BBD-4AD3-8A1E-0F2DB0A4C88E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IrrigationSystem.Worker", "IrrigationSystem.Worker\IrrigationSystem.Worker.csproj", "{178B38A6-E76B-44E3-8C5F-359F4A7341A7}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{AB7C5006-9BBD-4AD3-8A1E-0F2DB0A4C88E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AB7C5006-9BBD-4AD3-8A1E-0F2DB0A4C88E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AB7C5006-9BBD-4AD3-8A1E-0F2DB0A4C88E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AB7C5006-9BBD-4AD3-8A1E-0F2DB0A4C88E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{178B38A6-E76B-44E3-8C5F-359F4A7341A7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{178B38A6-E76B-44E3-8C5F-359F4A7341A7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{178B38A6-E76B-44E3-8C5F-359F4A7341A7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{178B38A6-E76B-44E3-8C5F-359F4A7341A7}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

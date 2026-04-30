@@ -1,0 +1,383 @@
+@inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Components.Routing
+
+<div class="page">
+    <!-- Hidden checkbox controls the menu state -->
+    <input type="checkbox" id="mobile-menu-toggle" class="menu-checkbox" />
+    
+    <!-- Overlay FIRST (behind sidebar) -->
+    <label for="mobile-menu-toggle" class="mobile-overlay"></label>
+
+    <!-- Hamburger button -->
+    <label for="mobile-menu-toggle" class="mobile-menu-btn" aria-label="Toggle menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </label>
+
+    <!-- Sidebar (above overlay) -->
+    <div class="sidebar">
+        <div class="top">
+            <div class="logo">
+                <h1>🌱 SmartGarden</h1>
+            </div>
+        </div>
+
+        <nav class="nav-menu">
+            <!-- Each NavLink also closes the menu -->
+            <NavLink class="nav-item nav-close" href="/" Match="NavLinkMatch.All">
+                <label for="mobile-menu-toggle" class="nav-link-content">
+                    <span class="icon">📊</span>
+                    <span>Dashboard</span>
+                </label>
+            </NavLink>
+            
+            <NavLink class="nav-item nav-close" href="/zones">
+                <label for="mobile-menu-toggle" class="nav-link-content">
+                    <span class="icon">🗺️</span>
+                    <span>Zones</span>
+                </label>
+            </NavLink>
+            
+            <NavLink class="nav-item nav-close" href="/history">
+                <label for="mobile-menu-toggle" class="nav-link-content">
+                    <span class="icon">📈</span>
+                    <span>History</span>
+                </label>
+            </NavLink>
+            
+            <NavLink class="nav-item nav-close" href="/settings">
+                <label for="mobile-menu-toggle" class="nav-link-content">
+                    <span class="icon">⚙️</span>
+                    <span>Settings</span>
+                </label>
+            </NavLink>
+        </nav>
+
+        <!-- Close button -->
+        <label for="mobile-menu-toggle" class="close-btn">
+            ✕ Close
+        </label>
+    </div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        @Body
+    </main>
+</div>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        background: #f5f5f5;
+    }
+
+    .page {
+        display: flex;
+        min-height: 100vh;
+        position: relative;
+    }
+
+    /* HIDE THE CHECKBOX */
+    .menu-checkbox {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    /* ===================================
+       SIDEBAR
+       =================================== */
+
+    .sidebar {
+        width: 250px;
+        background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+        color: white;
+        padding: 1.5rem 0;
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        overflow-y: auto;
+        box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        z-index: 2000; /* HIGHEST - above overlay */
+        transition: transform 0.3s ease;
+    }
+
+    .logo {
+        padding: 0 1.5rem 1.5rem 1.5rem;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .logo h1 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: white;
+    }
+
+    .nav-menu {
+        padding: 1rem 0;
+    }
+
+    .nav-item {
+        display: block;
+        color: #cbd5e1;
+        text-decoration: none;
+        transition: all 0.2s;
+        font-size: 1rem;
+        font-weight: 500;
+        position: relative;
+    }
+
+    .nav-link-content {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1.5rem;
+        cursor: pointer;
+        width: 100%;
+    }
+
+    .nav-item:hover {
+        background: rgba(255,255,255,0.1);
+        color: white;
+    }
+
+    .nav-item.active {
+        background: rgba(16, 185, 129, 0.2);
+        color: #10b981;
+        border-right: 3px solid #10b981;
+    }
+
+    .nav-item .icon {
+        font-size: 1.25rem;
+    }
+
+    /* ===================================
+       MAIN CONTENT
+       =================================== */
+
+    .main-content {
+        margin-left: 250px;
+        flex: 1;
+        padding: 2rem;
+        background: #f5f5f5;
+        min-height: 100vh;
+    }
+
+    /* ===================================
+       HAMBURGER BUTTON
+       =================================== */
+
+    .mobile-menu-btn {
+        display: none;
+        position: fixed;
+        top: 1rem;
+        left: 1rem;
+        z-index: 3000; /* ABOVE sidebar */
+        background: white;
+        border: 2px solid #e5e7eb;
+        border-radius: 6px;
+        padding: 0.6rem;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        flex-direction: column;
+        gap: 5px;
+        width: 44px;
+        height: 44px;
+        justify-content: center;
+        align-items: center;
+        transition: all 0.2s;
+    }
+
+    .mobile-menu-btn span {
+        display: block;
+        width: 24px;
+        height: 3px;
+        background: #1e293b;
+        border-radius: 2px;
+        transition: all 0.3s;
+    }
+
+    .mobile-menu-btn:active {
+        transform: scale(0.95);
+        background: #f3f4f6;
+    }
+
+    /* ===================================
+       CLOSE BUTTON
+       =================================== */
+
+    .close-btn {
+        display: none;
+        position: sticky;
+        bottom: 0;
+        width: 100%;
+        padding: 1rem;
+        background: #ef4444;
+        color: white;
+        font-size: 1rem;
+        font-weight: 600;
+        text-align: center;
+        cursor: pointer;
+        border-top: 1px solid rgba(255,255,255,0.1);
+        z-index: 2001; /* Above sidebar content */
+    }
+
+    .close-btn:active {
+        background: #dc2626;
+    }
+
+    /* ===================================
+       OVERLAY
+       =================================== */
+
+    .mobile-overlay {
+        display: none;
+    }
+
+    /* ===================================
+       MOBILE STYLES
+       =================================== */
+
+    @@media (max-width: 1024px) {
+        /* Show hamburger */
+        .mobile-menu-btn {
+            display: flex;
+        }
+
+        /* Show close button */
+        .close-btn {
+            display: block;
+        }
+
+        /* Hide sidebar by default */
+        .sidebar {
+            transform: translateX(-100%);
+        }
+
+        /* Main content full width */
+        .main-content {
+            margin-left: 0;
+            padding-top: 4.5rem;
+        }
+
+        /* ============================================
+           WHEN MENU IS OPEN
+           ============================================ */
+
+        /* Show sidebar */
+        .menu-checkbox:checked ~ .sidebar {
+            transform: translateX(0);
+        }
+
+        /* Show overlay BEHIND sidebar */
+        .menu-checkbox:checked ~ .mobile-overlay {
+            display: block;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1500; /* BELOW sidebar (2000) */
+            cursor: pointer;
+        }
+
+        /* Animate hamburger to X */
+        .menu-checkbox:checked ~ .mobile-menu-btn span:nth-child(1) {
+            transform: rotate(45deg) translate(6px, 6px);
+        }
+
+        .menu-checkbox:checked ~ .mobile-menu-btn span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .menu-checkbox:checked ~ .mobile-menu-btn span:nth-child(3) {
+            transform: rotate(-45deg) translate(6px, -6px);
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .main-content {
+            padding: 1rem;
+            padding-top: 4.5rem;
+        }
+
+        .sidebar {
+            width: 280px;
+        }
+
+        .logo h1 {
+            font-size: 1.25rem;
+        }
+
+        .nav-link-content {
+            padding: 0.85rem 1.5rem;
+            font-size: 1.05rem;
+        }
+    }
+
+    @@media (max-width: 480px) {
+        .main-content {
+            padding: 0.75rem;
+            padding-top: 4.5rem;
+        }
+
+        .mobile-menu-btn {
+            top: 0.75rem;
+            left: 0.75rem;
+        }
+    }
+
+    @@media (min-width: 1025px) {
+        .mobile-menu-btn,
+        .mobile-overlay,
+        .close-btn {
+            display: none !important;
+        }
+
+        .sidebar {
+            transform: translateX(0) !important;
+        }
+
+        /* Desktop: Normal NavLinks without labels */
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1.5rem;
+        }
+
+        .nav-link-content {
+            display: contents; /* Flatten for desktop */
+        }
+    }
+
+    .sidebar::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .sidebar::-webkit-scrollbar-track {
+        background: rgba(255,255,255,0.05);
+    }
+
+    .sidebar::-webkit-scrollbar-thumb {
+        background: rgba(255,255,255,0.2);
+        border-radius: 3px;
+    }
+
+    html {
+        scroll-behavior: smooth;
+    }
+</style>
+
+@code {
+    // Pure CSS solution - no code needed!
+}
