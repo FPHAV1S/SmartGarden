@@ -1,99 +1,367 @@
-SmartGarden - Irrigation System
-=================================
+# SmartGarden Irrigation System
 
-HARDWARE:
-- ESP32 DevKit
-- BME280 sensor (I2C)
-- 3x relay modules
-- Raspberry Pi 5
+SmartGarden is a Raspberry Pi based irrigation controller with a Blazor Server
+dashboard, PostgreSQL storage, optional MQTT integration, and an ESP32-C3 sketch
+that can send sensor-style readings to the web API.
 
-SOFTWARE REQUIREMENTS:
-- PostgreSQL 12+
-- .NET 6.0+
-- Arduino IDE (for ESP32)
+The current repository contains:
 
-========================================
-QUICK START (Raspberry Pi)
-========================================
+- `IrrigationSystem.Web`: ASP.NET Core/Blazor Server web app for dashboard,
+  zones, history, settings, login, demo data, auto-watering, and API ingestion.
+- `IrrigationSystem.Worker`: optional standalone MQTT-to-PostgreSQL worker.
+- `raspberry-pi/setup.sh`: PostgreSQL setup and seed script.
+- `raspberry-pi/irrigation_db.sql`: PostgreSQL schema dump.
+- `esp32/esp32.ino`: ESP32-C3 HTTP sender and local status page.
+- helper scripts for collecting ESP32 data and generating BCrypt hashes.
 
-1. Setup Database:
-   cd raspberry-pi
-   chmod +x setup.sh
-   ./setup.sh
+## Current Behavior
 
-2. Run Application:
-   cd raspberry-pi/irrigation_project/IrrigationSystem.Web
-   dotnet run
+- The web app listens on `http://0.0.0.0:5000`.
+- Sensor readings are stored in PostgreSQL.
+- Readings can arrive by HTTP `POST /api/sensor-readings`.
+- The web app also includes an MQTT background subscriber for
+  `garden/+/sensors`.
+- Manual and automatic watering publish valve commands to MQTT topic
+  `irrigation/zone/{zoneId}/valve`.
+- Demo Mode can generate readings for active zones without ESP32 hardware.
+- The current ESP32 sketch sends simulated temperature, humidity, and soil
+  moisture values. It does not currently read a BME280 or drive relays.
+- Relay/valve firmware is expected to subscribe to MQTT valve commands, but that
+  subscriber firmware is not included in this repository.
 
-3. Open Browser:
-   http://localhost:5000
+## Hardware Assumptions
 
-Default credentials:
-   Username: denis
-   Password: 987654456789
+- Raspberry Pi 5 or another Linux host for the web app and database.
+- ESP32-C3 or compatible ESP32 board for `esp32/esp32.ino`.
+- Optional relay/valve hardware controlled by an MQTT subscriber.
+- Optional real sensors. The checked-in ESP32 sketch currently generates test
+  readings in code.
 
-========================================
-MANUAL SETUP (if script fails)
-========================================
+## Software Requirements
 
-1. Install PostgreSQL:
-   sudo apt-get install postgresql
+- .NET 8 SDK or runtime.
+- PostgreSQL 17 recommended. The checked-in schema dump was produced by
+  PostgreSQL 17.8 and may need editing before loading on older versions.
+- Optional: Mosquitto or another MQTT broker on `localhost:1883`.
+- Arduino IDE or Arduino CLI with ESP32 board support.
 
-2. Create Database:
-   sudo -u postgres psql
-   CREATE ROLE denis LOGIN PASSWORD '1203';
-   CREATE DATABASE irrigation_db;
-   ALTER DATABASE irrigation_db OWNER TO denis;
-   \q
+The Arduino sketch only uses built-in ESP32 libraries listed in
+`esp32/libraries.txt`: `WiFi`, `HTTPClient`, and `WebServer`.
 
-3. Load Schema:
-   sudo -u postgres psql -d irrigation_db -f raspberry-pi/irrigation_db.sql
-   sudo -u postgres psql -d irrigation_db -c "INSERT INTO system_settings (auto_watering_enabled, system_mode, default_watering_duration, night_mode_enabled, night_mode_start_hour, night_mode_end_hour, eco_mode_enabled) SELECT true, 'auto', 10, false, 18, 8, false WHERE NOT EXISTS (SELECT 1 FROM system_settings);"
-   sudo -u postgres psql -d irrigation_db -c "INSERT INTO users (username, password_hash) VALUES ('denis', '\$2b\$12\$J3Z9neTGYCEkrtqQN3bCpuwQXdCgnUgIJMSYEdAFACfDdFvL2dqC6') ON CONFLICT (username) DO UPDATE SET password_hash = EXCLUDED.password_hash;"
+## Repository Layout
 
-4. Run Application:
-   cd raspberry-pi/irrigation_project/IrrigationSystem.Web
-   dotnet run
+```text
+SmartGarden/
+|-- README.md
+|-- esp32/
+|   |-- esp32.ino
+|   `-- libraries.txt
+`-- raspberry-pi/
+    |-- setup.sh
+    |-- irrigation_db.sql
+    |-- collector.py
+    |-- hash_passwords.py
+    `-- irrigation_project/
+        |-- IrrigationSystem.sln
+        |-- IrrigationSystem.Web/
+        `-- IrrigationSystem.Worker/
+```
 
-========================================
-ESP32 SETUP
-========================================
+## Quick Start
 
-1. Install Libraries in Arduino IDE:
-   - Adafruit BME280
-   - Adafruit Unified Sensor
+From the repository root:
 
-2. Upload esp32/garden_brain.ino
+```bash
+cd raspberry-pi
+chmod +x setup.sh
+./setup.sh
+```
 
-3. Connect to "GardenBrainOpen" WiFi
+Then start the web app:
 
-4. ESP32 IP: 192.168.4.100
+```bash
+cd irrigation_project/IrrigationSystem.Web
+dotnet restore
+dotnet run
+```
 
-========================================
-CONNECTION INFO
-========================================
+Open:
 
-Database:
-  Host: localhost
-  Port: 5432
-  Database: irrigation_db
-  Username: denis
-  Password: 1203
+```text
+http://localhost:5000
+```
 
-Web Application:
-  URL: http://localhost:5000
-  API: http://192.168.4.100/data
+From another device on the same network, use:
 
-========================================
-TROUBLESHOOTING
-========================================
+```text
+http://<raspberry-pi-ip>:5000
+```
 
-Error: "password authentication failed"
-  → Run: sudo -u postgres psql -c "ALTER ROLE denis WITH LOGIN PASSWORD '1203';"
+Default web login:
 
-Error: "Failed to connect to localhost:5432"
-  → Check PostgreSQL: sudo systemctl status postgresql
-  → Start: sudo systemctl start postgresql
+```text
+Username: denis
+Password: 987654456789
+```
 
-Error: "Database irrigation_db does not exist"
-  → Run: cd raspberry-pi && ./setup.sh
+Default database connection used by the app:
+
+```text
+Host: localhost
+Port: 5432
+Database: irrigation_db
+Username: denis
+Password: 1203
+```
+
+The web login password and the PostgreSQL role password are different.
+
+## Getting Data Into the Dashboard
+
+### Option 1: Demo Mode
+
+Use this when you want to test the dashboard without hardware.
+
+1. Start the web app.
+2. Log in.
+3. Go to `Settings`.
+4. Enable `Demo Mode`.
+5. Return to the dashboard. New readings are generated about every 5 seconds.
+
+### Option 2: HTTP API
+
+You can post a reading directly:
+
+```bash
+curl -X POST http://localhost:5000/api/sensor-readings \
+  -H "Content-Type: application/json" \
+  -d '{"device":"manual-test","zoneId":1,"temperature":24.5,"humidity":60,"soilMoisture":45}'
+```
+
+The API accepts either `soilMoisture` or `moisture`.
+
+### Option 3: ESP32-C3 Sketch
+
+Upload `esp32/esp32.ino` to the ESP32.
+
+The checked-in sketch expects:
+
+```text
+Wi-Fi SSID: GardenBrain
+Wi-Fi password: empty
+ESP32 static IP: 192.168.4.100
+Raspberry Pi/API IP: 192.168.4.1
+API URL: http://192.168.4.1:5000/api/sensor-readings
+```
+
+Configure the Raspberry Pi access point separately so that it provides the
+`GardenBrain` network and uses `192.168.4.1`. The setup script does not create
+the Wi-Fi access point.
+
+After upload, the ESP32:
+
+- posts a JSON reading every 5 seconds;
+- exposes a status page at `http://192.168.4.100/`;
+- exposes latest JSON data at `http://192.168.4.100/data`;
+- can send a reading immediately from `http://192.168.4.100/send-now`.
+
+## API Endpoints
+
+Main endpoints exposed by `IrrigationSystem.Web`:
+
+```text
+GET  /api/zones
+GET  /api/latest
+POST /api/sensor-readings
+GET  /api/zone/{zoneId}/history?hours=24
+POST /api/adaptive/run
+```
+
+Example sensor payload:
+
+```json
+{
+  "device": "esp32-c3",
+  "zoneId": 1,
+  "readingCount": 42,
+  "temperature": 24.5,
+  "humidity": 60.0,
+  "soilMoisture": 45.0,
+  "rssi": -55,
+  "ip": "192.168.4.100"
+}
+```
+
+## MQTT
+
+MQTT is optional for viewing HTTP sensor data, but it is required for the
+current manual and automatic valve command path.
+
+Install Mosquitto on the Raspberry Pi if you want MQTT commands:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y mosquitto mosquitto-clients
+sudo systemctl enable --now mosquitto
+```
+
+The web app publishes valve commands to:
+
+```text
+irrigation/zone/{zoneId}/valve
+```
+
+Payload examples:
+
+```json
+{"action":"open","duration":10}
+{"action":"close"}
+```
+
+The web app hosted MQTT sensor subscriber listens to:
+
+```text
+garden/zone1/sensors
+garden/zone2/sensors
+garden/zone3/sensors
+```
+
+Expected payload:
+
+```json
+{"moisture":45,"temperature":24.5,"humidity":60}
+```
+
+The optional standalone worker project uses a different sensor topic pattern:
+
+```text
+irrigation/zone/{zoneId}/sensors
+```
+
+Run it only if you specifically want that separate MQTT ingestion process:
+
+```bash
+cd raspberry-pi/irrigation_project/IrrigationSystem.Worker
+dotnet run
+```
+
+## Database
+
+`raspberry-pi/setup.sh` does the following:
+
+- installs PostgreSQL if `psql` is missing;
+- creates or updates the `denis` PostgreSQL role with password `1203`;
+- creates `irrigation_db` if needed;
+- loads `raspberry-pi/irrigation_db.sql`;
+- seeds default system settings;
+- seeds the default web login for user `denis`;
+- sets the PostgreSQL `postgres` password to `postgres`;
+- changes local PostgreSQL auth entries from `peer` to `trust`.
+
+The SQL file was dumped from PostgreSQL 17.8. If your distribution installs an
+older PostgreSQL release, either use PostgreSQL 17 or regenerate/trim the dump
+for that server version before running the setup script.
+
+The schema includes:
+
+- `zones`
+- `sensor_readings`
+- `irrigation_events`
+- `system_settings`
+- `system_logs`
+- `users`
+- `login_attempts`
+
+Default zones are created by the application when Demo Mode starts or when the
+first valid sensor reading is posted.
+
+For a manual schema load:
+
+```bash
+cd raspberry-pi
+sudo -u postgres psql -d irrigation_db -f irrigation_db.sql
+```
+
+To reset the application login to the default password:
+
+```bash
+sudo -u postgres psql -d irrigation_db <<'SQL'
+INSERT INTO users (username, password_hash)
+VALUES ('denis', '$2b$12$J3Z9neTGYCEkrtqQN3bCpuwQXdCgnUgIJMSYEdAFACfDdFvL2dqC6')
+ON CONFLICT (username) DO UPDATE
+SET password_hash = EXCLUDED.password_hash;
+SQL
+```
+
+## Troubleshooting
+
+### The app opens on port 5000, not 5093
+
+`Program.cs` calls `UseUrls("http://0.0.0.0:5000")`, which overrides the
+development profile URL in `launchSettings.json`.
+
+### Dashboard says no zones or no data
+
+Enable Demo Mode or post a sensor reading to `/api/sensor-readings`. The SQL
+schema does not seed zones by itself.
+
+### PostgreSQL password authentication failed
+
+Run the setup script again:
+
+```bash
+cd raspberry-pi
+./setup.sh
+```
+
+Or reset the role password manually:
+
+```bash
+sudo -u postgres psql -c "ALTER ROLE denis WITH LOGIN PASSWORD '1203';"
+```
+
+### Cannot connect to PostgreSQL on localhost:5432
+
+```bash
+sudo systemctl status postgresql
+sudo systemctl start postgresql
+```
+
+### MQTT connection errors appear in logs
+
+Start Mosquitto if you need valve commands or MQTT sensor ingestion:
+
+```bash
+sudo systemctl start mosquitto
+```
+
+If you only use Demo Mode or HTTP sensor posts, MQTT errors do not prevent the
+dashboard from storing and displaying readings.
+
+### ESP32 cannot connect
+
+Check that:
+
+- the Raspberry Pi access point SSID is exactly `GardenBrain`;
+- the AP has no password, or the sketch password was updated;
+- the Raspberry Pi AP IP is `192.168.4.1`;
+- the web app is running on port `5000`;
+- the ESP32 static IP `192.168.4.100` is not already in use.
+
+## Security Notes
+
+This project currently contains hard-coded development credentials and an open
+ESP32 Wi-Fi configuration. Before using it on a real network, change the web
+login, database password, PostgreSQL access rules, and Wi-Fi settings.
+
+`setup.sh` also changes local PostgreSQL authentication to simplify testing on a
+Raspberry Pi. Review `/etc/postgresql/*/main/pg_hba.conf` before treating the
+device as production-ready.
+
+## Helper Scripts
+
+- `raspberry-pi/hash_passwords.py` prints BCrypt hashes for sample passwords.
+  It does not update the database automatically.
+- `raspberry-pi/collector.py` polls `http://192.168.4.100/data` and appends JSON
+  lines to `sensor_data.json`. It may need small field-name updates if you use
+  it with the current ESP32 sketch output.
