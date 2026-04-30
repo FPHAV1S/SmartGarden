@@ -56,15 +56,27 @@ public class DemoModeService : BackgroundService
             using var scope = ScopeFactory.CreateScope();
             var sensorService = scope.ServiceProvider.GetRequiredService<SensorDataService>();
 
-            for (int zoneId = 1; zoneId <= 3; zoneId++)
+            var zones = await sensorService.EnsureDefaultZonesAsync();
+            var demoZones = zones
+                .Where(zone => zone.IsActive)
+                .Take(ZoneMoisture.Length)
+                .ToList();
+
+            if (demoZones.Count == 0)
             {
-                SimulateSensorChanges(zoneId - 1);
+                Logger.LogWarning("Demo mode has no active zones to generate data for");
+                return;
+            }
+
+            for (var zoneIndex = 0; zoneIndex < demoZones.Count; zoneIndex++)
+            {
+                SimulateSensorChanges(zoneIndex);
 
                 await sensorService.InsertSensorReadingAsync(
-                    zoneId,
-                    ZoneMoisture[zoneId - 1],
-                    ZoneTemperature[zoneId - 1],
-                    ZoneHumidity[zoneId - 1]
+                    demoZones[zoneIndex].Id,
+                    ZoneMoisture[zoneIndex],
+                    ZoneTemperature[zoneIndex],
+                    ZoneHumidity[zoneIndex]
                 );
             }
 

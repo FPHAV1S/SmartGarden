@@ -10,10 +10,11 @@ public class Worker : BackgroundService
     private readonly DatabaseService Db;
     private IMqttClient? MqttClient;
 
-    public Worker(ILogger<Worker> logger)
+    public Worker(ILogger<Worker> logger, IConfiguration configuration)
     {
         Logger = logger;
-        var connectionString = "Host=localhost;Database=irrigation_project;Username=denis;Password=1203";
+        var connectionString = configuration.GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
         Db = new DatabaseService(connectionString, 
             LoggerFactory.Create(builder => builder.AddConsole()).CreateLogger<DatabaseService>());
     }

@@ -32,7 +32,8 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 
 builder.Services.AddAuthorization();
 
-var connectionString = "Host=localhost;Database=irrigation_project;Username=denis;Password=1203";
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
 builder.Services.AddSingleton(sp => 
     new SensorDataService(connectionString, sp.GetRequiredService<ILogger<SensorDataService>>()));
 

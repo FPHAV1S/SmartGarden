@@ -128,6 +128,40 @@ public class SensorDataService
 
         return zones;
     }
+
+    public async Task<List<Zone>> EnsureDefaultZonesAsync()
+    {
+        var zones = await GetZonesAsync();
+        if (zones.Count > 0)
+        {
+            return zones;
+        }
+
+        try
+        {
+            await using var conn = new NpgsqlConnection(ConnectionString);
+            await conn.OpenAsync();
+
+            var sql = @"
+                INSERT INTO zones (name, plant_type, moisture_threshold, is_active)
+                VALUES
+                    ('Zone 1', 'Tomatoes', 30.0, true),
+                    ('Zone 2', 'Herbs', 35.0, true),
+                    ('Zone 3', 'Lettuce', 40.0, true)";
+
+            await using var cmd = new NpgsqlCommand(sql, conn);
+            await cmd.ExecuteNonQueryAsync();
+
+            Logger.LogInformation("Created default irrigation zones");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to create default zones");
+        }
+
+        return await GetZonesAsync();
+    }
+
     public async Task<int> StartIrrigationEventAsync(int zoneId, string triggerReason, float? moistureBefore)
     {
         try

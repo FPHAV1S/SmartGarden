@@ -10,7 +10,7 @@
     <div class="filters">
         <label>
             Zone:
-            <select @bind="SelectedZoneId">
+            <select @bind="SelectedZoneId" @bind:after="LoadHistory">
                 <option value="1">Zone 1</option>
                 <option value="2">Zone 2</option>
                 <option value="3">Zone 3</option>
@@ -42,19 +42,24 @@
     else
     {
         <div class="charts-grid">
-
-            <div class="chart-card">
-                <h4>Moisture %</h4>
-                <RadzenChart Style="height: 300px; margin-bottom: 30px;">
+            <div class="chart-card metric-card metric-moisture">
+                <div class="chart-card-header">
+                    <div>
+                        <h4>Moisture</h4>
+                        <span>Soil water level</span>
+                    </div>
+                    <div class="metric-pill"><span></span>%</div>
+                </div>
+                <RadzenChart class="history-chart" Style="height: 300px;">
+                    <RadzenLegend Visible="false" />
                     <RadzenLineSeries Data="@ChartData"
                                       CategoryProperty="RecordedAt"
                                       ValueProperty="Moisture"
                                       Title="Moisture"
                                       Stroke="#FF6B35"
-                                      StrokeWidth="3">
-                        <RadzenMarkers MarkerType="MarkerType.Circle" Fill="#FF6B35" Size="6" />
+                                      StrokeWidth="2">
+                        <RadzenMarkers MarkerType="MarkerType.Circle" Fill="#FF6B35" Size="4" />
                     </RadzenLineSeries>
-
                     <RadzenCategoryAxis FormatString="{0:HH:mm}" />
                     <RadzenValueAxis Min="0" Max="100">
                         <RadzenGridLines Visible="true" />
@@ -62,18 +67,24 @@
                 </RadzenChart>
             </div>
 
-            <div class="chart-card">
-                <h4>Temperature °C</h4>
-                <RadzenChart Style="height: 300px; margin-bottom: 30px;">
+            <div class="chart-card metric-card metric-temperature">
+                <div class="chart-card-header">
+                    <div>
+                        <h4>Temperature</h4>
+                        <span>Ambient sensor reading</span>
+                    </div>
+                    <div class="metric-pill"><span></span>°C</div>
+                </div>
+                <RadzenChart class="history-chart" Style="height: 300px;">
+                    <RadzenLegend Visible="false" />
                     <RadzenLineSeries Data="@ChartData"
                                       CategoryProperty="RecordedAt"
                                       ValueProperty="Temperature"
                                       Title="Temperature"
                                       Stroke="#DC143C"
-                                      StrokeWidth="3">
-                        <RadzenMarkers MarkerType="MarkerType.Circle" Fill="#DC143C" Size="6" />
+                                      StrokeWidth="2">
+                        <RadzenMarkers MarkerType="MarkerType.Circle" Fill="#DC143C" Size="4" />
                     </RadzenLineSeries>
-
                     <RadzenCategoryAxis FormatString="{0:HH:mm}" />
                     <RadzenValueAxis Min="0" Max="40">
                         <RadzenGridLines Visible="true" />
@@ -81,25 +92,30 @@
                 </RadzenChart>
             </div>
 
-            <div class="chart-card">
-                <h4>Humidity %</h4>
-                <RadzenChart Style="height: 300px; margin-bottom: 30px;">
+            <div class="chart-card metric-card metric-humidity">
+                <div class="chart-card-header">
+                    <div>
+                        <h4>Humidity</h4>
+                        <span>Air moisture level</span>
+                    </div>
+                    <div class="metric-pill"><span></span>%</div>
+                </div>
+                <RadzenChart class="history-chart" Style="height: 300px;">
+                    <RadzenLegend Visible="false" />
                     <RadzenLineSeries Data="@ChartData"
                                       CategoryProperty="RecordedAt"
                                       ValueProperty="Humidity"
                                       Title="Humidity"
                                       Stroke="#4169E1"
-                                      StrokeWidth="3">
-                        <RadzenMarkers MarkerType="MarkerType.Circle" Fill="#4169E1" Size="6" />
+                                      StrokeWidth="2">
+                        <RadzenMarkers MarkerType="MarkerType.Circle" Fill="#4169E1" Size="4" />
                     </RadzenLineSeries>
-
                     <RadzenCategoryAxis FormatString="{0:HH:mm}" />
                     <RadzenValueAxis Min="0" Max="100">
                         <RadzenGridLines Visible="true" />
                     </RadzenValueAxis>
                 </RadzenChart>
             </div>
-
         </div>
 
         <div class="stats-summary">
@@ -170,7 +186,6 @@
         IsLoading = true;
 
         HistoryData = await DataService.GetZoneHistoryAsync(SelectedZoneId, TimeRangeHours);
-
         ChartData = new List<SensorReading>(HistoryData);
 
         if (ChartData.Count > 0)
