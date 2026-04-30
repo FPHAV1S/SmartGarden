@@ -50,6 +50,11 @@ builder.Services.AddHostedService<AutoWateringService>();
 builder.Services.AddSingleton<DemoModeService>();
 builder.Services.AddHostedService<DemoModeService>(sp => sp.GetRequiredService<DemoModeService>());
 
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MinRequestBodyDataRate = null;
+});
+
 builder.WebHost.UseUrls("http://0.0.0.0:5000");
 
 var app = builder.Build();

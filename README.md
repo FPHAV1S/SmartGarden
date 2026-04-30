@@ -369,6 +369,13 @@ Check that:
 - the web app is running on port `5000`;
 - the ESP32 static IP `192.168.4.100` is not already in use.
 
+### Request body timed out due to data arriving too slowly
+
+This can happen when an ESP32 or another small client posts JSON slowly over an
+unstable Wi-Fi link. The web app disables Kestrel's
+`MinRequestBodyDataRate` limit so slow sensor posts are accepted instead of
+failing before the API action runs.
+
 ## Security Notes
 
 This project currently contains hard-coded development credentials and an open

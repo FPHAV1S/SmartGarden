@@ -15,6 +15,7 @@ var tests = new TestCase[]
     new("Database schema contains required tables", Tests.DatabaseSchemaContainsRequiredTables),
     new("Web appsettings uses the expected local database", Tests.WebAppSettingsUseExpectedDatabase),
     new("ESP32 sketch posts to the web sensor API", Tests.Esp32SketchPostsToWebSensorApi),
+    new("Web host allows slow embedded request bodies", Tests.WebHostAllowsSlowEmbeddedRequestBodies),
     new("Web host is configured for port 5000", Tests.WebHostUsesPort5000)
 };
 
@@ -185,6 +186,20 @@ internal static class Tests
             "Program.cs"));
 
         Assert.Contains("UseUrls(\"http://0.0.0.0:5000\")", program);
+
+        return Task.CompletedTask;
+    }
+
+    public static Task WebHostAllowsSlowEmbeddedRequestBodies()
+    {
+        var program = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Program.cs"));
+
+        Assert.Contains("ConfigureKestrel", program);
+        Assert.Contains("MinRequestBodyDataRate = null", program);
 
         return Task.CompletedTask;
     }
