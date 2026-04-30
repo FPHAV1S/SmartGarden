@@ -20,6 +20,10 @@
         <div class="top">
             <div class="logo">
                 <h1>🌱 SmartGarden</h1>
+                <a class="logout-button" href="/logout">
+                    <span class="logout-icon">🚪</span>
+                    <span>Logout</span>
+                </a>
             </div>
         </div>
 
@@ -119,6 +123,35 @@
         font-size: 1.5rem;
         font-weight: 700;
         color: white;
+    }
+
+    .logout-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.6rem;
+        width: 100%;
+        margin-top: 1.1rem;
+        padding: 0.65rem 0.9rem;
+        border: 1px solid rgba(248, 113, 113, 0.45);
+        border-radius: 6px;
+        color: white;
+        background: rgba(239, 68, 68, 0.24);
+        font-size: 1rem;
+        font-weight: 700;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+
+    .logout-button:hover {
+        color: white;
+        background: rgba(239, 68, 68, 0.42);
+        border-color: rgba(248, 113, 113, 0.72);
+    }
+
+    .logout-icon {
+        font-size: 1.05rem;
+        line-height: 1;
     }
 
     .nav-menu {

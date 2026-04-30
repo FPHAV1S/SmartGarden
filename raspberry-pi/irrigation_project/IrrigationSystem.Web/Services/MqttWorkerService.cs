@@ -96,7 +96,7 @@ public class MqttWorkerService : BackgroundService
     private MqttClientOptions GetOptions()
     {
         return new MqttClientOptionsBuilder()
-            .WithClientId("IrrigationWorker")
+            .WithClientId($"IrrigationWorker-{Environment.MachineName}-{Environment.ProcessId}")
             .WithTcpServer("localhost", 1883)
             .Build();
     }

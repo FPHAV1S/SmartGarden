@@ -24,7 +24,7 @@ public class MqttService
         {
             var options = new MqttClientOptionsBuilder()
                 .WithTcpServer("localhost", 1883)
-                .WithClientId("IrrigationWeb")
+                .WithClientId($"IrrigationWeb-{Environment.MachineName}-{Environment.ProcessId}")
                 .Build();
 
             await MqttClient.ConnectAsync(options);

@@ -1,6 +1,6 @@
 {
   "Version": 1,
-  "Hash": "RwNNcZLo5VrD2nV+imuwRpPzixWDCZ57WLuTc63veoo=",
+  "Hash": "2EQt3gjaYx/qdQmPkn+FuCg3Y7Z8mZ3tfCpWLIiWdi4=",
   "Source": "IrrigationSystem.Web",
   "BasePath": "_content/IrrigationSystem.Web",
   "Mode": "Default",
@@ -8,19 +8,19 @@
   "ReferencedProjectsConfiguration": [],
   "DiscoveryPatterns": [
     {
-      "Name": "IrrigationSystem.Web\\wwwroot",
+      "Name": "IrrigationSystem.Web/wwwroot",
       "Source": "IrrigationSystem.Web",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "Pattern": "**"
     }
   ],
   "Assets": [
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\components\\_qrcode.scss",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/components/_qrcode.scss",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "css/components/_qrcode.scss",
       "AssetKind": "All",
@@ -33,13 +33,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\components\\_qrcode.scss"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/components/_qrcode.scss"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\dark-base.css",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/dark-base.css",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "css/dark-base.css",
       "AssetKind": "All",
@@ -52,13 +52,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\dark-base.css"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/dark-base.css"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\dark-wcag.css",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/dark-wcag.css",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "css/dark-wcag.css",
       "AssetKind": "All",
@@ -71,13 +71,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\dark-wcag.css"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/dark-wcag.css"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\dark.css",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/dark.css",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "css/dark.css",
       "AssetKind": "All",
@@ -90,13 +90,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\dark.css"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/dark.css"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\default-base.css",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/default-base.css",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "css/default-base.css",
       "AssetKind": "All",
@@ -109,13 +109,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\default-base.css"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/default-base.css"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\default-wcag.css",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/default-wcag.css",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "css/default-wcag.css",
       "AssetKind": "All",
@@ -128,13 +128,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\default-wcag.css"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/default-wcag.css"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\default.css",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/default.css",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "css/default.css",
       "AssetKind": "All",
@@ -147,13 +147,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\default.css"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/default.css"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\humanistic-base.css",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/humanistic-base.css",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "css/humanistic-base.css",
       "AssetKind": "All",
@@ -166,13 +166,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\humanistic-base.css"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/humanistic-base.css"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\humanistic-dark-base.css",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/humanistic-dark-base.css",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "css/humanistic-dark-base.css",
       "AssetKind": "All",
@@ -185,13 +185,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\humanistic-dark-base.css"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/humanistic-dark-base.css"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\humanistic-dark-wcag.css",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/humanistic-dark-wcag.css",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "css/humanistic-dark-wcag.css",
       "AssetKind": "All",
@@ -204,13 +204,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\humanistic-dark-wcag.css"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/humanistic-dark-wcag.css"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\humanistic-dark.css",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/humanistic-dark.css",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "css/humanistic-dark.css",
       "AssetKind": "All",
@@ -223,13 +223,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\humanistic-dark.css"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/humanistic-dark.css"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\humanistic-wcag.css",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/humanistic-wcag.css",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "css/humanistic-wcag.css",
       "AssetKind": "All",
@@ -242,13 +242,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\humanistic-wcag.css"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/humanistic-wcag.css"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\humanistic.css",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/humanistic.css",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "css/humanistic.css",
       "AssetKind": "All",
@@ -261,13 +261,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\humanistic.css"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/humanistic.css"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\material-base.css",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/material-base.css",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "css/material-base.css",
       "AssetKind": "All",
@@ -280,13 +280,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\material-base.css"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/material-base.css"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\material-dark-base.css",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/material-dark-base.css",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "css/material-dark-base.css",
       "AssetKind": "All",
@@ -299,13 +299,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\material-dark-base.css"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/material-dark-base.css"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\material-dark-wcag.css",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/material-dark-wcag.css",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "css/material-dark-wcag.css",
       "AssetKind": "All",
@@ -318,13 +318,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\material-dark-wcag.css"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/material-dark-wcag.css"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\material-dark.css",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/material-dark.css",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "css/material-dark.css",
       "AssetKind": "All",
@@ -337,13 +337,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\material-dark.css"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/material-dark.css"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\material-wcag.css",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/material-wcag.css",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "css/material-wcag.css",
       "AssetKind": "All",
@@ -356,13 +356,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\material-wcag.css"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/material-wcag.css"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\material.css",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/material.css",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "css/material.css",
       "AssetKind": "All",
@@ -375,13 +375,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\material.css"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/material.css"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\math.css",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/math.css",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "css/math.css",
       "AssetKind": "All",
@@ -394,13 +394,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\math.css"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/math.css"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\software-base.css",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/software-base.css",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "css/software-base.css",
       "AssetKind": "All",
@@ -413,13 +413,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\software-base.css"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/software-base.css"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\software-dark-base.css",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/software-dark-base.css",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "css/software-dark-base.css",
       "AssetKind": "All",
@@ -432,13 +432,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\software-dark-base.css"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/software-dark-base.css"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\software-dark-wcag.css",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/software-dark-wcag.css",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "css/software-dark-wcag.css",
       "AssetKind": "All",
@@ -451,13 +451,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\software-dark-wcag.css"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/software-dark-wcag.css"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\software-dark.css",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/software-dark.css",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "css/software-dark.css",
       "AssetKind": "All",
@@ -470,13 +470,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\software-dark.css"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/software-dark.css"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\software-wcag.css",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/software-wcag.css",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "css/software-wcag.css",
       "AssetKind": "All",
@@ -489,13 +489,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\software-wcag.css"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/software-wcag.css"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\software.css",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/software.css",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "css/software.css",
       "AssetKind": "All",
@@ -508,13 +508,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\software.css"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/software.css"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\standard-base.css",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/standard-base.css",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "css/standard-base.css",
       "AssetKind": "All",
@@ -527,13 +527,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\standard-base.css"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/standard-base.css"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\standard-dark-base.css",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/standard-dark-base.css",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "css/standard-dark-base.css",
       "AssetKind": "All",
@@ -546,13 +546,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\standard-dark-base.css"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/standard-dark-base.css"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\standard-dark-wcag.css",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/standard-dark-wcag.css",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "css/standard-dark-wcag.css",
       "AssetKind": "All",
@@ -565,13 +565,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\standard-dark-wcag.css"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/standard-dark-wcag.css"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\standard-dark.css",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/standard-dark.css",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "css/standard-dark.css",
       "AssetKind": "All",
@@ -584,13 +584,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\standard-dark.css"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/standard-dark.css"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\standard-wcag.css",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/standard-wcag.css",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "css/standard-wcag.css",
       "AssetKind": "All",
@@ -603,13 +603,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\standard-wcag.css"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/standard-wcag.css"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\standard.css",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/standard.css",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "css/standard.css",
       "AssetKind": "All",
@@ -622,13 +622,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\css\\standard.css"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/css/standard.css"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\fonts\\MaterialSymbolsOutlined.woff2",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/fonts/MaterialSymbolsOutlined.woff2",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "fonts/MaterialSymbolsOutlined.woff2",
       "AssetKind": "All",
@@ -641,13 +641,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\fonts\\MaterialSymbolsOutlined.woff2"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/fonts/MaterialSymbolsOutlined.woff2"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\fonts\\RobotoFlex.woff2",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/fonts/RobotoFlex.woff2",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "fonts/RobotoFlex.woff2",
       "AssetKind": "All",
@@ -660,13 +660,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\fonts\\RobotoFlex.woff2"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/fonts/RobotoFlex.woff2"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\fonts\\SourceSans3VF-Italic.ttf.woff2",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/fonts/SourceSans3VF-Italic.ttf.woff2",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "fonts/SourceSans3VF-Italic.ttf.woff2",
       "AssetKind": "All",
@@ -679,13 +679,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\fonts\\SourceSans3VF-Italic.ttf.woff2"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/fonts/SourceSans3VF-Italic.ttf.woff2"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\fonts\\SourceSans3VF-Upright.ttf.woff2",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/fonts/SourceSans3VF-Upright.ttf.woff2",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "fonts/SourceSans3VF-Upright.ttf.woff2",
       "AssetKind": "All",
@@ -698,13 +698,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\fonts\\SourceSans3VF-Upright.ttf.woff2"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/fonts/SourceSans3VF-Upright.ttf.woff2"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\Radzen.Blazor.js",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/Radzen.Blazor.js",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "Radzen.Blazor.js",
       "AssetKind": "All",
@@ -717,13 +717,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\Radzen.Blazor.js"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/Radzen.Blazor.js"
     },
     {
-      "Identity": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\Radzen.Blazor.min.js",
+      "Identity": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/Radzen.Blazor.min.js",
       "SourceId": "Radzen.Blazor",
       "SourceType": "Package",
-      "ContentRoot": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\",
+      "ContentRoot": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/",
       "BasePath": "_content/Radzen.Blazor",
       "RelativePath": "Radzen.Blazor.min.js",
       "AssetKind": "All",
@@ -736,13 +736,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\dp222\\.nuget\\packages\\radzen.blazor\\9.0.5\\staticwebassets\\Radzen.Blazor.min.js"
+      "OriginalItemSpec": "/home/gardenbrain/.nuget/packages/radzen.blazor/9.0.5/staticwebassets/Radzen.Blazor.min.js"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\css\\login.css",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/css/login.css",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "css/login.css",
       "AssetKind": "All",
@@ -755,13 +755,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\css\\login.css"
+      "OriginalItemSpec": "wwwroot/css/login.css"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\css\\site.css",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/css/site.css",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "css/site.css",
       "AssetKind": "All",
@@ -774,13 +774,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\css\\site.css"
+      "OriginalItemSpec": "wwwroot/css/site.css"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\favicon.ico",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/favicon.ico",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "favicon.ico",
       "AssetKind": "All",
@@ -793,13 +793,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\favicon.ico"
+      "OriginalItemSpec": "wwwroot/favicon.ico"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\js\\site.js",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/js/site.js",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "js/site.js",
       "AssetKind": "All",
@@ -812,13 +812,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\js\\site.js"
+      "OriginalItemSpec": "wwwroot/js/site.js"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-grid.css",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/css/bootstrap-grid.css",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/css/bootstrap-grid.css",
       "AssetKind": "All",
@@ -831,13 +831,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-grid.css"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/css/bootstrap-grid.css"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-grid.css.map",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/css/bootstrap-grid.css.map",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/css/bootstrap-grid.css.map",
       "AssetKind": "All",
@@ -850,13 +850,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-grid.css.map"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/css/bootstrap-grid.css.map"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-grid.min.css",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/css/bootstrap-grid.min.css",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/css/bootstrap-grid.min.css",
       "AssetKind": "All",
@@ -869,13 +869,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-grid.min.css"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/css/bootstrap-grid.min.css"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-grid.min.css.map",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/css/bootstrap-grid.min.css.map",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/css/bootstrap-grid.min.css.map",
       "AssetKind": "All",
@@ -888,13 +888,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-grid.min.css.map"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/css/bootstrap-grid.min.css.map"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-grid.rtl.css",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/css/bootstrap-grid.rtl.css",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/css/bootstrap-grid.rtl.css",
       "AssetKind": "All",
@@ -907,13 +907,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-grid.rtl.css"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/css/bootstrap-grid.rtl.css"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-grid.rtl.css.map",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/css/bootstrap-grid.rtl.css.map",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/css/bootstrap-grid.rtl.css.map",
       "AssetKind": "All",
@@ -926,13 +926,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-grid.rtl.css.map"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/css/bootstrap-grid.rtl.css.map"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-grid.rtl.min.css",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/css/bootstrap-grid.rtl.min.css",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/css/bootstrap-grid.rtl.min.css",
       "AssetKind": "All",
@@ -945,13 +945,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-grid.rtl.min.css"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/css/bootstrap-grid.rtl.min.css"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-grid.rtl.min.css.map",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/css/bootstrap-grid.rtl.min.css.map",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/css/bootstrap-grid.rtl.min.css.map",
       "AssetKind": "All",
@@ -964,13 +964,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-grid.rtl.min.css.map"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/css/bootstrap-grid.rtl.min.css.map"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-reboot.css",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/css/bootstrap-reboot.css",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/css/bootstrap-reboot.css",
       "AssetKind": "All",
@@ -983,13 +983,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-reboot.css"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/css/bootstrap-reboot.css"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-reboot.css.map",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/css/bootstrap-reboot.css.map",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/css/bootstrap-reboot.css.map",
       "AssetKind": "All",
@@ -1002,13 +1002,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-reboot.css.map"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/css/bootstrap-reboot.css.map"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-reboot.min.css",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/css/bootstrap-reboot.min.css",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/css/bootstrap-reboot.min.css",
       "AssetKind": "All",
@@ -1021,13 +1021,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-reboot.min.css"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/css/bootstrap-reboot.min.css"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-reboot.min.css.map",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/css/bootstrap-reboot.min.css.map",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/css/bootstrap-reboot.min.css.map",
       "AssetKind": "All",
@@ -1040,13 +1040,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-reboot.min.css.map"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/css/bootstrap-reboot.min.css.map"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-reboot.rtl.css",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/css/bootstrap-reboot.rtl.css",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/css/bootstrap-reboot.rtl.css",
       "AssetKind": "All",
@@ -1059,13 +1059,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-reboot.rtl.css"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/css/bootstrap-reboot.rtl.css"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-reboot.rtl.css.map",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/css/bootstrap-reboot.rtl.css.map",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/css/bootstrap-reboot.rtl.css.map",
       "AssetKind": "All",
@@ -1078,13 +1078,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-reboot.rtl.css.map"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/css/bootstrap-reboot.rtl.css.map"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-reboot.rtl.min.css",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/css/bootstrap-reboot.rtl.min.css",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/css/bootstrap-reboot.rtl.min.css",
       "AssetKind": "All",
@@ -1097,13 +1097,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-reboot.rtl.min.css"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/css/bootstrap-reboot.rtl.min.css"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-reboot.rtl.min.css.map",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/css/bootstrap-reboot.rtl.min.css.map",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/css/bootstrap-reboot.rtl.min.css.map",
       "AssetKind": "All",
@@ -1116,13 +1116,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-reboot.rtl.min.css.map"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/css/bootstrap-reboot.rtl.min.css.map"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-utilities.css",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/css/bootstrap-utilities.css",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/css/bootstrap-utilities.css",
       "AssetKind": "All",
@@ -1135,13 +1135,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-utilities.css"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/css/bootstrap-utilities.css"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-utilities.css.map",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/css/bootstrap-utilities.css.map",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/css/bootstrap-utilities.css.map",
       "AssetKind": "All",
@@ -1154,13 +1154,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-utilities.css.map"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/css/bootstrap-utilities.css.map"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-utilities.min.css",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/css/bootstrap-utilities.min.css",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/css/bootstrap-utilities.min.css",
       "AssetKind": "All",
@@ -1173,13 +1173,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-utilities.min.css"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/css/bootstrap-utilities.min.css"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-utilities.min.css.map",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/css/bootstrap-utilities.min.css.map",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/css/bootstrap-utilities.min.css.map",
       "AssetKind": "All",
@@ -1192,13 +1192,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-utilities.min.css.map"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/css/bootstrap-utilities.min.css.map"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-utilities.rtl.css",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/css/bootstrap-utilities.rtl.css",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/css/bootstrap-utilities.rtl.css",
       "AssetKind": "All",
@@ -1211,13 +1211,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-utilities.rtl.css"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/css/bootstrap-utilities.rtl.css"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-utilities.rtl.css.map",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/css/bootstrap-utilities.rtl.css.map",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/css/bootstrap-utilities.rtl.css.map",
       "AssetKind": "All",
@@ -1230,13 +1230,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-utilities.rtl.css.map"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/css/bootstrap-utilities.rtl.css.map"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-utilities.rtl.min.css",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/css/bootstrap-utilities.rtl.min.css",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/css/bootstrap-utilities.rtl.min.css",
       "AssetKind": "All",
@@ -1249,13 +1249,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-utilities.rtl.min.css"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/css/bootstrap-utilities.rtl.min.css"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-utilities.rtl.min.css.map",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/css/bootstrap-utilities.rtl.min.css.map",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/css/bootstrap-utilities.rtl.min.css.map",
       "AssetKind": "All",
@@ -1268,13 +1268,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap-utilities.rtl.min.css.map"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/css/bootstrap-utilities.rtl.min.css.map"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap.css",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/css/bootstrap.css",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/css/bootstrap.css",
       "AssetKind": "All",
@@ -1287,13 +1287,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap.css"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/css/bootstrap.css"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap.css.map",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/css/bootstrap.css.map",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/css/bootstrap.css.map",
       "AssetKind": "All",
@@ -1306,13 +1306,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap.css.map"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/css/bootstrap.css.map"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap.min.css",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/css/bootstrap.min.css",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/css/bootstrap.min.css",
       "AssetKind": "All",
@@ -1325,13 +1325,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap.min.css"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/css/bootstrap.min.css"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap.min.css.map",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/css/bootstrap.min.css.map",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/css/bootstrap.min.css.map",
       "AssetKind": "All",
@@ -1344,13 +1344,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap.min.css.map"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/css/bootstrap.min.css.map"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap.rtl.css",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/css/bootstrap.rtl.css",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/css/bootstrap.rtl.css",
       "AssetKind": "All",
@@ -1363,13 +1363,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap.rtl.css"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/css/bootstrap.rtl.css"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap.rtl.css.map",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/css/bootstrap.rtl.css.map",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/css/bootstrap.rtl.css.map",
       "AssetKind": "All",
@@ -1382,13 +1382,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap.rtl.css.map"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/css/bootstrap.rtl.css.map"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap.rtl.min.css",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/css/bootstrap.rtl.min.css",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/css/bootstrap.rtl.min.css",
       "AssetKind": "All",
@@ -1401,13 +1401,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap.rtl.min.css"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/css/bootstrap.rtl.min.css"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap.rtl.min.css.map",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/css/bootstrap.rtl.min.css.map",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/css/bootstrap.rtl.min.css.map",
       "AssetKind": "All",
@@ -1420,13 +1420,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\css\\bootstrap.rtl.min.css.map"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/css/bootstrap.rtl.min.css.map"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\js\\bootstrap.bundle.js",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/js/bootstrap.bundle.js",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/js/bootstrap.bundle.js",
       "AssetKind": "All",
@@ -1439,13 +1439,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\js\\bootstrap.bundle.js"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/js/bootstrap.bundle.js"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\js\\bootstrap.bundle.js.map",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/js/bootstrap.bundle.js.map",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/js/bootstrap.bundle.js.map",
       "AssetKind": "All",
@@ -1458,13 +1458,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\js\\bootstrap.bundle.js.map"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/js/bootstrap.bundle.js.map"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\js\\bootstrap.bundle.min.js",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/js/bootstrap.bundle.min.js",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/js/bootstrap.bundle.min.js",
       "AssetKind": "All",
@@ -1477,13 +1477,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\js\\bootstrap.bundle.min.js"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/js/bootstrap.bundle.min.js"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\js\\bootstrap.bundle.min.js.map",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/js/bootstrap.bundle.min.js.map",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/js/bootstrap.bundle.min.js.map",
       "AssetKind": "All",
@@ -1496,13 +1496,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\js\\bootstrap.bundle.min.js.map"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/js/bootstrap.bundle.min.js.map"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\js\\bootstrap.esm.js",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/js/bootstrap.esm.js",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/js/bootstrap.esm.js",
       "AssetKind": "All",
@@ -1515,13 +1515,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\js\\bootstrap.esm.js"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/js/bootstrap.esm.js"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\js\\bootstrap.esm.js.map",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/js/bootstrap.esm.js.map",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/js/bootstrap.esm.js.map",
       "AssetKind": "All",
@@ -1534,13 +1534,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\js\\bootstrap.esm.js.map"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/js/bootstrap.esm.js.map"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\js\\bootstrap.esm.min.js",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/js/bootstrap.esm.min.js",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/js/bootstrap.esm.min.js",
       "AssetKind": "All",
@@ -1553,13 +1553,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\js\\bootstrap.esm.min.js"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/js/bootstrap.esm.min.js"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\js\\bootstrap.esm.min.js.map",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/js/bootstrap.esm.min.js.map",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/js/bootstrap.esm.min.js.map",
       "AssetKind": "All",
@@ -1572,13 +1572,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\js\\bootstrap.esm.min.js.map"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/js/bootstrap.esm.min.js.map"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\js\\bootstrap.js",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/js/bootstrap.js",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/js/bootstrap.js",
       "AssetKind": "All",
@@ -1591,13 +1591,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\js\\bootstrap.js"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/js/bootstrap.js"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\js\\bootstrap.js.map",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/js/bootstrap.js.map",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/js/bootstrap.js.map",
       "AssetKind": "All",
@@ -1610,13 +1610,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\js\\bootstrap.js.map"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/js/bootstrap.js.map"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\js\\bootstrap.min.js",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/js/bootstrap.min.js",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/js/bootstrap.min.js",
       "AssetKind": "All",
@@ -1629,13 +1629,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\js\\bootstrap.min.js"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/js/bootstrap.min.js"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\dist\\js\\bootstrap.min.js.map",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/dist/js/bootstrap.min.js.map",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/dist/js/bootstrap.min.js.map",
       "AssetKind": "All",
@@ -1648,13 +1648,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\dist\\js\\bootstrap.min.js.map"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/dist/js/bootstrap.min.js.map"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\bootstrap\\LICENSE",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/bootstrap/LICENSE",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/bootstrap/LICENSE",
       "AssetKind": "All",
@@ -1667,13 +1667,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\bootstrap\\LICENSE"
+      "OriginalItemSpec": "wwwroot/lib/bootstrap/LICENSE"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\jquery-validation-unobtrusive\\jquery.validate.unobtrusive.js",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.js",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.js",
       "AssetKind": "All",
@@ -1686,13 +1686,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\jquery-validation-unobtrusive\\jquery.validate.unobtrusive.js"
+      "OriginalItemSpec": "wwwroot/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.js"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\jquery-validation-unobtrusive\\jquery.validate.unobtrusive.min.js",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.min.js",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.min.js",
       "AssetKind": "All",
@@ -1705,13 +1705,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\jquery-validation-unobtrusive\\jquery.validate.unobtrusive.min.js"
+      "OriginalItemSpec": "wwwroot/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.min.js"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\jquery-validation-unobtrusive\\LICENSE.txt",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/jquery-validation-unobtrusive/LICENSE.txt",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/jquery-validation-unobtrusive/LICENSE.txt",
       "AssetKind": "All",
@@ -1724,13 +1724,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\jquery-validation-unobtrusive\\LICENSE.txt"
+      "OriginalItemSpec": "wwwroot/lib/jquery-validation-unobtrusive/LICENSE.txt"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\jquery-validation\\dist\\additional-methods.js",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/jquery-validation/dist/additional-methods.js",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/jquery-validation/dist/additional-methods.js",
       "AssetKind": "All",
@@ -1743,13 +1743,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\jquery-validation\\dist\\additional-methods.js"
+      "OriginalItemSpec": "wwwroot/lib/jquery-validation/dist/additional-methods.js"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\jquery-validation\\dist\\additional-methods.min.js",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/jquery-validation/dist/additional-methods.min.js",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/jquery-validation/dist/additional-methods.min.js",
       "AssetKind": "All",
@@ -1762,13 +1762,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\jquery-validation\\dist\\additional-methods.min.js"
+      "OriginalItemSpec": "wwwroot/lib/jquery-validation/dist/additional-methods.min.js"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\jquery-validation\\dist\\jquery.validate.js",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/jquery-validation/dist/jquery.validate.js",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/jquery-validation/dist/jquery.validate.js",
       "AssetKind": "All",
@@ -1781,13 +1781,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\jquery-validation\\dist\\jquery.validate.js"
+      "OriginalItemSpec": "wwwroot/lib/jquery-validation/dist/jquery.validate.js"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\jquery-validation\\dist\\jquery.validate.min.js",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/jquery-validation/dist/jquery.validate.min.js",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/jquery-validation/dist/jquery.validate.min.js",
       "AssetKind": "All",
@@ -1800,13 +1800,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\jquery-validation\\dist\\jquery.validate.min.js"
+      "OriginalItemSpec": "wwwroot/lib/jquery-validation/dist/jquery.validate.min.js"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\jquery-validation\\LICENSE.md",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/jquery-validation/LICENSE.md",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/jquery-validation/LICENSE.md",
       "AssetKind": "All",
@@ -1819,13 +1819,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\jquery-validation\\LICENSE.md"
+      "OriginalItemSpec": "wwwroot/lib/jquery-validation/LICENSE.md"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\jquery\\dist\\jquery.js",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/jquery/dist/jquery.js",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/jquery/dist/jquery.js",
       "AssetKind": "All",
@@ -1838,13 +1838,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\jquery\\dist\\jquery.js"
+      "OriginalItemSpec": "wwwroot/lib/jquery/dist/jquery.js"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\jquery\\dist\\jquery.min.js",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/jquery/dist/jquery.min.js",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/jquery/dist/jquery.min.js",
       "AssetKind": "All",
@@ -1857,13 +1857,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\jquery\\dist\\jquery.min.js"
+      "OriginalItemSpec": "wwwroot/lib/jquery/dist/jquery.min.js"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\jquery\\dist\\jquery.min.map",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/jquery/dist/jquery.min.map",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/jquery/dist/jquery.min.map",
       "AssetKind": "All",
@@ -1876,13 +1876,13 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\jquery\\dist\\jquery.min.map"
+      "OriginalItemSpec": "wwwroot/lib/jquery/dist/jquery.min.map"
     },
     {
-      "Identity": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\lib\\jquery\\LICENSE.txt",
+      "Identity": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/lib/jquery/LICENSE.txt",
       "SourceId": "IrrigationSystem.Web",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\411\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\wwwroot\\",
+      "ContentRoot": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Web/wwwroot/",
       "BasePath": "_content/IrrigationSystem.Web",
       "RelativePath": "lib/jquery/LICENSE.txt",
       "AssetKind": "All",
@@ -1895,7 +1895,7 @@
       "AssetTraitValue": "",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\lib\\jquery\\LICENSE.txt"
+      "OriginalItemSpec": "wwwroot/lib/jquery/LICENSE.txt"
     }
   ]
 }

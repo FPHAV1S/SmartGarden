@@ -22,6 +22,10 @@ public class AdaptiveBackgroundService : BackgroundService
                 await Task.Delay(TimeSpan.FromHours(1), stoppingToken);
                 await AdaptiveService.RunAdaptiveAnalysisAsync();
             }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
             catch (Exception ex)
             {
                 Logger.LogError(ex, "Error in adaptive background service");

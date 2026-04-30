@@ -1,17 +1,8 @@
 #include <WiFi.h>
+#include <HTTPClient.h>
 #include <WebServer.h>
-#include <Wire.h>
-#include <Adafruit_BME280.h>
 
-#define SDA_PIN 21
-#define SCL_PIN 22
-#define VALVE1_PIN 25
-#define VALVE2_PIN 26
-#define VALVE3_PIN 27
-
-Adafruit_BME280 bme;
-
-const char* ssid = "GardenBrainOpen";
+const char* ssid = "GardenBrain";
 const char* password = "";
 
 IPAddress local_IP(192, 168, 4, 100);
@@ -19,250 +10,236 @@ IPAddress gateway(192, 168, 4, 1);
 IPAddress subnet(255, 255, 255, 0);
 IPAddress dns(8, 8, 8, 8);
 
+const char* apiUrl = "http://192.168.4.1:5000/api/sensor-readings";
+const int zoneId = 1;
+const unsigned long sendIntervalMs = 5000;
+
 WebServer server(80);
 
-float temperature = 0;
-float humidity = 0;
-float pressure = 0;
 int readingCount = 0;
-unsigned long lastUpdate = 0;
+unsigned long lastSend = 0;
+int lastHttpCode = 0;
+String lastResponse = "No request sent yet";
 
-bool valve1State = false;
-bool valve2State = false;
-bool valve3State = false;
+float testTemperature = 24.5;
+float testHumidity = 60.0;
+float testSoilMoisture = 45.0;
 
 void setup() {
   Serial.begin(115200);
   delay(2000);
-  
-  pinMode(VALVE1_PIN, OUTPUT);
-  pinMode(VALVE2_PIN, OUTPUT);
-  pinMode(VALVE3_PIN, OUTPUT);
-  
-  digitalWrite(VALVE1_PIN, LOW);
-  digitalWrite(VALVE2_PIN, LOW);
-  digitalWrite(VALVE3_PIN, LOW);
-  
-  Wire.begin(SDA_PIN, SCL_PIN);
-  
-  if (!bme.begin(0x76)) {
-    Serial.println("BME280 sensor not found!");
-    while (1);
-  }
-  
-  Serial.println("Garden Brain starting...");
-  
+
+  Serial.println();
+  Serial.println("SmartGarden ESP32-C3 sender");
+  Serial.println("Connecting to Raspberry Pi AP...");
+
   WiFi.disconnect(true);
+  delay(500);
   WiFi.mode(WIFI_STA);
-  WiFi.config(local_IP, gateway, subnet, dns);
+
+  if (!WiFi.config(local_IP, gateway, subnet, dns)) {
+    Serial.println("Static IP configuration failed.");
+  }
+
   WiFi.begin(ssid, password);
-  
-  Serial.print("Connecting");
+  connectToWifi();
+
+  server.on("/", handleRoot);
+  server.on("/data", handleData);
+  server.on("/send-now", handleSendNow);
+  server.onNotFound(handleNotFound);
+  server.begin();
+
+  Serial.println("Local status server started.");
+  Serial.print("ESP32 status page: http://");
+  Serial.println(WiFi.localIP());
+  Serial.print("ASP.NET API target: ");
+  Serial.println(apiUrl);
+
+  if (WiFi.status() == WL_CONNECTED) {
+    updateTestData();
+    sendReading();
+    lastSend = millis();
+  }
+}
+
+void loop() {
+  server.handleClient();
+
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("WiFi disconnected. Reconnecting...");
+    WiFi.disconnect();
+    WiFi.begin(ssid, password);
+    connectToWifi();
+  }
+
+  if (WiFi.status() == WL_CONNECTED && millis() - lastSend >= sendIntervalMs) {
+    lastSend = millis();
+    updateTestData();
+    sendReading();
+  }
+
+  delay(10);
+}
+
+void connectToWifi() {
+  Serial.print("Connecting to ");
+  Serial.print(ssid);
+
   int attempts = 0;
   while (WiFi.status() != WL_CONNECTED && attempts < 60) {
     delay(500);
     Serial.print(".");
     attempts++;
   }
-  
+
+  Serial.println();
+
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("\nConnected!");
-    Serial.print("IP Address: ");
+    Serial.println("Connected successfully.");
+    Serial.print("ESP32-C3 IP address: ");
     Serial.println(WiFi.localIP());
-    
-    server.on("/", handleRoot);
-    server.on("/data", handleData);
-    server.on("/status", handleStatus);
-    server.on("/valve", handleValve);
-    
-    server.begin();
-    Serial.println("HTTP server started");
+    Serial.print("Gateway: ");
+    Serial.println(WiFi.gatewayIP());
+    Serial.print("Signal strength: ");
+    Serial.print(WiFi.RSSI());
+    Serial.println(" dBm");
   } else {
-    Serial.println("\nConnection failed!");
+    Serial.println("Failed to connect to Raspberry Pi AP.");
+    Serial.println("Check that the AP name is exactly GardenBrain.");
   }
 }
 
-void loop() {
-  if (WiFi.status() == WL_CONNECTED) {
-    server.handleClient();
-    
-    if (millis() - lastUpdate > 5000) {
-      lastUpdate = millis();
-      updateSensorData();
-      readingCount++;
-      
-      Serial.print("Reading #");
-      Serial.print(readingCount);
-      Serial.print(" - Temp: ");
-      Serial.print(temperature);
-      Serial.print("C, Humidity: ");
-      Serial.print(humidity);
-      Serial.print("%, Pressure: ");
-      Serial.print(pressure);
-      Serial.print(" hPa | Valves: ");
-      Serial.print(valve1State ? "1:ON " : "1:OFF ");
-      Serial.print(valve2State ? "2:ON " : "2:OFF ");
-      Serial.println(valve3State ? "3:ON" : "3:OFF");
-    }
-  }
-  delay(10);
+void updateTestData() {
+  readingCount++;
+
+  testTemperature += 0.1;
+  testHumidity += 0.2;
+  testSoilMoisture += 0.3;
+
+  if (testTemperature > 30.0) testTemperature = 24.5;
+  if (testHumidity > 80.0) testHumidity = 60.0;
+  if (testSoilMoisture > 100.0) testSoilMoisture = 45.0;
 }
 
-void updateSensorData() {
-  temperature = bme.readTemperature();
-  humidity = bme.readHumidity();
-  pressure = bme.readPressure() / 100.0;
+void sendReading() {
+  HTTPClient http;
+  String payload = buildPayload();
+
+  Serial.print("POST ");
+  Serial.println(apiUrl);
+  Serial.println(payload);
+
+  http.begin(apiUrl);
+  http.addHeader("Content-Type", "application/json");
+
+  lastHttpCode = http.POST(payload);
+  lastResponse = http.getString();
+
+  Serial.print("HTTP status: ");
+  Serial.println(lastHttpCode);
+  Serial.print("Response: ");
+  Serial.println(lastResponse);
+
+  http.end();
 }
 
-void setValve(int valve, bool state) {
-  int pin = 0;
-  if (valve == 1) {
-    pin = VALVE1_PIN;
-    valve1State = state;
-  } else if (valve == 2) {
-    pin = VALVE2_PIN;
-    valve2State = state;
-  } else if (valve == 3) {
-    pin = VALVE3_PIN;
-    valve3State = state;
-  }
-  
-  digitalWrite(pin, state ? HIGH : LOW);
-  Serial.print("Valve ");
-  Serial.print(valve);
-  Serial.println(state ? " opened" : " closed");
+String buildPayload() {
+  String json = "{";
+  json += "\"device\":\"esp32-c3\",";
+  json += "\"zoneId\":" + String(zoneId) + ",";
+  json += "\"readingCount\":" + String(readingCount) + ",";
+  json += "\"temperature\":" + String(testTemperature, 2) + ",";
+  json += "\"humidity\":" + String(testHumidity, 2) + ",";
+  json += "\"soilMoisture\":" + String(testSoilMoisture, 2) + ",";
+  json += "\"rssi\":" + String(WiFi.RSSI()) + ",";
+  json += "\"ip\":\"" + WiFi.localIP().toString() + "\"";
+  json += "}";
+
+  return json;
 }
 
 void handleRoot() {
   String html = "<!DOCTYPE html><html><head>";
   html += "<meta charset='utf-8'>";
-  html += "<meta name='viewport' content='width=device-width,initial-scale=1'>";
-  html += "<title>Garden Brain</title>";
+  html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
+  html += "<title>SmartGarden ESP32-C3</title>";
   html += "<style>";
-  html += "body{font-family:Arial;max-width:800px;margin:50px auto;padding:20px;background:#1a1a1a;color:#fff;}";
-  html += ".card{background:#2d2d2d;padding:25px;margin:15px 0;border-radius:10px;border-left:4px solid #4CAF50;}";
+  html += "body{font-family:Arial;background:#1a1a1a;color:white;max-width:800px;margin:40px auto;padding:20px;}";
+  html += ".card{background:#2d2d2d;padding:20px;margin:15px 0;border-radius:8px;border-left:5px solid #4CAF50;}";
   html += "h1{color:#4CAF50;text-align:center;}";
-  html += ".value{font-size:42px;font-weight:bold;color:#4CAF50;margin:10px 0;}";
-  html += ".label{font-size:16px;color:#aaa;}";
-  html += ".footer{text-align:center;color:#666;margin-top:30px;font-size:14px;}";
-  html += ".valve-control{display:flex;justify-content:space-between;align-items:center;margin:10px 0;}";
-  html += ".btn{padding:10px 20px;border:none;border-radius:5px;cursor:pointer;font-size:16px;font-weight:bold;}";
-  html += ".btn-on{background:#4CAF50;color:#fff;}";
-  html += ".btn-off{background:#f44336;color:#fff;}";
-  html += ".valve-status{font-size:18px;margin-right:10px;}";
+  html += ".value{font-size:30px;color:#4CAF50;font-weight:bold;}";
+  html += "a{color:#4CAF50;}";
   html += "</style>";
   html += "<script>";
-  html += "function updateData(){";
-  html += "fetch('/data').then(r=>r.json()).then(d=>{";
+  html += "function updateData(){fetch('/data').then(r=>r.json()).then(d=>{";
+  html += "document.getElementById('count').innerText=d.readingCount;";
   html += "document.getElementById('temp').innerText=d.temperature.toFixed(1);";
   html += "document.getElementById('hum').innerText=d.humidity.toFixed(1);";
-  html += "document.getElementById('press').innerText=d.pressure.toFixed(1);";
-  html += "document.getElementById('count').innerText=d.count;";
-  html += "document.getElementById('v1').innerText=d.valve1?'ON':'OFF';";
-  html += "document.getElementById('v2').innerText=d.valve2?'ON':'OFF';";
-  html += "document.getElementById('v3').innerText=d.valve3?'ON':'OFF';";
+  html += "document.getElementById('soil').innerText=d.soilMoisture.toFixed(1);";
+  html += "document.getElementById('rssi').innerText=d.rssi;";
+  html += "document.getElementById('http').innerText=d.lastHttpCode;";
+  html += "document.getElementById('response').innerText=d.lastResponse;";
   html += "});}";
-  html += "function toggleValve(num){";
-  html += "fetch('/valve?valve='+num+'&toggle=1').then(()=>updateData());}";
-  html += "setInterval(updateData,3000);";
+  html += "setInterval(updateData,2000);window.onload=updateData;";
   html += "</script>";
   html += "</head><body>";
-  html += "<h1>🌱 Garden Brain Monitor</h1>";
-  html += "<div class='card'><div class='label'>Temperature</div><div class='value'><span id='temp'>";
-  html += String(temperature, 1);
-  html += "</span> °C</div></div>";
-  html += "<div class='card'><div class='label'>Humidity</div><div class='value'><span id='hum'>";
-  html += String(humidity, 1);
-  html += "</span> %</div></div>";
-  html += "<div class='card'><div class='label'>Pressure</div><div class='value'><span id='press'>";
-  html += String(pressure, 1);
-  html += "</span> hPa</div></div>";
-  html += "<div class='card'><div class='label'>Irrigation Control</div>";
-  html += "<div class='valve-control'><span class='valve-status'>Valve 1: <b id='v1'>";
-  html += valve1State ? "ON" : "OFF";
-  html += "</b></span><button class='btn ";
-  html += valve1State ? "btn-off" : "btn-on";
-  html += "' onclick='toggleValve(1)'>";
-  html += valve1State ? "Turn OFF" : "Turn ON";
-  html += "</button></div>";
-  html += "<div class='valve-control'><span class='valve-status'>Valve 2: <b id='v2'>";
-  html += valve2State ? "ON" : "OFF";
-  html += "</b></span><button class='btn ";
-  html += valve2State ? "btn-off" : "btn-on";
-  html += "' onclick='toggleValve(2)'>";
-  html += valve2State ? "Turn OFF" : "Turn ON";
-  html += "</button></div>";
-  html += "<div class='valve-control'><span class='valve-status'>Valve 3: <b id='v3'>";
-  html += valve3State ? "ON" : "OFF";
-  html += "</b></span><button class='btn ";
-  html += valve3State ? "btn-off" : "btn-on";
-  html += "' onclick='toggleValve(3)'>";
-  html += valve3State ? "Turn OFF" : "Turn ON";
-  html += "</button></div></div>";
-  html += "<div class='footer'>Reading #<span id='count'>";
-  html += String(readingCount);
-  html += "</span> | ESP32 IP: ";
+  html += "<h1>SmartGarden ESP32-C3 Sender</h1>";
+  html += "<div class='card'><p>Status: <span class='value'>";
+  html += (WiFi.status() == WL_CONNECTED ? "Connected" : "Disconnected");
+  html += "</span></p><p>WiFi AP: ";
+  html += ssid;
+  html += "</p><p>ESP32 IP: ";
   html += WiFi.localIP().toString();
-  html += "</div></body></html>";
-  
+  html += "</p><p>API target: ";
+  html += apiUrl;
+  html += "</p></div>";
+  html += "<div class='card'><p>Reading Count: <span id='count' class='value'>0</span></p>";
+  html += "<p>Temperature: <span id='temp' class='value'>0</span> C</p>";
+  html += "<p>Humidity: <span id='hum' class='value'>0</span> %</p>";
+  html += "<p>Soil Moisture: <span id='soil' class='value'>0</span> %</p></div>";
+  html += "<div class='card'><p>Signal Strength: <span id='rssi'>0</span> dBm</p>";
+  html += "<p>Last HTTP Status: <span id='http'>0</span></p>";
+  html += "<p>Last Response: <span id='response'>No request sent yet</span></p>";
+  html += "<p><a href='/send-now'>Send now</a> | <a href='/data'>JSON data</a></p></div>";
+  html += "</body></html>";
+
   server.send(200, "text/html", html);
 }
 
 void handleData() {
   String json = "{";
-  json += "\"temperature\":" + String(temperature, 2) + ",";
-  json += "\"humidity\":" + String(humidity, 2) + ",";
-  json += "\"pressure\":" + String(pressure, 2) + ",";
-  json += "\"count\":" + String(readingCount) + ",";
-  json += "\"valve1\":" + String(valve1State ? "true" : "false") + ",";
-  json += "\"valve2\":" + String(valve2State ? "true" : "false") + ",";
-  json += "\"valve3\":" + String(valve3State ? "true" : "false");
+  json += "\"device\":\"esp32-c3\",";
+  json += "\"status\":\"" + String(WiFi.status() == WL_CONNECTED ? "online" : "offline") + "\",";
+  json += "\"ip\":\"" + WiFi.localIP().toString() + "\",";
+  json += "\"ssid\":\"" + String(WiFi.SSID()) + "\",";
+  json += "\"rssi\":" + String(WiFi.RSSI()) + ",";
+  json += "\"readingCount\":" + String(readingCount) + ",";
+  json += "\"temperature\":" + String(testTemperature, 2) + ",";
+  json += "\"humidity\":" + String(testHumidity, 2) + ",";
+  json += "\"soilMoisture\":" + String(testSoilMoisture, 2) + ",";
+  json += "\"lastHttpCode\":" + String(lastHttpCode) + ",";
+  json += "\"lastResponse\":\"" + escapeJson(lastResponse) + "\",";
+  json += "\"uptime\":" + String(millis() / 1000);
   json += "}";
-  
+
   server.send(200, "application/json", json);
 }
 
-void handleValve() {
-  if (server.hasArg("valve") && server.hasArg("toggle")) {
-    int valveNum = server.arg("valve").toInt();
-    
-    if (valveNum >= 1 && valveNum <= 3) {
-      bool currentState = false;
-      if (valveNum == 1) currentState = valve1State;
-      else if (valveNum == 2) currentState = valve2State;
-      else if (valveNum == 3) currentState = valve3State;
-      
-      setValve(valveNum, !currentState);
-      server.send(200, "text/plain", "OK");
-    } else {
-      server.send(400, "text/plain", "Invalid valve number");
-    }
-  } else if (server.hasArg("valve") && server.hasArg("state")) {
-    int valveNum = server.arg("valve").toInt();
-    bool state = server.arg("state") == "1" || server.arg("state") == "on";
-    
-    if (valveNum >= 1 && valveNum <= 3) {
-      setValve(valveNum, state);
-      server.send(200, "text/plain", "OK");
-    } else {
-      server.send(400, "text/plain", "Invalid valve number");
-    }
-  } else {
-    server.send(400, "text/plain", "Missing parameters");
-  }
+void handleSendNow() {
+  updateTestData();
+  sendReading();
+  server.send(200, "text/plain", "Sent reading. HTTP status: " + String(lastHttpCode) + "\n" + lastResponse);
 }
 
-void handleStatus() {
-  String status = "Garden Brain System\n";
-  status += "Status: Online\n";
-  status += "WiFi SSID: " + String(WiFi.SSID()) + "\n";
-  status += "Signal Strength: " + String(WiFi.RSSI()) + " dBm\n";
-  status += "IP Address: " + WiFi.localIP().toString() + "\n";
-  status += "Total Readings: " + String(readingCount) + "\n";
-  status += "Uptime: " + String(millis() / 1000) + " seconds\n";
-  status += "Valve 1: " + String(valve1State ? "OPEN" : "CLOSED") + "\n";
-  status += "Valve 2: " + String(valve2State ? "OPEN" : "CLOSED") + "\n";
-  status += "Valve 3: " + String(valve3State ? "OPEN" : "CLOSED") + "\n";
-  
-  server.send(200, "text/plain", status);
+void handleNotFound() {
+  server.send(404, "text/plain", "Not found");
+}
+
+String escapeJson(String value) {
+  value.replace("\\", "\\\\");
+  value.replace("\"", "\\\"");
+  value.replace("\n", "\\n");
+  value.replace("\r", "");
+  return value;
 }

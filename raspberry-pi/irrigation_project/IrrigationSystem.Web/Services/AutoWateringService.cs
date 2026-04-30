@@ -24,20 +24,30 @@ public class AutoWateringService : BackgroundService
     {
         Logger.LogInformation("Auto-watering service started - checking every {Interval} seconds", CheckIntervalSeconds);
 
-        await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
-
-        while (!stoppingToken.IsCancellationRequested)
+        try
         {
-            try
+            await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
+
+            while (!stoppingToken.IsCancellationRequested)
             {
-                await CheckAndWaterZonesAsync();
-                await Task.Delay(TimeSpan.FromSeconds(CheckIntervalSeconds), stoppingToken);
+                try
+                {
+                    await CheckAndWaterZonesAsync();
+                    await Task.Delay(TimeSpan.FromSeconds(CheckIntervalSeconds), stoppingToken);
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "Error in auto-watering service");
+                    await Task.Delay(TimeSpan.FromSeconds(60), stoppingToken);
+                }
             }
-            catch (Exception ex)
-            {
-                Logger.LogError(ex, "Error in auto-watering service");
-                await Task.Delay(TimeSpan.FromSeconds(60), stoppingToken);
-            }
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
         }
     }
 

@@ -1,5 +1,3 @@
-Adafruit BME280
-Adafruit Unified Sensor
 WiFi (built-in)
+HTTPClient (built-in)
 WebServer (built-in)
-Wire (built-in)

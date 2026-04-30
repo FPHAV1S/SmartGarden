@@ -17,12 +17,12 @@ QUICK START (Raspberry Pi)
 ========================================
 
 1. Setup Database:
-   cd database
+   cd raspberry-pi
    chmod +x setup.sh
    ./setup.sh
 
 2. Run Application:
-   cd raspberry-pi/IrrigationSystem.Web
+   cd raspberry-pi/irrigation_project/IrrigationSystem.Web
    dotnet run
 
 3. Open Browser:
@@ -41,15 +41,18 @@ MANUAL SETUP (if script fails)
 
 2. Create Database:
    sudo -u postgres psql
+   CREATE ROLE denis LOGIN PASSWORD '1203';
    CREATE DATABASE irrigation_db;
-   ALTER USER postgres PASSWORD 'postgres';
+   ALTER DATABASE irrigation_db OWNER TO denis;
    \q
 
 3. Load Schema:
-   sudo -u postgres psql -d irrigation_db -f database/schema.sql
+   sudo -u postgres psql -d irrigation_db -f raspberry-pi/irrigation_db.sql
+   sudo -u postgres psql -d irrigation_db -c "INSERT INTO system_settings (auto_watering_enabled, system_mode, default_watering_duration, night_mode_enabled, night_mode_start_hour, night_mode_end_hour, eco_mode_enabled) SELECT true, 'auto', 10, false, 18, 8, false WHERE NOT EXISTS (SELECT 1 FROM system_settings);"
+   sudo -u postgres psql -d irrigation_db -c "INSERT INTO users (username, password_hash) VALUES ('denis', '\$2b\$12\$J3Z9neTGYCEkrtqQN3bCpuwQXdCgnUgIJMSYEdAFACfDdFvL2dqC6') ON CONFLICT (username) DO UPDATE SET password_hash = EXCLUDED.password_hash;"
 
 4. Run Application:
-   cd raspberry-pi/IrrigationSystem.Web
+   cd raspberry-pi/irrigation_project/IrrigationSystem.Web
    dotnet run
 
 ========================================
@@ -74,8 +77,8 @@ Database:
   Host: localhost
   Port: 5432
   Database: irrigation_db
-  Username: postgres
-  Password: postgres
+  Username: denis
+  Password: 1203
 
 Web Application:
   URL: http://localhost:5000
@@ -86,11 +89,11 @@ TROUBLESHOOTING
 ========================================
 
 Error: "password authentication failed"
-  → Run: sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres';"
+  → Run: sudo -u postgres psql -c "ALTER ROLE denis WITH LOGIN PASSWORD '1203';"
 
 Error: "Failed to connect to localhost:5432"
   → Check PostgreSQL: sudo systemctl status postgresql
   → Start: sudo systemctl start postgresql
 
 Error: "Database irrigation_db does not exist"
-  → Run setup.sh again
+  → Run: cd raspberry-pi && ./setup.sh

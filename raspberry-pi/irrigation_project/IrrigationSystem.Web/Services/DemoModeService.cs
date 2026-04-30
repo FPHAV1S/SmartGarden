@@ -38,14 +38,20 @@ public class DemoModeService : BackgroundService
     {
         Logger.LogInformation("Demo Mode Service started (inactive by default)");
 
-        while (!stoppingToken.IsCancellationRequested)
+        try
         {
-            if (IsDemoMode)
+            while (!stoppingToken.IsCancellationRequested)
             {
-                await GenerateDemoDataAsync();
-            }
+                if (IsDemoMode)
+                {
+                    await GenerateDemoDataAsync();
+                }
 
-            await Task.Delay(5000, stoppingToken);
+                await Task.Delay(5000, stoppingToken);
+            }
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
         }
     }
 
