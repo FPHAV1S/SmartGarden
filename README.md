@@ -11,7 +11,8 @@ The current repository contains:
 - `IrrigationSystem.Worker`: optional standalone MQTT-to-PostgreSQL worker.
 - `raspberry-pi/setup.sh`: PostgreSQL setup and seed script.
 - `raspberry-pi/irrigation_db.sql`: PostgreSQL schema dump.
-- `esp32/esp32.ino`: ESP32-C3 HTTP sender and local status page.
+- `esp32/esp32.ino`: ESP32-C3 soil sensor, HTTP sender, local status page,
+  and MQTT valve-command subscriber.
 - helper scripts for collecting ESP32 data and generating BCrypt hashes.
 
 ## Current Behavior
@@ -24,18 +25,18 @@ The current repository contains:
 - Manual and automatic watering publish valve commands to MQTT topic
   `irrigation/zone/{zoneId}/valve`.
 - Demo Mode can generate readings for active zones without ESP32 hardware.
-- The current ESP32 sketch sends simulated temperature, humidity, and soil
-  moisture values. It does not currently read a BME280 or drive relays.
-- Relay/valve firmware is expected to subscribe to MQTT valve commands, but that
-  subscriber firmware is not included in this repository.
+- The ESP32 sketch reads the configured soil sensor pin, sends fake temperature
+  and humidity values until a BME280 is added, and drives two XY-MOS valve
+  outputs.
+- The ESP32 subscribes to MQTT valve commands from the web app.
 
 ## Hardware Assumptions
 
 - Raspberry Pi 5 or another Linux host for the web app and database.
 - ESP32-C3 or compatible ESP32 board for `esp32/esp32.ino`.
-- Optional relay/valve hardware controlled by an MQTT subscriber.
-- Optional real sensors. The checked-in ESP32 sketch currently generates test
-  readings in code.
+- Optional XY-MOS relay/valve hardware connected to the ESP32-C3.
+- Optional real sensors. The checked-in ESP32 sketch currently reads soil
+  moisture and generates placeholder temperature/humidity readings in code.
 
 ## Software Requirements
 
@@ -45,8 +46,8 @@ The current repository contains:
 - Optional: Mosquitto or another MQTT broker on `localhost:1883`.
 - Arduino IDE or Arduino CLI with ESP32 board support.
 
-The Arduino sketch only uses built-in ESP32 libraries listed in
-`esp32/libraries.txt`: `WiFi`, `HTTPClient`, and `WebServer`.
+The Arduino sketch uses the built-in ESP32 libraries listed in
+`esp32/libraries.txt`, plus `PubSubClient` for MQTT valve commands.
 
 ## Repository Layout
 
@@ -184,7 +185,11 @@ After upload, the ESP32:
 - posts a JSON reading every 5 seconds;
 - exposes a status page at `http://192.168.4.100/`;
 - exposes latest JSON data at `http://192.168.4.100/data`;
-- can send a reading immediately from `http://192.168.4.100/send-now`.
+- can send a reading immediately from `http://192.168.4.100/send-now`;
+- can open or close valves locally from
+  `http://192.168.4.100/valve?valve=1&state=open&duration=10`;
+- subscribes to MQTT topic `irrigation/zone/+/valve` so dashboard and
+  auto-watering commands can drive the valve pins.
 
 ## API Endpoints
 
@@ -223,7 +228,9 @@ Install Mosquitto on the Raspberry Pi if you want MQTT commands:
 ```bash
 sudo apt-get update
 sudo apt-get install -y mosquitto mosquitto-clients
+printf 'listener 1883 0.0.0.0\nallow_anonymous true\n' | sudo tee /etc/mosquitto/conf.d/gardenbrain.conf
 sudo systemctl enable --now mosquitto
+sudo systemctl restart mosquitto
 ```
 
 The web app publishes valve commands to:
@@ -238,6 +245,10 @@ Payload examples:
 {"action":"open","duration":10}
 {"action":"close"}
 ```
+
+The ESP32 maps `irrigation/zone/1/valve` to MOSFET 1 and
+`irrigation/zone/2/valve` to MOSFET 2. Open commands with a positive
+`duration` auto-close the valve on the ESP32 even if the web app disconnects.
 
 The web app hosted MQTT sensor subscriber listens to:
 

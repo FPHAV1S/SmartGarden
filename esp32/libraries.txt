@@ -1,3 +1,4 @@
 WiFi (built-in)
 HTTPClient (built-in)
 WebServer (built-in)
+PubSubClient

@@ -15,6 +15,7 @@ var tests = new TestCase[]
     new("Database schema contains required tables", Tests.DatabaseSchemaContainsRequiredTables),
     new("Web appsettings uses the expected local database", Tests.WebAppSettingsUseExpectedDatabase),
     new("ESP32 sketch posts to the web sensor API", Tests.Esp32SketchPostsToWebSensorApi),
+    new("ESP32 sketch subscribes to web valve commands", Tests.Esp32SketchSubscribesToWebValveCommands),
     new("Web host allows slow embedded request bodies", Tests.WebHostAllowsSlowEmbeddedRequestBodies),
     new("Web host is configured for port 5000", Tests.WebHostUsesPort5000)
 };
@@ -169,10 +170,26 @@ internal static class Tests
 
         Assert.Contains("const char* ssid = \"GardenBrain\";", sketch);
         Assert.Contains("http://192.168.4.1:5000/api/sensor-readings", sketch);
-        Assert.Contains("\"zoneId\"", sketch);
-        Assert.Contains("\"temperature\"", sketch);
-        Assert.Contains("\"humidity\"", sketch);
-        Assert.Contains("\"soilMoisture\"", sketch);
+        Assert.Contains("\\\"zoneId\\\"", sketch);
+        Assert.Contains("\\\"temperature\\\"", sketch);
+        Assert.Contains("\\\"humidity\\\"", sketch);
+        Assert.Contains("\\\"soilMoisture\\\"", sketch);
+
+        return Task.CompletedTask;
+    }
+
+    public static Task Esp32SketchSubscribesToWebValveCommands()
+    {
+        var sketch = File.ReadAllText(FindRepoFile("esp32", "esp32.ino"));
+        var libraries = File.ReadAllText(FindRepoFile("esp32", "libraries.txt"));
+
+        Assert.Contains("#include <PubSubClient.h>", sketch);
+        Assert.Contains("irrigation/zone/+/valve", sketch);
+        Assert.Contains("\\\"action\\\":\\\"open\\\"", sketch);
+        Assert.Contains("openValveForDuration", sketch);
+        Assert.Contains("setValve(1, false)", sketch);
+        Assert.Contains("setValve(2, false)", sketch);
+        Assert.Contains("PubSubClient", libraries);
 
         return Task.CompletedTask;
     }
