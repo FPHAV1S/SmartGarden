@@ -195,6 +195,14 @@ void connectToMqtt() {
   Serial.print(" as ");
   Serial.println(clientId);
 
+  if (!mqttBrokerPortOpen()) {
+    lastMqttCommand = "MQTT broker TCP port unreachable at " + String(mqttServer) + ":" + String(mqttPort);
+    Serial.println(lastMqttCommand);
+    Serial.println("Check Raspberry Pi: sudo systemctl status mosquitto");
+    Serial.println("Check listener: sudo ss -ltnp | grep 1883");
+    return;
+  }
+
   if (mqttClient.connect(clientId.c_str())) {
     Serial.println("MQTT connected.");
     if (mqttClient.subscribe(valveCommandTopic)) {
@@ -204,8 +212,46 @@ void connectToMqtt() {
       Serial.println("Failed to subscribe to valve command topic.");
     }
   } else {
+    int state = mqttClient.state();
     Serial.print("MQTT connection failed. State: ");
-    Serial.println(mqttClient.state());
+    Serial.print(state);
+    Serial.print(" (");
+    Serial.print(mqttStateText(state));
+    Serial.println(")");
+  }
+}
+
+bool mqttBrokerPortOpen() {
+  WiFiClient probeClient;
+  bool connected = probeClient.connect(mqttServer, mqttPort);
+  probeClient.stop();
+  return connected;
+}
+
+const char* mqttStateText(int state) {
+  switch (state) {
+    case -4:
+      return "connection timeout";
+    case -3:
+      return "connection lost";
+    case -2:
+      return "TCP connect failed";
+    case -1:
+      return "disconnected";
+    case 0:
+      return "connected";
+    case 1:
+      return "bad protocol";
+    case 2:
+      return "client ID rejected";
+    case 3:
+      return "broker unavailable";
+    case 4:
+      return "bad credentials";
+    case 5:
+      return "not authorized";
+    default:
+      return "unknown";
   }
 }
 

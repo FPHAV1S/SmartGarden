@@ -9,7 +9,8 @@ The current repository contains:
 - `IrrigationSystem.Web`: ASP.NET Core/Blazor Server web app for dashboard,
   zones, history, settings, login, demo data, auto-watering, and API ingestion.
 - `IrrigationSystem.Worker`: optional standalone MQTT-to-PostgreSQL worker.
-- `raspberry-pi/setup.sh`: PostgreSQL setup and seed script.
+- `raspberry-pi/setup.sh`: PostgreSQL setup, Mosquitto MQTT setup, and seed
+  script.
 - `raspberry-pi/irrigation_db.sql`: PostgreSQL schema dump.
 - `esp32/esp32.ino`: ESP32-C3 soil sensor, HTTP sender, local status page,
   and MQTT valve-command subscriber.
@@ -228,10 +229,16 @@ Install Mosquitto on the Raspberry Pi if you want MQTT commands:
 ```bash
 sudo apt-get update
 sudo apt-get install -y mosquitto mosquitto-clients
+sudo grep -RIn 'listener 1883\|port 1883' /etc/mosquitto
 printf 'listener 1883 0.0.0.0\nallow_anonymous true\n' | sudo tee /etc/mosquitto/conf.d/gardenbrain.conf
 sudo systemctl enable --now mosquitto
 sudo systemctl restart mosquitto
 ```
+
+If the `grep` command already shows another config file such as
+`/etc/mosquitto/conf.d/irrigation.conf`, edit that file instead of adding
+`gardenbrain.conf`. Mosquitto should only have one listener for TCP port
+`1883`.
 
 The web app publishes valve commands to:
 
@@ -282,6 +289,9 @@ dotnet run
 `raspberry-pi/setup.sh` does the following:
 
 - installs PostgreSQL if `psql` is missing;
+- installs Mosquitto and `mosquitto-clients` if they are missing;
+- configures Mosquitto to listen on `0.0.0.0:1883` for ESP32 clients on the
+  Raspberry Pi access point;
 - creates or updates the `denis` PostgreSQL role with password `1203`;
 - creates `irrigation_db` if needed;
 - loads `raspberry-pi/irrigation_db.sql`;
@@ -369,6 +379,43 @@ sudo systemctl start mosquitto
 
 If you only use Demo Mode or HTTP sensor posts, MQTT errors do not prevent the
 dashboard from storing and displaying readings.
+
+If Mosquitto fails to start, check the real startup error:
+
+```bash
+cd raspberry-pi
+./check-mqtt.sh
+sudo systemctl status mosquitto
+sudo journalctl -u mosquitto -n 80 --no-pager
+sudo ss -ltnp | grep ':1883'
+sudo grep -RIn 'listener 1883\|port 1883' /etc/mosquitto
+```
+
+A common cause is more than one Mosquitto config file trying to listen on
+`1883`. Keep one listener for GardenBrain, for example:
+
+```text
+listener 1883 0.0.0.0
+allow_anonymous true
+```
+
+If both `gardenbrain.conf` and `irrigation.conf` contain `listener 1883`,
+remove the duplicate generated file and make the remaining listener external:
+
+```bash
+sudo rm /etc/mosquitto/conf.d/gardenbrain.conf
+printf 'listener 1883 0.0.0.0\nallow_anonymous true\n' | sudo tee /etc/mosquitto/conf.d/irrigation.conf
+sudo systemctl restart mosquitto
+```
+
+If Mosquitto is listening but the ESP32 still reports the MQTT port as
+unreachable while HTTP `5000` works, check the firewall:
+
+```bash
+sudo iptables -S INPUT | grep -E '^-P INPUT|--dport (1883|5000)'
+sudo iptables -C INPUT -p tcp --dport 1883 -j ACCEPT || sudo iptables -I INPUT -p tcp --dport 1883 -j ACCEPT
+sudo netfilter-persistent save
+```
 
 ### ESP32 cannot connect
 
