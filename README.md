@@ -1,4 +1,4 @@
-# SmartGarden Irrigation System
+# SmartGarden Irrigation System (https://github.com/FPHAV1S/SmartGarden)
 
 SmartGarden is a Raspberry Pi based irrigation controller with a Blazor Server
 dashboard, PostgreSQL storage, optional MQTT integration, and an ESP32-C3 sketch
