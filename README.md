@@ -105,8 +105,8 @@ http://<raspberry-pi-ip>:5000
 Default web login:
 
 ```text
-Username: postgres
-Password: 987654456789
+Username: denis
+Password: 12344321
 ```
 
 Default database connection used by the app:
