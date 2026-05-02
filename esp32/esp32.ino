@@ -4,19 +4,13 @@
 #include <PubSubClient.h>
 
 const char* ssid = "GardenBrain";
-const char* password = "";
-
-// ESP32-C3 static IP on Raspberry Pi AP
-IPAddress local_IP(192, 168, 4, 100);
-IPAddress gateway(192, 168, 4, 1);
-IPAddress subnet(255, 255, 255, 0);
-IPAddress dns(8, 8, 8, 8);
+const char* password = "GardenBrain123";
 
 // ASP.NET API endpoint
-const char* apiUrl = "http://192.168.4.1:5000/api/sensor-readings";
+const char* apiUrl = "http://192.168.137.1:5000/api/sensor-readings";
 
 // MQTT valve commands published by the ASP.NET app
-const char* mqttServer = "192.168.4.1";
+const char* mqttServer = "192.168.137.1";
 const int mqttPort = 1883;
 const char* valveCommandTopic = "irrigation/zone/+/valve";
 
@@ -80,10 +74,6 @@ void setup() {
   delay(500);
 
   WiFi.mode(WIFI_STA);
-
-  if (!WiFi.config(local_IP, gateway, subnet, dns)) {
-    Serial.println("Static IP configuration failed.");
-  }
 
   WiFi.begin(ssid, password);
   connectToWifi();
