@@ -1,20 +1,20 @@
 {
   "format": 1,
   "restore": {
-    "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Worker/IrrigationSystem.Worker.csproj": {}
+    "D:\\SmartGarden\\raspberry-pi\\irrigation_project\\IrrigationSystem.Worker\\IrrigationSystem.Worker.csproj": {}
   },
   "projects": {
-    "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Worker/IrrigationSystem.Worker.csproj": {
+    "D:\\SmartGarden\\raspberry-pi\\irrigation_project\\IrrigationSystem.Worker\\IrrigationSystem.Worker.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Worker/IrrigationSystem.Worker.csproj",
+        "projectUniqueName": "D:\\SmartGarden\\raspberry-pi\\irrigation_project\\IrrigationSystem.Worker\\IrrigationSystem.Worker.csproj",
         "projectName": "IrrigationSystem.Worker",
-        "projectPath": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Worker/IrrigationSystem.Worker.csproj",
-        "packagesPath": "/home/gardenbrain/.nuget/packages/",
-        "outputPath": "/home/gardenbrain/SmartGarden/raspberry-pi/irrigation_project/IrrigationSystem.Worker/obj/",
+        "projectPath": "D:\\SmartGarden\\raspberry-pi\\irrigation_project\\IrrigationSystem.Worker\\IrrigationSystem.Worker.csproj",
+        "packagesPath": "C:\\Users\\dp222\\.nuget\\packages\\",
+        "outputPath": "D:\\SmartGarden\\raspberry-pi\\irrigation_project\\IrrigationSystem.Worker\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "/home/gardenbrain/.nuget/NuGet/NuGet.Config"
+          "C:\\Users\\dp222\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net8.0"
@@ -72,7 +72,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "/home/gardenbrain/.dotnet/sdk/8.0.418/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.420/PortableRuntimeIdentifierGraph.json"
         }
       }
     }
