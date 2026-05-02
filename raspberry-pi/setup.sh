@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DB_NAME="irrigation_db"
-DB_USER="denis"
+DB_USER="postgres"
 DB_PASSWORD="1203"
 SQL_FILE="$SCRIPT_DIR/irrigation_db.sql"
 MQTT_CONF_DIR="/etc/mosquitto/conf.d"
@@ -199,7 +199,7 @@ SELECT true, 'auto', 10, false, 18, 8, false
 WHERE NOT EXISTS (SELECT 1 FROM system_settings);
 
 INSERT INTO users (username, password_hash)
-VALUES ('denis', '$2b$12$J3Z9neTGYCEkrtqQN3bCpuwQXdCgnUgIJMSYEdAFACfDdFvL2dqC6')
+VALUES ('postgres', '$2b$12$J3Z9neTGYCEkrtqQN3bCpuwQXdCgnUgIJMSYEdAFACfDdFvL2dqC6')
 ON CONFLICT (username) DO UPDATE
 SET password_hash = EXCLUDED.password_hash;
 SQL

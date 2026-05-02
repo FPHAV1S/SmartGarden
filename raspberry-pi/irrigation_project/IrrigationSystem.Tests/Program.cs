@@ -253,7 +253,7 @@ internal static class Tests
             .GetString();
 
         Assert.Equal(
-            "Host=localhost;Database=irrigation_db;Username=denis;Password=1203",
+            "Host=localhost;Database=irrigation_db;Username=postgres;Password=1203",
             connectionString,
             "Web app should point at the local irrigation database used by setup.sh.");
 

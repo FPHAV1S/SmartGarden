@@ -105,7 +105,7 @@ http://<raspberry-pi-ip>:5000
 Default web login:
 
 ```text
-Username: denis
+Username: postgres
 Password: 987654456789
 ```
 
@@ -115,7 +115,7 @@ Default database connection used by the app:
 Host: localhost
 Port: 5432
 Database: irrigation_db
-Username: denis
+Username: postgres
 Password: 1203
 ```
 
@@ -394,11 +394,11 @@ dotnet run
 - installs Mosquitto and `mosquitto-clients` if they are missing;
 - configures Mosquitto to listen on `0.0.0.0:1883` for ESP32 clients on the
   Raspberry Pi access point;
-- creates or updates the `denis` PostgreSQL role with password `1203`;
+- creates or updates the `postgres` PostgreSQL role with password `1203`;
 - creates `irrigation_db` if needed;
 - loads `raspberry-pi/irrigation_db.sql`;
 - seeds default system settings;
-- seeds the default web login for user `denis`;
+- seeds the default web login for user `postgres`;
 - sets the PostgreSQL `postgres` password to `postgres`;
 - changes local PostgreSQL auth entries from `peer` to `trust`.
 
@@ -433,7 +433,7 @@ To reset the application login to the default password:
 ```bash
 sudo -u postgres psql -d irrigation_db <<'SQL'
 INSERT INTO users (username, password_hash)
-VALUES ('denis', '$2b$12$J3Z9neTGYCEkrtqQN3bCpuwQXdCgnUgIJMSYEdAFACfDdFvL2dqC6')
+VALUES ('postgres', '$2b$12$J3Z9neTGYCEkrtqQN3bCpuwQXdCgnUgIJMSYEdAFACfDdFvL2dqC6')
 ON CONFLICT (username) DO UPDATE
 SET password_hash = EXCLUDED.password_hash;
 SQL
@@ -463,7 +463,7 @@ cd raspberry-pi
 Or reset the role password manually:
 
 ```bash
-sudo -u postgres psql -c "ALTER ROLE denis WITH LOGIN PASSWORD '1203';"
+sudo -u postgres psql -c "ALTER ROLE postgres WITH LOGIN PASSWORD '1203';"
 ```
 
 ### Cannot connect to PostgreSQL on localhost:5432

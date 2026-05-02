@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("IrrigationSystem.Worker")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+95d80d84343a1c89203f99721083caf83a37dcca")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+91d36b991298008c63eaebc4db69a6831d589819")]
 [assembly: System.Reflection.AssemblyProductAttribute("IrrigationSystem.Worker")]
 [assembly: System.Reflection.AssemblyTitleAttribute("IrrigationSystem.Worker")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

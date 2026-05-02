@@ -1654,19 +1654,19 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\dp222\\.nuget\\packages\\": {}
+    "C:\\Users\\dpenis\\.nuget\\packages\\": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\SmartGarden\\raspberry-pi\\irrigation_project\\IrrigationSystem.Worker\\IrrigationSystem.Worker.csproj",
+      "projectUniqueName": "C:\\Users\\dpenis\\Documents\\SmartGarden\\raspberry-pi\\irrigation_project\\IrrigationSystem.Worker\\IrrigationSystem.Worker.csproj",
       "projectName": "IrrigationSystem.Worker",
-      "projectPath": "D:\\SmartGarden\\raspberry-pi\\irrigation_project\\IrrigationSystem.Worker\\IrrigationSystem.Worker.csproj",
-      "packagesPath": "C:\\Users\\dp222\\.nuget\\packages\\",
-      "outputPath": "D:\\SmartGarden\\raspberry-pi\\irrigation_project\\IrrigationSystem.Worker\\obj\\",
+      "projectPath": "C:\\Users\\dpenis\\Documents\\SmartGarden\\raspberry-pi\\irrigation_project\\IrrigationSystem.Worker\\IrrigationSystem.Worker.csproj",
+      "packagesPath": "C:\\Users\\dpenis\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\dpenis\\Documents\\SmartGarden\\raspberry-pi\\irrigation_project\\IrrigationSystem.Worker\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "C:\\Users\\dp222\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        "C:\\Users\\dpenis\\AppData\\Roaming\\NuGet\\NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net8.0"
@@ -1689,7 +1689,8 @@
         "enableAudit": "true",
         "auditLevel": "low",
         "auditMode": "direct"
-      }
+      },
+      "SdkAnalysisLevel": "9.0.300"
     },
     "frameworks": {
       "net8.0": {
@@ -1719,12 +1720,30 @@
         ],
         "assetTargetFallback": true,
         "warn": true,
+        "downloadDependencies": [
+          {
+            "name": "Microsoft.AspNetCore.App.Ref",
+            "version": "[8.0.24, 8.0.24]"
+          },
+          {
+            "name": "Microsoft.NETCore.App.Host.win-x64",
+            "version": "[8.0.24, 8.0.24]"
+          },
+          {
+            "name": "Microsoft.NETCore.App.Ref",
+            "version": "[8.0.24, 8.0.24]"
+          },
+          {
+            "name": "Microsoft.WindowsDesktop.App.Ref",
+            "version": "[8.0.24, 8.0.24]"
+          }
+        ],
         "frameworkReferences": {
           "Microsoft.NETCore.App": {
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.420/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.311/PortableRuntimeIdentifierGraph.json"
       }
     }
   }

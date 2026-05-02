@@ -24,7 +24,7 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 
 --
--- Name: irrigation_events; Type: TABLE; Schema: public; Owner: denis
+-- Name: irrigation_events; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.irrigation_events (
@@ -39,10 +39,10 @@ CREATE TABLE public.irrigation_events (
 );
 
 
-ALTER TABLE public.irrigation_events OWNER TO denis;
+ALTER TABLE public.irrigation_events OWNER TO postgres;
 
 --
--- Name: irrigation_events_id_seq; Type: SEQUENCE; Schema: public; Owner: denis
+-- Name: irrigation_events_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.irrigation_events_id_seq
@@ -54,17 +54,17 @@ CREATE SEQUENCE public.irrigation_events_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.irrigation_events_id_seq OWNER TO denis;
+ALTER SEQUENCE public.irrigation_events_id_seq OWNER TO postgres;
 
 --
--- Name: irrigation_events_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: denis
+-- Name: irrigation_events_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.irrigation_events_id_seq OWNED BY public.irrigation_events.id;
 
 
 --
--- Name: login_attempts; Type: TABLE; Schema: public; Owner: denis
+-- Name: login_attempts; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.login_attempts (
@@ -76,10 +76,10 @@ CREATE TABLE public.login_attempts (
 );
 
 
-ALTER TABLE public.login_attempts OWNER TO denis;
+ALTER TABLE public.login_attempts OWNER TO postgres;
 
 --
--- Name: login_attempts_id_seq; Type: SEQUENCE; Schema: public; Owner: denis
+-- Name: login_attempts_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.login_attempts_id_seq
@@ -91,17 +91,17 @@ CREATE SEQUENCE public.login_attempts_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.login_attempts_id_seq OWNER TO denis;
+ALTER SEQUENCE public.login_attempts_id_seq OWNER TO postgres;
 
 --
--- Name: login_attempts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: denis
+-- Name: login_attempts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.login_attempts_id_seq OWNED BY public.login_attempts.id;
 
 
 --
--- Name: sensor_readings; Type: TABLE; Schema: public; Owner: denis
+-- Name: sensor_readings; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.sensor_readings (
@@ -114,10 +114,10 @@ CREATE TABLE public.sensor_readings (
 );
 
 
-ALTER TABLE public.sensor_readings OWNER TO denis;
+ALTER TABLE public.sensor_readings OWNER TO postgres;
 
 --
--- Name: sensor_readings_id_seq; Type: SEQUENCE; Schema: public; Owner: denis
+-- Name: sensor_readings_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.sensor_readings_id_seq
@@ -129,17 +129,17 @@ CREATE SEQUENCE public.sensor_readings_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.sensor_readings_id_seq OWNER TO denis;
+ALTER SEQUENCE public.sensor_readings_id_seq OWNER TO postgres;
 
 --
--- Name: sensor_readings_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: denis
+-- Name: sensor_readings_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.sensor_readings_id_seq OWNED BY public.sensor_readings.id;
 
 
 --
--- Name: system_logs; Type: TABLE; Schema: public; Owner: denis
+-- Name: system_logs; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.system_logs (
@@ -150,10 +150,10 @@ CREATE TABLE public.system_logs (
 );
 
 
-ALTER TABLE public.system_logs OWNER TO denis;
+ALTER TABLE public.system_logs OWNER TO postgres;
 
 --
--- Name: system_logs_id_seq; Type: SEQUENCE; Schema: public; Owner: denis
+-- Name: system_logs_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.system_logs_id_seq
@@ -165,17 +165,17 @@ CREATE SEQUENCE public.system_logs_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.system_logs_id_seq OWNER TO denis;
+ALTER SEQUENCE public.system_logs_id_seq OWNER TO postgres;
 
 --
--- Name: system_logs_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: denis
+-- Name: system_logs_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.system_logs_id_seq OWNED BY public.system_logs.id;
 
 
 --
--- Name: system_settings; Type: TABLE; Schema: public; Owner: denis
+-- Name: system_settings; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.system_settings (
@@ -191,10 +191,10 @@ CREATE TABLE public.system_settings (
 );
 
 
-ALTER TABLE public.system_settings OWNER TO denis;
+ALTER TABLE public.system_settings OWNER TO postgres;
 
 --
--- Name: system_settings_id_seq; Type: SEQUENCE; Schema: public; Owner: denis
+-- Name: system_settings_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.system_settings_id_seq
@@ -206,17 +206,17 @@ CREATE SEQUENCE public.system_settings_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.system_settings_id_seq OWNER TO denis;
+ALTER SEQUENCE public.system_settings_id_seq OWNER TO postgres;
 
 --
--- Name: system_settings_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: denis
+-- Name: system_settings_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.system_settings_id_seq OWNED BY public.system_settings.id;
 
 
 --
--- Name: users; Type: TABLE; Schema: public; Owner: denis
+-- Name: users; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.users (
@@ -227,10 +227,10 @@ CREATE TABLE public.users (
 );
 
 
-ALTER TABLE public.users OWNER TO denis;
+ALTER TABLE public.users OWNER TO postgres;
 
 --
--- Name: users_id_seq; Type: SEQUENCE; Schema: public; Owner: denis
+-- Name: users_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.users_id_seq
@@ -242,17 +242,17 @@ CREATE SEQUENCE public.users_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.users_id_seq OWNER TO denis;
+ALTER SEQUENCE public.users_id_seq OWNER TO postgres;
 
 --
--- Name: users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: denis
+-- Name: users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.users_id_seq OWNED BY public.users.id;
 
 
 --
--- Name: zones; Type: TABLE; Schema: public; Owner: denis
+-- Name: zones; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.zones (
@@ -265,10 +265,10 @@ CREATE TABLE public.zones (
 );
 
 
-ALTER TABLE public.zones OWNER TO denis;
+ALTER TABLE public.zones OWNER TO postgres;
 
 --
--- Name: ai_irrigation_decision_logs; Type: TABLE; Schema: public; Owner: denis
+-- Name: ai_irrigation_decision_logs; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.ai_irrigation_decision_logs (
@@ -294,10 +294,10 @@ CREATE TABLE public.ai_irrigation_decision_logs (
 );
 
 
-ALTER TABLE public.ai_irrigation_decision_logs OWNER TO denis;
+ALTER TABLE public.ai_irrigation_decision_logs OWNER TO postgres;
 
 --
--- Name: pattern_memory; Type: TABLE; Schema: public; Owner: denis
+-- Name: pattern_memory; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.pattern_memory (
@@ -310,10 +310,10 @@ CREATE TABLE public.pattern_memory (
 );
 
 
-ALTER TABLE public.pattern_memory OWNER TO denis;
+ALTER TABLE public.pattern_memory OWNER TO postgres;
 
 --
--- Name: zones_id_seq; Type: SEQUENCE; Schema: public; Owner: denis
+-- Name: zones_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
 CREATE SEQUENCE public.zones_id_seq
@@ -325,66 +325,66 @@ CREATE SEQUENCE public.zones_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.zones_id_seq OWNER TO denis;
+ALTER SEQUENCE public.zones_id_seq OWNER TO postgres;
 
 --
--- Name: zones_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: denis
+-- Name: zones_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.zones_id_seq OWNED BY public.zones.id;
 
 
 --
--- Name: irrigation_events id; Type: DEFAULT; Schema: public; Owner: denis
+-- Name: irrigation_events id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.irrigation_events ALTER COLUMN id SET DEFAULT nextval('public.irrigation_events_id_seq'::regclass);
 
 
 --
--- Name: login_attempts id; Type: DEFAULT; Schema: public; Owner: denis
+-- Name: login_attempts id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.login_attempts ALTER COLUMN id SET DEFAULT nextval('public.login_attempts_id_seq'::regclass);
 
 
 --
--- Name: sensor_readings id; Type: DEFAULT; Schema: public; Owner: denis
+-- Name: sensor_readings id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.sensor_readings ALTER COLUMN id SET DEFAULT nextval('public.sensor_readings_id_seq'::regclass);
 
 
 --
--- Name: system_logs id; Type: DEFAULT; Schema: public; Owner: denis
+-- Name: system_logs id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.system_logs ALTER COLUMN id SET DEFAULT nextval('public.system_logs_id_seq'::regclass);
 
 
 --
--- Name: system_settings id; Type: DEFAULT; Schema: public; Owner: denis
+-- Name: system_settings id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.system_settings ALTER COLUMN id SET DEFAULT nextval('public.system_settings_id_seq'::regclass);
 
 
 --
--- Name: users id; Type: DEFAULT; Schema: public; Owner: denis
+-- Name: users id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_id_seq'::regclass);
 
 
 --
--- Name: zones id; Type: DEFAULT; Schema: public; Owner: denis
+-- Name: zones id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.zones ALTER COLUMN id SET DEFAULT nextval('public.zones_id_seq'::regclass);
 
 
 --
--- Name: irrigation_events irrigation_events_pkey; Type: CONSTRAINT; Schema: public; Owner: denis
+-- Name: irrigation_events irrigation_events_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.irrigation_events
@@ -392,7 +392,7 @@ ALTER TABLE ONLY public.irrigation_events
 
 
 --
--- Name: login_attempts login_attempts_pkey; Type: CONSTRAINT; Schema: public; Owner: denis
+-- Name: login_attempts login_attempts_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.login_attempts
@@ -400,7 +400,7 @@ ALTER TABLE ONLY public.login_attempts
 
 
 --
--- Name: sensor_readings sensor_readings_pkey; Type: CONSTRAINT; Schema: public; Owner: denis
+-- Name: sensor_readings sensor_readings_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.sensor_readings
@@ -408,7 +408,7 @@ ALTER TABLE ONLY public.sensor_readings
 
 
 --
--- Name: system_logs system_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: denis
+-- Name: system_logs system_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.system_logs
@@ -416,7 +416,7 @@ ALTER TABLE ONLY public.system_logs
 
 
 --
--- Name: system_settings system_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: denis
+-- Name: system_settings system_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.system_settings
@@ -424,7 +424,7 @@ ALTER TABLE ONLY public.system_settings
 
 
 --
--- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: denis
+-- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.users
@@ -432,7 +432,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- Name: users users_username_key; Type: CONSTRAINT; Schema: public; Owner: denis
+-- Name: users users_username_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.users
@@ -440,7 +440,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- Name: zones zones_pkey; Type: CONSTRAINT; Schema: public; Owner: denis
+-- Name: zones zones_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.zones
@@ -448,34 +448,34 @@ ALTER TABLE ONLY public.zones
 
 
 --
--- Name: idx_login_attempts_ip; Type: INDEX; Schema: public; Owner: denis
+-- Name: idx_login_attempts_ip; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_login_attempts_ip ON public.login_attempts USING btree (ip_address, attempted_at);
 
 --
--- Name: idx_ai_irrigation_decision_logs_timestamp; Type: INDEX; Schema: public; Owner: denis
+-- Name: idx_ai_irrigation_decision_logs_timestamp; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_ai_irrigation_decision_logs_timestamp ON public.ai_irrigation_decision_logs USING btree ("timestamp" DESC);
 
 
 --
--- Name: idx_ai_irrigation_decision_logs_zone_timestamp; Type: INDEX; Schema: public; Owner: denis
+-- Name: idx_ai_irrigation_decision_logs_zone_timestamp; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_ai_irrigation_decision_logs_zone_timestamp ON public.ai_irrigation_decision_logs USING btree (zone_id, "timestamp" DESC);
 
 
 --
--- Name: idx_pattern_memory_created_at; Type: INDEX; Schema: public; Owner: denis
+-- Name: idx_pattern_memory_created_at; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_pattern_memory_created_at ON public.pattern_memory USING btree (created_at DESC);
 
 
 --
--- Name: irrigation_events irrigation_events_zone_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: denis
+-- Name: irrigation_events irrigation_events_zone_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.irrigation_events
@@ -483,7 +483,7 @@ ALTER TABLE ONLY public.irrigation_events
 
 
 --
--- Name: sensor_readings sensor_readings_zone_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: denis
+-- Name: sensor_readings sensor_readings_zone_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.sensor_readings
@@ -494,7 +494,7 @@ ALTER TABLE ONLY public.sensor_readings
 -- Name: SCHEMA public; Type: ACL; Schema: -; Owner: pg_database_owner
 --
 
-GRANT ALL ON SCHEMA public TO denis;
+GRANT ALL ON SCHEMA public TO postgres;
 
 
 --
