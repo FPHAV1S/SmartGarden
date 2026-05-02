@@ -16,7 +16,7 @@ IPAddress dns(8, 8, 8, 8);
 const char* apiUrl = "http://192.168.4.1:5000/api/sensor-readings";
 
 // MQTT valve commands published by the ASP.NET app
-const char* mqttServer = "192.168.4.1";
+const char* mqttServer = "192.168.137.1";
 const int mqttPort = 1883;
 const char* valveCommandTopic = "irrigation/zone/+/valve";
 

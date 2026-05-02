@@ -21,6 +21,8 @@ The current repository contains:
 - The web app listens on `http://0.0.0.0:5000`.
 - Sensor readings are stored in PostgreSQL.
 - Readings can arrive by HTTP `POST /api/sensor-readings`.
+- Optional AI analysis can review the latest reading plus historical context and
+  log a final safe irrigation decision.
 - The web app also includes an MQTT background subscriber for
   `garden/+/sensors`.
 - Manual and automatic watering publish valve commands to MQTT topic
@@ -139,6 +141,104 @@ cd raspberry-pi/irrigation_project
 dotnet run --project IrrigationSystem.Tests
 ```
 
+## AI Irrigation Decisions
+
+The web backend can optionally call the OpenAI API when sensor readings arrive
+or when the auto-watering service checks a zone. The AI recommendation is never
+used directly as a valve command. It is passed through the existing
+rule-based fallback and safety checks first.
+
+The AI reads:
+
+- latest soil moisture, temperature, humidity, zone, and timestamp;
+- recent sensor history for the zone;
+- recent watering events;
+- current zone threshold and system settings;
+- saved `pattern_memory` summaries from earlier AI decisions.
+
+The final decision is based on:
+
+```text
+sensor reading + old rule logic + AI recommendation + safety checks + history logs
+```
+
+### Enable AI
+
+The API key must come from the environment variable `OPENAI_API_KEY`. Do not put
+the key in the ESP32 sketch, frontend files, GitHub, `appsettings.json`, or any
+public file.
+
+Linux/Raspberry Pi:
+
+```bash
+export OPENAI_API_KEY="<your-openai-api-key>"
+```
+
+Windows PowerShell:
+
+```powershell
+$env:OPENAI_API_KEY = "<your-openai-api-key>"
+```
+
+Then enable AI in
+`raspberry-pi/irrigation_project/IrrigationSystem.Web/appsettings.json`:
+
+```json
+"AiIrrigation": {
+  "EnableAiDecisionMaking": true,
+  "Model": "gpt-4.1-nano",
+  "ApiKeyEnvironmentVariable": "OPENAI_API_KEY",
+  "MinimumMinutesBetweenAiCalls": 15
+}
+```
+
+`gpt-4.1-nano` is configured as a cheap/fast default. You can change the model
+name in config without changing code.
+
+If AI is disabled, the key is missing, the internet is unavailable, the API
+call fails, or the AI returns invalid JSON, the system keeps working with the
+old rule-based logic.
+
+### Safety Rules
+
+AI decisions are accepted only when they parse as strict JSON with:
+
+```json
+{
+  "shouldWater": true,
+  "recommendedValveState": "ON",
+  "recommendedDurationSeconds": 10,
+  "confidence": 0.82,
+  "reason": "Soil moisture is falling and has stayed below the learned safe range.",
+  "learnedObservation": "This soil usually dries quickly after several low readings.",
+  "suggestedMoistureThreshold": 30,
+  "riskLevel": "LOW"
+}
+```
+
+After parsing, safety still blocks or changes the decision when needed:
+
+- moisture at or above 60% forces `OFF`;
+- duration is clamped to 120 seconds;
+- repeated watering is blocked by the cooldown;
+- low AI confidence uses the old rule-based decision;
+- `riskLevel: "HIGH"` blocks automatic watering;
+- missing/invalid AI output uses the old rule-based decision.
+
+### Learning Behavior
+
+The project does not train or fine-tune a model. Its practical learning comes
+from stored context:
+
+- `ai_irrigation_decision_logs` stores AI recommendations, final safe decisions,
+  fallback use, confidence, reasons, and errors;
+- `pattern_memory` stores short observations from confident AI decisions, such
+  as drying patterns or suggested thresholds.
+
+Future AI calls receive recent readings, watering events, and pattern memory as
+context, so the recommendations can adapt to the garden's history without
+claiming true model training.
+
 ## Getting Data Into the Dashboard
 
 ### Option 1: Demo Mode
@@ -202,6 +302,8 @@ GET  /api/latest
 POST /api/sensor-readings
 GET  /api/zone/{zoneId}/history?hours=24
 POST /api/adaptive/run
+GET  /api/ai/latest-decision
+GET  /api/ai/history?count=20
 ```
 
 Example sensor payload:
@@ -309,6 +411,8 @@ The schema includes:
 - `zones`
 - `sensor_readings`
 - `irrigation_events`
+- `ai_irrigation_decision_logs`
+- `pattern_memory`
 - `system_settings`
 - `system_logs`
 - `users`
