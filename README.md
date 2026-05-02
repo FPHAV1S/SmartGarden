@@ -531,6 +531,23 @@ Check that:
 - the web app is running on port `5000`;
 - the ESP32 static IP `192.168.4.100` is not already in use.
 
+### ESP32-C3 serial monitor is blank
+
+The sketch prints `GardenBrain ESP32-C3` and `Serial is alive at 115200 baud`
+about two seconds after reset. If the Arduino Serial Monitor stays completely
+blank:
+
+- set the monitor baud rate to `115200`;
+- in Arduino IDE, select an ESP32-C3 board and set `USB CDC On Boot` to
+  `Enabled`;
+- upload again, then press the board `EN`/`RST` button with the Serial Monitor
+  already open;
+- select the ESP32-C3 USB/JTAG serial port, not an old Bluetooth or stale COM
+  port;
+- if `USB CDC On Boot` is disabled, `Serial` may go to UART0 pins instead of
+  the USB cable, so the USB Serial Monitor can be blank even though the sketch
+  is running.
+
 ### Request body timed out due to data arriving too slowly
 
 This can happen when an ESP32 or another small client posts JSON slowly over an

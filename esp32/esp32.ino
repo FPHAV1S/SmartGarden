@@ -4,13 +4,17 @@
 #include <PubSubClient.h>
 
 const char* ssid = "GardenBrain";
-const char* password = "GardenBrain123";
+const char* password = "";
+
+IPAddress localIp(192, 168, 4, 100);
+IPAddress gateway(192, 168, 4, 1);
+IPAddress subnet(255, 255, 255, 0);
 
 // ASP.NET API endpoint
-const char* apiUrl = "http://192.168.137.1:5000/api/sensor-readings";
+const char* apiUrl = "http://192.168.4.1:5000/api/sensor-readings";
 
 // MQTT valve commands published by the ASP.NET app
-const char* mqttServer = "192.168.137.1";
+const char* mqttServer = "192.168.4.1";
 const int mqttPort = 1883;
 const char* valveCommandTopic = "irrigation/zone/+/valve";
 
@@ -55,12 +59,14 @@ unsigned long valve2AutoOffAt = 0;
 
 void setup() {
   Serial.begin(115200);
+  Serial.setDebugOutput(true);
   delay(2000);
 
   Serial.println();
   Serial.println("GardenBrain ESP32-C3");
   Serial.println("Soil Moisture + XY-MOS + MQTT valve commands");
   Serial.println("No BME280, no buck converter");
+  Serial.println("Serial is alive at 115200 baud.");
 
   analogReadResolution(12);
 
@@ -75,7 +81,11 @@ void setup() {
 
   WiFi.mode(WIFI_STA);
 
-  WiFi.begin(ssid, password);
+  if (!WiFi.config(localIp, gateway, subnet)) {
+    Serial.println("Failed to configure ESP32 static IP.");
+  }
+
+  beginWifi();
   connectToWifi();
 
   mqttClient.setServer(mqttServer, mqttPort);
@@ -107,7 +117,10 @@ void loop() {
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("WiFi disconnected. Reconnecting...");
     WiFi.disconnect();
-    WiFi.begin(ssid, password);
+    if (!WiFi.config(localIp, gateway, subnet)) {
+      Serial.println("Failed to reconfigure ESP32 static IP.");
+    }
+    beginWifi();
     connectToWifi();
   }
 
@@ -128,9 +141,19 @@ void loop() {
   delay(10);
 }
 
+void beginWifi() {
+  if (password[0] == '\0') {
+    WiFi.begin(ssid);
+  } else {
+    WiFi.begin(ssid, password);
+  }
+}
+
 void connectToWifi() {
   Serial.print("Connecting to ");
   Serial.print(ssid);
+  Serial.print(" with static IP ");
+  Serial.print(localIp);
 
   int attempts = 0;
 
