@@ -118,13 +118,16 @@ public class MqttWorkerService : BackgroundService
 
             using var scope = ScopeFactory.CreateScope();
             var sensorService = scope.ServiceProvider.GetRequiredService<SensorDataService>();
+            var decisionService = scope.ServiceProvider.GetRequiredService<IrrigationDecisionService>();
 
-            await sensorService.InsertSensorReadingAsync(
+            var reading = await sensorService.InsertSensorReadingAsync(
                 zoneId,
                 data.Moisture,
                 data.Temperature,
                 data.Humidity
             );
+
+            await decisionService.EvaluateAsync(reading, "mqtt-sensor");
 
             Logger.LogInformation(
                 "Saved sensor reading for Zone {ZoneId}: Moisture={Moisture}%, Temp={Temp}°C, Humidity={Humidity}%",

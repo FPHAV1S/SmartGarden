@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("IrrigationSystem.Web")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+95d80d84343a1c89203f99721083caf83a37dcca")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cba2e2ed28c3b735da0c0db14b0e7a5ca5e54b22")]
 [assembly: System.Reflection.AssemblyProductAttribute("IrrigationSystem.Web")]
 [assembly: System.Reflection.AssemblyTitleAttribute("IrrigationSystem.Web")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

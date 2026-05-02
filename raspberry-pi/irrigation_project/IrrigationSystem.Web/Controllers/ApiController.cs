@@ -9,12 +9,18 @@ public class ApiController : ControllerBase
 {
     private readonly SensorDataService DataService;
     private readonly AdaptiveWateringService AdaptiveService;
+    private readonly IrrigationDecisionService DecisionService;
     private readonly ILogger<ApiController> Logger;
 
-    public ApiController(SensorDataService dataService, AdaptiveWateringService adaptiveService, ILogger<ApiController> logger)
+    public ApiController(
+        SensorDataService dataService,
+        AdaptiveWateringService adaptiveService,
+        IrrigationDecisionService decisionService,
+        ILogger<ApiController> logger)
     {
         DataService = dataService;
         AdaptiveService = adaptiveService;
+        DecisionService = decisionService;
         Logger = logger;
     }
 
@@ -58,11 +64,16 @@ public class ApiController : ControllerBase
             return BadRequest(new { message = $"Zone {request.ZoneId} does not exist" });
         }
 
-        await DataService.InsertSensorReadingAsync(
+        var reading = await DataService.InsertSensorReadingAsync(
             request.ZoneId,
             moisture.Value,
             request.Temperature.Value,
             request.Humidity.Value);
+
+        var finalDecision = await DecisionService.EvaluateAsync(
+            reading,
+            $"sensor-api:{(string.IsNullOrWhiteSpace(request.Device) ? "unknown" : request.Device)}",
+            HttpContext.RequestAborted);
 
         Logger.LogInformation(
             "Received sensor reading from {Device} for zone {ZoneId}: moisture={Moisture}, temperature={Temperature}, humidity={Humidity}",
@@ -78,8 +89,28 @@ public class ApiController : ControllerBase
             zoneId = request.ZoneId,
             moisture = moisture.Value,
             temperature = request.Temperature.Value,
-            humidity = request.Humidity.Value
+            humidity = request.Humidity.Value,
+            finalDecision
         });
+    }
+
+    [HttpGet("ai/latest-decision")]
+    public async Task<IActionResult> GetLatestAiDecision()
+    {
+        var decision = await DataService.GetLatestAiDecisionAsync();
+        if (decision == null)
+        {
+            return NotFound(new { message = "No AI irrigation decisions have been logged yet" });
+        }
+
+        return Ok(decision);
+    }
+
+    [HttpGet("ai/history")]
+    public async Task<IActionResult> GetAiDecisionHistory([FromQuery] int count = 20)
+    {
+        var decisions = await DataService.GetAiDecisionHistoryAsync(count);
+        return Ok(decisions);
     }
 
     [HttpGet("zone/{zoneId}/history")]

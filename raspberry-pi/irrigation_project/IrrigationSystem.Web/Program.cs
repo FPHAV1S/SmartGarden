@@ -1,4 +1,5 @@
 using IrrigationSystem.Web.Services;
+using IrrigationSystem.Web.Models;
 using Radzen;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Components;
@@ -10,6 +11,13 @@ builder.Services.AddServerSideBlazor();
 builder.Services.AddRadzenComponents();
 builder.Services.AddControllers();
 builder.Services.AddHostedService<MqttWorkerService>();
+builder.Services.Configure<AiIrrigationOptions>(
+    builder.Configuration.GetSection(AiIrrigationOptions.SectionName));
+builder.Services.AddHttpClient<IAiIrrigationService, OpenAiIrrigationService>(client =>
+{
+    client.BaseAddress = new Uri("https://api.openai.com/v1/");
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
 
 builder.Services.AddScoped(sp =>
 {
@@ -38,6 +46,7 @@ builder.Services.AddSingleton(sp =>
     new SensorDataService(connectionString, sp.GetRequiredService<ILogger<SensorDataService>>()));
 
 builder.Services.AddSingleton<MqttService>();
+builder.Services.AddSingleton<IrrigationDecisionService>();
 
 builder.Services.AddSingleton(sp => 
     new AdaptiveWateringService(connectionString, sp.GetRequiredService<ILogger<AdaptiveWateringService>>(), sp.GetRequiredService<SensorDataService>()));

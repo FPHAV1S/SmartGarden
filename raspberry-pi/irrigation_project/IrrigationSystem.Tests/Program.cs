@@ -4,6 +4,7 @@ using IrrigationSystem.Web.Models;
 using IrrigationSystem.Web.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 var tests = new TestCase[]
 {
@@ -12,6 +13,12 @@ var tests = new TestCase[]
     new("Sensor API rejects missing request bodies", Tests.SensorApiRejectsMissingRequestBody),
     new("Sensor API rejects invalid zone IDs before database access", Tests.SensorApiRejectsInvalidZoneId),
     new("Sensor API rejects incomplete readings before database access", Tests.SensorApiRejectsIncompleteReadings),
+    new("AI response parser accepts valid JSON", Tests.AiParserAcceptsValidJson),
+    new("Invalid AI JSON falls back to rules", Tests.InvalidAiJsonFallsBackToRules),
+    new("High moisture safety blocks watering", Tests.HighMoistureSafetyBlocksWatering),
+    new("AI duration is clamped to max safety limit", Tests.AiDurationIsClampedToMaxSafetyLimit),
+    new("Low AI confidence falls back to rules", Tests.LowAiConfidenceFallsBackToRules),
+    new("API failure falls back to rules", Tests.ApiFailureFallsBackToRules),
     new("Database schema contains required tables", Tests.DatabaseSchemaContainsRequiredTables),
     new("Web appsettings uses the expected local database", Tests.WebAppSettingsUseExpectedDatabase),
     new("ESP32 sketch posts to the web sensor API", Tests.Esp32SketchPostsToWebSensorApi),
@@ -117,6 +124,92 @@ internal static class Tests
         Assert.Contains("temperature, humidity, and soilMoisture are required", Serialize(badRequest.Value));
     }
 
+    public static Task AiParserAcceptsValidJson()
+    {
+        var json = """
+        {
+          "shouldWater": true,
+          "recommendedValveState": "ON",
+          "recommendedDurationSeconds": 10,
+          "confidence": 0.82,
+          "reason": "Soil moisture is falling and below the safe range.",
+          "learnedObservation": "This zone dries quickly after several low readings.",
+          "suggestedMoistureThreshold": 30,
+          "riskLevel": "LOW"
+        }
+        """;
+
+        var parsed = AiIrrigationDecisionParser.TryParse(json, out var decision, out var error);
+
+        Assert.True(parsed, $"Expected valid AI JSON to parse. Error: {error}");
+        Assert.True(decision.ShouldWater, "Parsed AI decision should recommend watering.");
+        Assert.Equal("ON", decision.RecommendedValveState, "Valve state should be normalized.");
+        Assert.Equal(10, decision.RecommendedDurationSeconds, "Duration should match AI JSON.");
+
+        return Task.CompletedTask;
+    }
+
+    public static Task InvalidAiJsonFallsBackToRules()
+    {
+        var parsed = AiIrrigationDecisionParser.TryParse("{\"shouldWater\":\"yes\"}", out var _, out var parseError);
+        Assert.False(parsed, "Invalid AI JSON should be rejected.");
+
+        var result = ApplySafety(null, aiErrorMessage: parseError);
+
+        Assert.True(result.WasFallbackUsed, "Invalid AI JSON should use rule fallback.");
+        Assert.True(result.FinalShouldWaterAfterSafety, "Rule fallback should still allow watering when moisture is low.");
+        Assert.Contains("shouldWater must be a boolean", result.SafetyNotes);
+
+        return Task.CompletedTask;
+    }
+
+    public static Task HighMoistureSafetyBlocksWatering()
+    {
+        var aiDecision = CreateAiDecision(shouldWater: true, durationSeconds: 30, confidence: 0.95);
+        var result = ApplySafety(aiDecision, moisture: 65);
+
+        Assert.False(result.FinalShouldWaterAfterSafety, "Safety must block watering when moisture is already high.");
+        Assert.Equal("OFF", result.RecommendedValveState, "High moisture should force the valve off.");
+        Assert.Contains("moisture 65.0%", result.SafetyNotes);
+
+        return Task.CompletedTask;
+    }
+
+    public static Task AiDurationIsClampedToMaxSafetyLimit()
+    {
+        var aiDecision = CreateAiDecision(shouldWater: true, durationSeconds: 180, confidence: 0.95);
+        var result = ApplySafety(aiDecision, moisture: 20);
+
+        Assert.True(result.FinalShouldWaterAfterSafety, "AI watering should be allowed when moisture is low and confidence is high.");
+        Assert.Equal(120, result.RecommendedDurationSeconds, "Safety must clamp duration to 120 seconds.");
+        Assert.Contains("clamped watering duration", result.SafetyNotes);
+
+        return Task.CompletedTask;
+    }
+
+    public static Task LowAiConfidenceFallsBackToRules()
+    {
+        var aiDecision = CreateAiDecision(shouldWater: false, durationSeconds: 0, confidence: 0.2);
+        var result = ApplySafety(aiDecision, moisture: 20);
+
+        Assert.True(result.WasFallbackUsed, "Low confidence should use rule fallback.");
+        Assert.True(result.FinalShouldWaterAfterSafety, "Low-confidence AI OFF should not override a low-moisture rule fallback.");
+        Assert.Contains("below 0.65", result.SafetyNotes);
+
+        return Task.CompletedTask;
+    }
+
+    public static Task ApiFailureFallsBackToRules()
+    {
+        var result = ApplySafety(null, aiWasAttempted: true, aiErrorMessage: "OpenAI API returned 503 Service Unavailable");
+
+        Assert.True(result.WasFallbackUsed, "API failures should use rule fallback.");
+        Assert.True(result.FinalShouldWaterAfterSafety, "Rule fallback should still produce a final decision.");
+        Assert.Contains("OpenAI API returned 503", result.SafetyNotes);
+
+        return Task.CompletedTask;
+    }
+
     public static Task DatabaseSchemaContainsRequiredTables()
     {
         var schema = File.ReadAllText(FindRepoFile("raspberry-pi", "irrigation_db.sql"));
@@ -125,6 +218,8 @@ internal static class Tests
             "zones",
             "sensor_readings",
             "irrigation_events",
+            "ai_irrigation_decision_logs",
+            "pattern_memory",
             "system_settings",
             "system_logs",
             "users",
@@ -138,6 +233,7 @@ internal static class Tests
 
         Assert.Contains("FOREIGN KEY (zone_id) REFERENCES public.zones(id)", schema);
         Assert.Contains("users_username_key UNIQUE (username)", schema);
+        Assert.Contains("OPENAI_API_KEY", File.ReadAllText(FindRepoFile("README.md")));
 
         return Task.CompletedTask;
     }
@@ -232,8 +328,83 @@ internal static class Tests
             unusedConnectionString,
             new TestLogger<AdaptiveWateringService>(),
             dataService);
+        var decisionService = new IrrigationDecisionService(
+            dataService,
+            new ThrowingAiService(),
+            Options.Create(new AiIrrigationOptions()),
+            new TestLogger<IrrigationDecisionService>());
 
-        return new ApiController(dataService, adaptiveService, new TestLogger<ApiController>());
+        return new ApiController(dataService, adaptiveService, decisionService, new TestLogger<ApiController>());
+    }
+
+    private static IrrigationDecisionResult ApplySafety(
+        AiIrrigationDecision? aiDecision,
+        float moisture = 20,
+        bool aiWasAttempted = false,
+        string? aiErrorMessage = null)
+    {
+        var reading = new SensorReading
+        {
+            Id = 10,
+            ZoneId = 1,
+            Moisture = moisture,
+            Temperature = 24,
+            Humidity = 60,
+            RecordedAt = DateTime.Now
+        };
+        var zone = new Zone
+        {
+            Id = 1,
+            Name = "Zone 1",
+            PlantType = "Tomatoes",
+            MoistureThreshold = 30,
+            IsActive = true
+        };
+        var settings = new SystemSettings
+        {
+            AutoWateringEnabled = true,
+            DefaultWateringDuration = 10
+        };
+        var options = new AiIrrigationOptions
+        {
+            EnableAiDecisionMaking = true,
+            LowConfidenceThreshold = 0.65,
+            HighMoistureBlockPercent = 60,
+            MaxDurationSeconds = 120,
+            MinimumMinutesBetweenWaterings = 120
+        };
+        var fallback = IrrigationSafetyPolicy.BuildRuleBasedDecision(
+            reading,
+            zone,
+            settings,
+            Array.Empty<IrrigationEvent>(),
+            options);
+
+        return IrrigationSafetyPolicy.Apply(
+            reading,
+            zone,
+            settings,
+            Array.Empty<IrrigationEvent>(),
+            fallback,
+            aiDecision,
+            options,
+            aiWasAttempted,
+            aiErrorMessage);
+    }
+
+    private static AiIrrigationDecision CreateAiDecision(bool shouldWater, int durationSeconds, double confidence)
+    {
+        return new AiIrrigationDecision
+        {
+            ShouldWater = shouldWater,
+            RecommendedValveState = shouldWater ? "ON" : "OFF",
+            RecommendedDurationSeconds = durationSeconds,
+            Confidence = confidence,
+            Reason = "AI test recommendation.",
+            LearnedObservation = "Test pattern memory.",
+            SuggestedMoistureThreshold = 30,
+            RiskLevel = "LOW"
+        };
     }
 
     private static string Serialize(object? value)
@@ -333,5 +504,16 @@ internal sealed class TestLogger<T> : ILogger<T>
         public void Dispose()
         {
         }
+    }
+}
+
+internal sealed class ThrowingAiService : IAiIrrigationService
+{
+    public Task<AiIrrigationDecision> AnalyzeAsync(
+        SensorReading latestReading,
+        List<SensorReading> recentReadings,
+        CancellationToken cancellationToken)
+    {
+        throw new InvalidOperationException("AI should not be called by controller validation tests.");
     }
 }

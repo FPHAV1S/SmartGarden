@@ -7,17 +7,19 @@ public class AutoWateringService : BackgroundService
     private readonly ILogger<AutoWateringService> Logger;
     private readonly SensorDataService DataService;
     private readonly MqttService MqttService;
+    private readonly IrrigationDecisionService DecisionService;
     private readonly int CheckIntervalSeconds = 300;
-    private readonly int MinHoursBetweenWaterings = 2;
 
     public AutoWateringService(
         ILogger<AutoWateringService> logger,
         SensorDataService dataService,
-        MqttService mqttService)
+        MqttService mqttService,
+        IrrigationDecisionService decisionService)
     {
         Logger = logger;
         DataService = dataService;
         MqttService = mqttService;
+        DecisionService = decisionService;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -85,32 +87,28 @@ public class AutoWateringService : BackgroundService
                 continue;
             }
 
-            if (reading.Moisture.Value < zone.MoistureThreshold)
+            var finalDecision = await DecisionService.EvaluateAsync(reading, "auto-watering-service");
+            if (!finalDecision.FinalShouldWaterAfterSafety || finalDecision.RecommendedDurationSeconds <= 0)
             {
-                var lastWatering = await GetLastWateringTimeAsync(zone.Id);
-                var hoursSinceLastWatering = lastWatering.HasValue 
-                    ? (DateTime.Now - lastWatering.Value).TotalHours 
-                    : double.MaxValue;
-
-                var minHours = MinHoursBetweenWaterings;
-                if (settings.EcoModeEnabled)
-                {
-                    minHours = (int)(minHours * 1.5);
-                    Logger.LogInformation("Zone {ZoneId}: Eco mode active - minimum wait time increased to {Hours}h", zone.Id, minHours);
-                }
-
-                if (hoursSinceLastWatering < minHours)
-                {
-                    Logger.LogInformation("Zone {ZoneId}: Moisture {Moisture}% below threshold {Threshold}%, but watered {Hours:F1}h ago - waiting", 
-                        zone.Id, reading.Moisture.Value, zone.MoistureThreshold, hoursSinceLastWatering);
-                    continue;
-                }
-
-                Logger.LogInformation("Zone {ZoneId}: Moisture {Moisture}% below threshold {Threshold}% - triggering auto-watering", 
-                    zone.Id, reading.Moisture.Value, zone.MoistureThreshold);
-
-                await WaterZoneAsync(zone.Id, reading.Moisture.Value, settings.DefaultWateringDuration);
+                Logger.LogInformation(
+                    "Zone {ZoneId}: Final decision is not to water. Reason: {Reason}. Safety: {SafetyNotes}",
+                    zone.Id,
+                    finalDecision.Reason,
+                    string.IsNullOrWhiteSpace(finalDecision.SafetyNotes) ? "none" : finalDecision.SafetyNotes);
+                continue;
             }
+
+            Logger.LogInformation(
+                "Zone {ZoneId}: Final safe decision allows watering for {Duration}s. Fallback used: {Fallback}",
+                zone.Id,
+                finalDecision.RecommendedDurationSeconds,
+                finalDecision.WasFallbackUsed);
+
+            var triggerReason = finalDecision.AiDecision != null && !finalDecision.WasFallbackUsed
+                ? "AI Auto"
+                : "Auto";
+
+            await WaterZoneAsync(zone.Id, reading.Moisture.Value, finalDecision.RecommendedDurationSeconds, triggerReason);
         }
     }
 
@@ -128,15 +126,9 @@ public class AutoWateringService : BackgroundService
         }
     }
 
-    private async Task<DateTime?> GetLastWateringTimeAsync(int zoneId)
+    private async Task WaterZoneAsync(int zoneId, float moistureBefore, int durationSeconds, string triggerReason)
     {
-        var recentEvents = await DataService.GetRecentIrrigationEventsAsync(zoneId, 1);
-        return recentEvents.FirstOrDefault()?.StartedAt;
-    }
-
-    private async Task WaterZoneAsync(int zoneId, float moistureBefore, int durationSeconds)
-    {
-        var eventId = await DataService.StartIrrigationEventAsync(zoneId, "Auto", moistureBefore);
+        var eventId = await DataService.StartIrrigationEventAsync(zoneId, triggerReason, moistureBefore);
         
         var success = await MqttService.OpenValveAsync(zoneId, durationSeconds);
         
