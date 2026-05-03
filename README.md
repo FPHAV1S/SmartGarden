@@ -271,24 +271,25 @@ The checked-in sketch expects:
 
 ```text
 Wi-Fi SSID: GardenBrain
-Wi-Fi password: empty
-ESP32 static IP: 192.168.4.100
-Raspberry Pi/API IP: 192.168.4.1
-API URL: http://192.168.4.1:5000/api/sensor-readings
+Wi-Fi password: GardenBrain123
+ESP32 static IP: 192.168.137.100
+Windows laptop/API IP: 192.168.137.1
+API URL: http://192.168.137.1:5000/api/sensor-readings
 ```
 
-Configure the Raspberry Pi access point separately so that it provides the
-`GardenBrain` network and uses `192.168.4.1`. The setup script does not create
-the Wi-Fi access point.
+Configure the Windows Mobile Hotspot separately so that it provides the
+`GardenBrain` network on 2.4 GHz. Windows Internet Connection Sharing normally
+uses `192.168.137.1` for the laptop side of the hotspot. If the web app or MQTT
+broker runs on a different host, update `apiUrl` and `mqttServer` in the sketch.
 
 After upload, the ESP32:
 
 - posts a JSON reading every 5 seconds;
-- exposes a status page at `http://192.168.4.100/`;
-- exposes latest JSON data at `http://192.168.4.100/data`;
-- can send a reading immediately from `http://192.168.4.100/send-now`;
+- exposes a status page at `http://192.168.137.100/`;
+- exposes latest JSON data at `http://192.168.137.100/data`;
+- can send a reading immediately from `http://192.168.137.100/send-now`;
 - can open or close valves locally from
-  `http://192.168.4.100/valve?valve=1&state=open&duration=10`;
+  `http://192.168.137.100/valve?valve=1&state=open&duration=10`;
 - subscribes to MQTT topic `irrigation/zone/+/valve` so dashboard and
   auto-watering commands can drive the valve pins.
 
@@ -317,7 +318,7 @@ Example sensor payload:
   "humidity": 60.0,
   "soilMoisture": 45.0,
   "rssi": -55,
-  "ip": "192.168.4.100"
+  "ip": "192.168.137.100"
 }
 ```
 
@@ -393,7 +394,7 @@ dotnet run
 - installs PostgreSQL if `psql` is missing;
 - installs Mosquitto and `mosquitto-clients` if they are missing;
 - configures Mosquitto to listen on `0.0.0.0:1883` for ESP32 clients on the
-  Raspberry Pi access point;
+  GardenBrain network;
 - creates or updates the `postgres` PostgreSQL role with password `1203`;
 - creates `irrigation_db` if needed;
 - loads `raspberry-pi/irrigation_db.sql`;
@@ -525,11 +526,11 @@ sudo netfilter-persistent save
 
 Check that:
 
-- the Raspberry Pi access point SSID is exactly `GardenBrain`;
-- the AP has no password, or the sketch password was updated;
-- the Raspberry Pi AP IP is `192.168.4.1`;
+- the Windows hotspot SSID is exactly `GardenBrain`;
+- the hotspot password is exactly `GardenBrain123`;
+- the laptop hotspot IP is `192.168.137.1`;
 - the web app is running on port `5000`;
-- the ESP32 static IP `192.168.4.100` is not already in use.
+- the ESP32 static IP `192.168.137.100` is not already in use.
 
 ### Request body timed out due to data arriving too slowly
 
@@ -552,6 +553,6 @@ device as production-ready.
 
 - `raspberry-pi/hash_passwords.py` prints BCrypt hashes for sample passwords.
   It does not update the database automatically.
-- `raspberry-pi/collector.py` polls `http://192.168.4.100/data` and appends JSON
+- `raspberry-pi/collector.py` polls `http://192.168.137.100/data` and appends JSON
   lines to `sensor_data.json`. It may need small field-name updates if you use
   it with the current ESP32 sketch output.

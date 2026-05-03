@@ -4,7 +4,7 @@ import time
 import json
 from datetime import datetime
 
-ESP32_URL = "http://192.168.4.100/data"
+ESP32_URL = "http://192.168.137.100/data"
 
 def collect_data():
     try:

@@ -8,17 +8,23 @@ public class IrrigationDecisionService
     private readonly SensorDataService DataService;
     private readonly IAiIrrigationService AiService;
     private readonly IOptions<AiIrrigationOptions> Options;
+    private readonly OpenAiApiKeyProvider ApiKeyProvider;
+    private readonly AiApiHealthService AiApiHealth;
     private readonly ILogger<IrrigationDecisionService> Logger;
 
     public IrrigationDecisionService(
         SensorDataService dataService,
         IAiIrrigationService aiService,
         IOptions<AiIrrigationOptions> options,
+        OpenAiApiKeyProvider apiKeyProvider,
+        AiApiHealthService aiApiHealth,
         ILogger<IrrigationDecisionService> logger)
     {
         DataService = dataService;
         AiService = aiService;
         Options = options;
+        ApiKeyProvider = apiKeyProvider;
+        AiApiHealth = aiApiHealth;
         Logger = logger;
     }
 
@@ -27,7 +33,7 @@ public class IrrigationDecisionService
         string source,
         CancellationToken cancellationToken = default)
     {
-        var settings = Options.Value;
+        var settings = await DataService.GetAiIrrigationOptionsAsync(Options.Value);
         var zone = await DataService.GetZoneAsync(latestReading.ZoneId);
         var systemSettings = await DataService.GetSystemSettingsAsync() ?? new SystemSettings();
         var recentReadings = await DataService.GetZoneHistoryAsync(
@@ -48,13 +54,20 @@ public class IrrigationDecisionService
         var aiWasAttempted = false;
         string? aiErrorMessage = null;
 
+        var keyLookup = ApiKeyProvider.GetApiKey(settings.ApiKeyEnvironmentVariable);
+        var activeApiPause = AiApiHealth.GetActivePause();
+
         if (!settings.EnableAiDecisionMaking)
         {
             aiErrorMessage = "AI decision making is disabled; using rule fallback.";
         }
-        else if (!IsApiKeyConfigured(settings))
+        else if (!keyLookup.IsConfigured)
         {
-            aiErrorMessage = $"{settings.ApiKeyEnvironmentVariable} is not configured; using rule fallback.";
+            aiErrorMessage = $"{keyLookup.Source} is not configured; using rule fallback.";
+        }
+        else if (activeApiPause != null)
+        {
+            aiErrorMessage = $"{activeApiPause.Message} Next automatic AI retry after {activeApiPause.RetryAfter:HH:mm}.";
         }
         else if (await IsAiCallCoolingDownAsync(settings))
         {
@@ -72,6 +85,15 @@ public class IrrigationDecisionService
             try
             {
                 aiDecision = await AiService.AnalyzeAsync(latestReading, recentReadings, cancellationToken);
+            }
+            catch (OpenAiApiException ex)
+            {
+                var apiResult = await AiApiHealth.RecordOpenAiFailureAsync(ex, settings);
+                aiErrorMessage = apiResult.Message;
+                Logger.LogWarning(
+                    ex,
+                    "AI irrigation analysis failed for zone {ZoneId}; falling back to rule-based logic",
+                    latestReading.ZoneId);
             }
             catch (Exception ex)
             {
@@ -107,11 +129,6 @@ public class IrrigationDecisionService
             string.IsNullOrWhiteSpace(finalDecision.SafetyNotes) ? "none" : finalDecision.SafetyNotes);
 
         return finalDecision;
-    }
-
-    private static bool IsApiKeyConfigured(AiIrrigationOptions settings)
-    {
-        return !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(settings.ApiKeyEnvironmentVariable));
     }
 
     private async Task<bool> IsAiCallCoolingDownAsync(AiIrrigationOptions settings)

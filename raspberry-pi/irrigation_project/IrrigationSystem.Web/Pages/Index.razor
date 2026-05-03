@@ -1,5 +1,6 @@
 @page "/"
 @layout MainLayout
+@using System.Globalization
 @inject SensorDataService DataService
 @inject MqttService MqttService
 @implements IDisposable
@@ -50,7 +51,7 @@
                         </div>
 
                         <div class="moisture-bar">
-                            <div class="moisture-fill" style="width: @(reading.Moisture ?? 0)%"></div>
+                            <div class="moisture-fill" style="@GetMoistureWidthStyle(reading.Moisture)"></div>
                         </div>
 
                         <button class="btn-water" @onclick="() => WaterZone(zone.Id)">
@@ -97,6 +98,12 @@
     private SensorReading? GetLatestReading(int zoneId)
     {
         return LatestReadings.FirstOrDefault(r => r.ZoneId == zoneId);
+    }
+
+    private static string GetMoistureWidthStyle(float? moisture)
+    {
+        var value = Math.Clamp(moisture ?? 0, 0, 100);
+        return $"width: {value.ToString("0.##", CultureInfo.InvariantCulture)}%;";
     }
 
     private async Task RefreshData()

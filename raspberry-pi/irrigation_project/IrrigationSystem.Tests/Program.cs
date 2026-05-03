@@ -3,6 +3,7 @@ using IrrigationSystem.Web.Controllers;
 using IrrigationSystem.Web.Models;
 using IrrigationSystem.Web.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -21,6 +22,8 @@ var tests = new TestCase[]
     new("API failure falls back to rules", Tests.ApiFailureFallsBackToRules),
     new("Database schema contains required tables", Tests.DatabaseSchemaContainsRequiredTables),
     new("Web appsettings uses the expected local database", Tests.WebAppSettingsUseExpectedDatabase),
+    new("Dashboard moisture bar uses CSS-safe percentages", Tests.DashboardMoistureBarUsesCssSafePercentages),
+    new("Settings page exposes AI management", Tests.SettingsPageExposesAiManagement),
     new("ESP32 sketch posts to the web sensor API", Tests.Esp32SketchPostsToWebSensorApi),
     new("ESP32 sketch subscribes to web valve commands", Tests.Esp32SketchSubscribesToWebValveCommands),
     new("Web host allows slow embedded request bodies", Tests.WebHostAllowsSlowEmbeddedRequestBodies),
@@ -170,7 +173,7 @@ internal static class Tests
 
         Assert.False(result.FinalShouldWaterAfterSafety, "Safety must block watering when moisture is already high.");
         Assert.Equal("OFF", result.RecommendedValveState, "High moisture should force the valve off.");
-        Assert.Contains("moisture 65.0%", result.SafetyNotes);
+        Assert.Contains($"moisture {65f:F1}%", result.SafetyNotes);
 
         return Task.CompletedTask;
     }
@@ -194,7 +197,7 @@ internal static class Tests
 
         Assert.True(result.WasFallbackUsed, "Low confidence should use rule fallback.");
         Assert.True(result.FinalShouldWaterAfterSafety, "Low-confidence AI OFF should not override a low-moisture rule fallback.");
-        Assert.Contains("below 0.65", result.SafetyNotes);
+        Assert.Contains($"below {0.65:F2}", result.SafetyNotes);
 
         return Task.CompletedTask;
     }
@@ -260,12 +263,95 @@ internal static class Tests
         return Task.CompletedTask;
     }
 
+    public static Task DashboardMoistureBarUsesCssSafePercentages()
+    {
+        var dashboard = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Pages",
+            "Index.razor"));
+
+        Assert.Contains("GetMoistureWidthStyle(reading.Moisture)", dashboard);
+        Assert.Contains("CultureInfo.InvariantCulture", dashboard);
+        Assert.Contains("Math.Clamp(moisture ?? 0, 0, 100)", dashboard);
+
+        return Task.CompletedTask;
+    }
+
+    public static Task SettingsPageExposesAiManagement()
+    {
+        var settingsPage = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Pages",
+            "Settings.razor"));
+        var dataService = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Services",
+            "SensorDataService.cs"));
+        var decisionService = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Services",
+            "IrrigationDecisionService.cs"));
+
+        Assert.Contains("AI Decision Management", settingsPage);
+        Assert.Contains("Enable AI Decision Making", settingsPage);
+        Assert.Contains("API Key Environment Variable Name", settingsPage);
+        Assert.Contains("Test OpenAI API", settingsPage);
+        Assert.Contains("LooksLikeSecretApiKey", settingsPage);
+        Assert.Contains("ApiKeyProvider.GetApiKey", settingsPage);
+        Assert.Contains("SaveAiSettings", settingsPage);
+        Assert.Contains("ai_irrigation_settings", dataService);
+        Assert.Contains("UpdateAiIrrigationOptionsAsync", dataService);
+        Assert.Contains("NormalizeApiKeyEnvironmentVariableName", dataService);
+        Assert.Contains("GetAiIrrigationOptionsAsync(Options.Value)", decisionService);
+        Assert.Contains("ApiKeyProvider.GetApiKey(settings.ApiKeyEnvironmentVariable)", decisionService);
+        Assert.Contains("AiApiHealth.GetActivePause", decisionService);
+        Assert.Contains("RecordOpenAiFailureAsync", decisionService);
+
+        var program = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Program.cs"));
+        var project = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "IrrigationSystem.Web.csproj"));
+
+        Assert.Contains("OpenAiApiKeyProvider", program);
+        Assert.Contains("AiApiHealthService", program);
+        Assert.Contains("AiApiStartupCheckService", program);
+        Assert.Contains("UserSecretsId", project);
+
+        var healthService = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Services",
+            "AiApiHealthService.cs"));
+
+        Assert.Contains("HttpMethod.Post, \"responses\"", healthService);
+        Assert.Contains("QuotaOrRateLimitPause", healthService);
+
+        return Task.CompletedTask;
+    }
+
     public static Task Esp32SketchPostsToWebSensorApi()
     {
         var sketch = File.ReadAllText(FindRepoFile("esp32", "esp32.ino"));
 
         Assert.Contains("const char* ssid = \"GardenBrain\";", sketch);
-        Assert.Contains("http://192.168.4.1:5000/api/sensor-readings", sketch);
+        Assert.Contains("const char* password = \"GardenBrain123\";", sketch);
+        Assert.Contains("IPAddress localIp(192, 168, 137, 100);", sketch);
+        Assert.Contains("http://192.168.137.1:5000/api/sensor-readings", sketch);
         Assert.Contains("\\\"zoneId\\\"", sketch);
         Assert.Contains("\\\"temperature\\\"", sketch);
         Assert.Contains("\\\"humidity\\\"", sketch);
@@ -332,6 +418,13 @@ internal static class Tests
             dataService,
             new ThrowingAiService(),
             Options.Create(new AiIrrigationOptions()),
+            new OpenAiApiKeyProvider(new ConfigurationBuilder().Build()),
+            new AiApiHealthService(
+                new TestHttpClientFactory(),
+                dataService,
+                Options.Create(new AiIrrigationOptions()),
+                new OpenAiApiKeyProvider(new ConfigurationBuilder().Build()),
+                new TestLogger<AiApiHealthService>()),
             new TestLogger<IrrigationDecisionService>());
 
         return new ApiController(dataService, adaptiveService, decisionService, new TestLogger<ApiController>());
@@ -503,6 +596,30 @@ internal sealed class TestLogger<T> : ILogger<T>
 
         public void Dispose()
         {
+        }
+    }
+}
+
+internal sealed class TestHttpClientFactory : IHttpClientFactory
+{
+    public HttpClient CreateClient(string name)
+    {
+        return new HttpClient(new TestHttpMessageHandler())
+        {
+            BaseAddress = new Uri("https://api.openai.com/v1/")
+        };
+    }
+
+    private sealed class TestHttpMessageHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new StringContent("{}")
+            });
         }
     }
 }

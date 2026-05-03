@@ -420,6 +420,115 @@ public class SensorDataService
         }
     }
 
+    public async Task<AiIrrigationOptions> GetAiIrrigationOptionsAsync(AiIrrigationOptions defaults)
+    {
+        var normalizedDefaults = NormalizeAiIrrigationOptions(defaults);
+
+        try
+        {
+            await EnsureAiTablesAsync();
+
+            await using var conn = new NpgsqlConnection(ConnectionString);
+            await conn.OpenAsync();
+
+            await EnsureAiSettingsRowAsync(conn, normalizedDefaults);
+
+            var sql = @"SELECT enable_ai_decision_making, model, api_key_environment_variable,
+                            minimum_minutes_between_ai_calls, recent_history_hours, recent_watering_events,
+                            pattern_memory_count, high_moisture_block_percent, max_duration_seconds,
+                            low_confidence_threshold, minimum_minutes_between_waterings,
+                            default_fallback_duration_seconds
+                        FROM ai_irrigation_settings
+                        WHERE id = 1";
+
+            await using var cmd = new NpgsqlCommand(sql, conn);
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            return await reader.ReadAsync()
+                ? ReadAiIrrigationOptions(reader)
+                : normalizedDefaults;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to get AI irrigation settings");
+            return normalizedDefaults;
+        }
+    }
+
+    public async Task<bool> UpdateAiIrrigationOptionsAsync(AiIrrigationOptions settings)
+    {
+        var normalized = NormalizeAiIrrigationOptions(settings);
+
+        try
+        {
+            await EnsureAiTablesAsync();
+
+            await using var conn = new NpgsqlConnection(ConnectionString);
+            await conn.OpenAsync();
+
+            var sql = @"INSERT INTO ai_irrigation_settings (
+                            id,
+                            enable_ai_decision_making,
+                            model,
+                            api_key_environment_variable,
+                            minimum_minutes_between_ai_calls,
+                            recent_history_hours,
+                            recent_watering_events,
+                            pattern_memory_count,
+                            high_moisture_block_percent,
+                            max_duration_seconds,
+                            low_confidence_threshold,
+                            minimum_minutes_between_waterings,
+                            default_fallback_duration_seconds,
+                            updated_at)
+                        VALUES (
+                            1,
+                            @enable_ai,
+                            @model,
+                            @api_key_env,
+                            @minimum_ai_interval,
+                            @recent_history_hours,
+                            @recent_watering_events,
+                            @pattern_memory_count,
+                            @high_moisture_block,
+                            @max_duration_seconds,
+                            @low_confidence_threshold,
+                            @minimum_watering_interval,
+                            @fallback_duration,
+                            NOW())
+                        ON CONFLICT (id) DO UPDATE
+                        SET enable_ai_decision_making = EXCLUDED.enable_ai_decision_making,
+                            model = EXCLUDED.model,
+                            api_key_environment_variable = EXCLUDED.api_key_environment_variable,
+                            minimum_minutes_between_ai_calls = EXCLUDED.minimum_minutes_between_ai_calls,
+                            recent_history_hours = EXCLUDED.recent_history_hours,
+                            recent_watering_events = EXCLUDED.recent_watering_events,
+                            pattern_memory_count = EXCLUDED.pattern_memory_count,
+                            high_moisture_block_percent = EXCLUDED.high_moisture_block_percent,
+                            max_duration_seconds = EXCLUDED.max_duration_seconds,
+                            low_confidence_threshold = EXCLUDED.low_confidence_threshold,
+                            minimum_minutes_between_waterings = EXCLUDED.minimum_minutes_between_waterings,
+                            default_fallback_duration_seconds = EXCLUDED.default_fallback_duration_seconds,
+                            updated_at = NOW()";
+
+            await using var cmd = new NpgsqlCommand(sql, conn);
+            AddAiSettingsParameters(cmd, normalized);
+
+            await cmd.ExecuteNonQueryAsync();
+
+            await LogSystemMessageAsync(
+                "INFO",
+                $"AI settings updated: Enabled={normalized.EnableAiDecisionMaking}, Model={normalized.Model}, Cooldown={normalized.MinimumMinutesBetweenAiCalls}m");
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to update AI irrigation settings");
+            return false;
+        }
+    }
+
     public async Task<AiIrrigationDecisionLog?> GetLatestAttemptedAiDecisionAsync()
     {
         try
@@ -834,7 +943,25 @@ public class SensorDataService
                 );
 
                 CREATE INDEX IF NOT EXISTS idx_pattern_memory_created_at
-                    ON pattern_memory (created_at DESC);";
+                    ON pattern_memory (created_at DESC);
+
+                CREATE TABLE IF NOT EXISTS ai_irrigation_settings (
+                    id integer PRIMARY KEY DEFAULT 1,
+                    enable_ai_decision_making boolean DEFAULT false NOT NULL,
+                    model character varying(100) DEFAULT 'gpt-4.1-nano' NOT NULL,
+                    api_key_environment_variable character varying(100) DEFAULT 'OPENAI_API_KEY' NOT NULL,
+                    minimum_minutes_between_ai_calls integer DEFAULT 15 NOT NULL,
+                    recent_history_hours integer DEFAULT 24 NOT NULL,
+                    recent_watering_events integer DEFAULT 10 NOT NULL,
+                    pattern_memory_count integer DEFAULT 5 NOT NULL,
+                    high_moisture_block_percent double precision DEFAULT 60 NOT NULL,
+                    max_duration_seconds integer DEFAULT 120 NOT NULL,
+                    low_confidence_threshold double precision DEFAULT 0.65 NOT NULL,
+                    minimum_minutes_between_waterings integer DEFAULT 120 NOT NULL,
+                    default_fallback_duration_seconds integer DEFAULT 10 NOT NULL,
+                    updated_at timestamp without time zone DEFAULT now() NOT NULL,
+                    CONSTRAINT ai_irrigation_settings_singleton CHECK (id = 1)
+                );";
 
             await using var cmd = new NpgsqlCommand(sql, conn);
             await cmd.ExecuteNonQueryAsync();
@@ -845,6 +972,128 @@ public class SensorDataService
         {
             AiSchemaLock.Release();
         }
+    }
+
+    private static AiIrrigationOptions NormalizeAiIrrigationOptions(AiIrrigationOptions source)
+    {
+        return new AiIrrigationOptions
+        {
+            EnableAiDecisionMaking = source.EnableAiDecisionMaking,
+            Model = NormalizeShortSetting(source.Model, "gpt-4.1-nano"),
+            ApiKeyEnvironmentVariable = NormalizeApiKeyEnvironmentVariableName(source.ApiKeyEnvironmentVariable),
+            MinimumMinutesBetweenAiCalls = Math.Clamp(source.MinimumMinutesBetweenAiCalls, 0, 1440),
+            RecentHistoryHours = Math.Clamp(source.RecentHistoryHours, 1, 168),
+            RecentWateringEvents = Math.Clamp(source.RecentWateringEvents, 1, 100),
+            PatternMemoryCount = Math.Clamp(source.PatternMemoryCount, 1, 50),
+            HighMoistureBlockPercent = Math.Clamp(source.HighMoistureBlockPercent, 0, 100),
+            MaxDurationSeconds = Math.Clamp(source.MaxDurationSeconds, 1, 3600),
+            LowConfidenceThreshold = Math.Clamp(source.LowConfidenceThreshold, 0, 1),
+            MinimumMinutesBetweenWaterings = Math.Clamp(source.MinimumMinutesBetweenWaterings, 0, 1440),
+            DefaultFallbackDurationSeconds = Math.Clamp(source.DefaultFallbackDurationSeconds, 1, 3600)
+        };
+    }
+
+    private static string NormalizeShortSetting(string? value, string fallback)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return fallback;
+        }
+
+        var trimmed = value.Trim();
+        return trimmed.Length <= 100 ? trimmed : trimmed[..100];
+    }
+
+    private static string NormalizeApiKeyEnvironmentVariableName(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "OPENAI_API_KEY";
+        }
+
+        var trimmed = value.Trim();
+        if (trimmed.Length > 100 ||
+            trimmed.StartsWith("sk-", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("sk_", StringComparison.OrdinalIgnoreCase))
+        {
+            return "OPENAI_API_KEY";
+        }
+
+        return trimmed;
+    }
+
+    private static async Task EnsureAiSettingsRowAsync(NpgsqlConnection conn, AiIrrigationOptions defaults)
+    {
+        var sql = @"INSERT INTO ai_irrigation_settings (
+                        id,
+                        enable_ai_decision_making,
+                        model,
+                        api_key_environment_variable,
+                        minimum_minutes_between_ai_calls,
+                        recent_history_hours,
+                        recent_watering_events,
+                        pattern_memory_count,
+                        high_moisture_block_percent,
+                        max_duration_seconds,
+                        low_confidence_threshold,
+                        minimum_minutes_between_waterings,
+                        default_fallback_duration_seconds,
+                        updated_at)
+                    VALUES (
+                        1,
+                        @enable_ai,
+                        @model,
+                        @api_key_env,
+                        @minimum_ai_interval,
+                        @recent_history_hours,
+                        @recent_watering_events,
+                        @pattern_memory_count,
+                        @high_moisture_block,
+                        @max_duration_seconds,
+                        @low_confidence_threshold,
+                        @minimum_watering_interval,
+                        @fallback_duration,
+                        NOW())
+                    ON CONFLICT (id) DO NOTHING";
+
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        AddAiSettingsParameters(cmd, defaults);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    private static void AddAiSettingsParameters(NpgsqlCommand cmd, AiIrrigationOptions settings)
+    {
+        cmd.Parameters.AddWithValue("enable_ai", settings.EnableAiDecisionMaking);
+        cmd.Parameters.AddWithValue("model", settings.Model);
+        cmd.Parameters.AddWithValue("api_key_env", settings.ApiKeyEnvironmentVariable);
+        cmd.Parameters.AddWithValue("minimum_ai_interval", settings.MinimumMinutesBetweenAiCalls);
+        cmd.Parameters.AddWithValue("recent_history_hours", settings.RecentHistoryHours);
+        cmd.Parameters.AddWithValue("recent_watering_events", settings.RecentWateringEvents);
+        cmd.Parameters.AddWithValue("pattern_memory_count", settings.PatternMemoryCount);
+        cmd.Parameters.AddWithValue("high_moisture_block", settings.HighMoistureBlockPercent);
+        cmd.Parameters.AddWithValue("max_duration_seconds", settings.MaxDurationSeconds);
+        cmd.Parameters.AddWithValue("low_confidence_threshold", settings.LowConfidenceThreshold);
+        cmd.Parameters.AddWithValue("minimum_watering_interval", settings.MinimumMinutesBetweenWaterings);
+        cmd.Parameters.AddWithValue("fallback_duration", settings.DefaultFallbackDurationSeconds);
+    }
+
+    private static AiIrrigationOptions ReadAiIrrigationOptions(NpgsqlDataReader reader)
+    {
+        return NormalizeAiIrrigationOptions(new AiIrrigationOptions
+        {
+            EnableAiDecisionMaking = reader.GetBoolean(0),
+            Model = reader.GetString(1),
+            ApiKeyEnvironmentVariable = reader.GetString(2),
+            MinimumMinutesBetweenAiCalls = reader.GetInt32(3),
+            RecentHistoryHours = reader.GetInt32(4),
+            RecentWateringEvents = reader.GetInt32(5),
+            PatternMemoryCount = reader.GetInt32(6),
+            HighMoistureBlockPercent = Convert.ToSingle(reader.GetDouble(7)),
+            MaxDurationSeconds = reader.GetInt32(8),
+            LowConfidenceThreshold = reader.GetDouble(9),
+            MinimumMinutesBetweenWaterings = reader.GetInt32(10),
+            DefaultFallbackDurationSeconds = reader.GetInt32(11)
+        });
     }
 
     private static AiIrrigationDecisionLog ReadAiDecisionLog(NpgsqlDataReader reader)

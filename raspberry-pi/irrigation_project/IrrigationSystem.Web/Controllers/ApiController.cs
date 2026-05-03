@@ -73,7 +73,7 @@ public class ApiController : ControllerBase
         var finalDecision = await DecisionService.EvaluateAsync(
             reading,
             $"sensor-api:{(string.IsNullOrWhiteSpace(request.Device) ? "unknown" : request.Device)}",
-            HttpContext.RequestAborted);
+            CancellationToken.None);
 
         Logger.LogInformation(
             "Received sensor reading from {Device} for zone {ZoneId}: moisture={Moisture}, temperature={Temperature}, humidity={Humidity}",

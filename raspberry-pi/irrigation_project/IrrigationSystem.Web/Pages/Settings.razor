@@ -1,10 +1,14 @@
 @using IrrigationSystem.Web.Models
 @using IrrigationSystem.Web.Services
+@using Microsoft.Extensions.Options
 @page "/settings"
 @layout MainLayout
 @inject SensorDataService DataService
 @inject AdaptiveWateringService AdaptiveService
 @inject DemoModeService DemoService
+@inject AiApiHealthService AiApiHealth
+@inject OpenAiApiKeyProvider ApiKeyProvider
+@inject IOptions<AiIrrigationOptions> AiDefaults
 @implements IDisposable
 
 <PageTitle>Settings - Irrigation System</PageTitle>
@@ -102,6 +106,157 @@
         @if (AnalysisComplete)
         {
             <div class="success-message">✓ Analysis complete! Check logs below for threshold changes.</div>
+        }
+    </div>
+
+    <div class="settings-section">
+        <h4>AI Decision Management</h4>
+
+        @if (AiConfig == null)
+        {
+            <p>Loading AI settings...</p>
+        }
+        else
+        {
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="info-label">Decision AI:</span>
+                    <span class="info-value">@(AiConfig.EnableAiDecisionMaking ? "Enabled" : "Disabled")</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">API key:</span>
+                    <span class="info-value">@GetAiApiKeyStatus()</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Model:</span>
+                    <span class="info-value">@AiConfig.Model</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Last decision:</span>
+                    <span class="info-value">@GetLatestAiDecisionSummary()</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">API test:</span>
+                    <span class="info-value">@(LatestAiApiCheck?.IsSuccess == true ? "Passed" : LatestAiApiCheck == null ? "Not tested" : "Failed")</span>
+                </div>
+            </div>
+
+            @if (!IsAiApiKeyConfigured)
+            {
+                <div class="warning-message">@GetAiApiKeySource() is not set on this server.</div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(AiSettingsError))
+            {
+                <div class="warning-message">@AiSettingsError</div>
+            }
+
+            <div class="settings-grid mt-2">
+                <div class="setting-item">
+                    <label class="toggle-label">
+                        <input type="checkbox" @bind="AiConfig.EnableAiDecisionMaking" class="toggle-input" />
+                        <span class="toggle-slider-sm"></span>
+                        <span class="toggle-text">Enable AI Decision Making</span>
+                    </label>
+                    <small>Sensor readings still use rule fallback when this is off or the API key is missing</small>
+                </div>
+
+                <div class="setting-item">
+                    <label>OpenAI Model</label>
+                    <input type="text" @bind="AiConfig.Model" class="form-input" />
+                    <small>Configured model name used for irrigation analysis</small>
+                </div>
+
+                <div class="setting-item">
+                    <label>API Key Environment Variable Name</label>
+                    <input type="text"
+                           maxlength="100"
+                           placeholder="OPENAI_API_KEY"
+                           @bind="AiConfig.ApiKeyEnvironmentVariable"
+                           class="form-input" />
+                    <small>Put the secret key in PowerShell as OPENAI_API_KEY; this box stores only the variable name</small>
+                </div>
+
+                <div class="setting-item">
+                    <label>Minimum Minutes Between AI Calls</label>
+                    <input type="number" min="0" max="1440" @bind="AiConfig.MinimumMinutesBetweenAiCalls" class="form-input" />
+                    <small>Current cooldown: @AiConfig.MinimumMinutesBetweenAiCalls minute(s)</small>
+                </div>
+
+                <div class="setting-item">
+                    <label>Recent History Window (hours)</label>
+                    <input type="number" min="1" max="168" @bind="AiConfig.RecentHistoryHours" class="form-input" />
+                    <small>Readings included in the AI prompt</small>
+                </div>
+
+                <div class="setting-item">
+                    <label>Recent Watering Events</label>
+                    <input type="number" min="1" max="100" @bind="AiConfig.RecentWateringEvents" class="form-input" />
+                    <small>Watering events included in the AI prompt</small>
+                </div>
+
+                <div class="setting-item">
+                    <label>Pattern Memory Count</label>
+                    <input type="number" min="1" max="50" @bind="AiConfig.PatternMemoryCount" class="form-input" />
+                    <small>Saved observations included in each AI prompt</small>
+                </div>
+
+                <div class="setting-item">
+                    <label>High Moisture Block (%)</label>
+                    <input type="number" min="0" max="100" step="0.5" @bind="AiConfig.HighMoistureBlockPercent" class="form-input" />
+                    <small>Watering is blocked at or above @AiConfig.HighMoistureBlockPercent.ToString("F1")%</small>
+                </div>
+
+                <div class="setting-item">
+                    <label>Low Confidence Threshold</label>
+                    <input type="number" min="0" max="1" step="0.05" @bind="AiConfig.LowConfidenceThreshold" class="form-input" />
+                    <small>Fallback rules are used below @AiConfig.LowConfidenceThreshold.ToString("F2") confidence</small>
+                </div>
+
+                <div class="setting-item">
+                    <label>Max AI Watering Duration (seconds)</label>
+                    <input type="number" min="1" max="3600" @bind="AiConfig.MaxDurationSeconds" class="form-input" />
+                    <small>AI recommendations are clamped to this limit</small>
+                </div>
+
+                <div class="setting-item">
+                    <label>Minimum Minutes Between Waterings</label>
+                    <input type="number" min="0" max="1440" @bind="AiConfig.MinimumMinutesBetweenWaterings" class="form-input" />
+                    <small>Safety cooldown between watering events for a zone</small>
+                </div>
+
+                <div class="setting-item">
+                    <label>Fallback Duration (seconds)</label>
+                    <input type="number" min="1" max="3600" @bind="AiConfig.DefaultFallbackDurationSeconds" class="form-input" />
+                    <small>Rule-based duration when AI is unavailable</small>
+                </div>
+            </div>
+
+            <div class="settings-actions">
+                <button class="btn-primary" @onclick="SaveAiSettings" disabled="@IsSavingAiSettings">
+                    @(IsSavingAiSettings ? "Saving AI Settings..." : "Save AI Settings")
+                </button>
+                <button class="btn-warning" @onclick="TestAiApi" disabled="@IsTestingAiApi">
+                    @(IsTestingAiApi ? "Testing OpenAI API..." : "Test OpenAI API")
+                </button>
+                <button class="btn-secondary" @onclick="LoadAiSettings">Refresh AI Status</button>
+            </div>
+
+            @if (AiSettingsSaved)
+            {
+                <div class="success-message">AI settings saved.</div>
+            }
+
+            @if (LatestAiApiCheck != null)
+            {
+                <div class="@(LatestAiApiCheck.IsSuccess ? "success-message" : "warning-message")">
+                    @LatestAiApiCheck.CheckedAt.ToString("HH:mm:ss") - @LatestAiApiCheck.Message
+                    @if (LatestAiApiCheck.RetryAfter.HasValue && LatestAiApiCheck.RetryAfter.Value > DateTime.Now)
+                    {
+                        <span> Next automatic retry after @LatestAiApiCheck.RetryAfter.Value.ToString("HH:mm").</span>
+                    }
+                </div>
+            }
         }
     </div>
 
@@ -211,6 +366,9 @@
 
 @code {
     private SystemSettings? SystemConfig;
+    private AiIrrigationOptions? AiConfig;
+    private AiIrrigationDecisionLog? LatestAiDecision;
+    private AiApiCheckResult? LatestAiApiCheck;
     private List<SystemLog> SystemLogs = new();
     
     private bool IsLoadingLogs = true;
@@ -218,6 +376,10 @@
     private bool AnalysisComplete = false;
     private bool IsCleaning = false;
     private bool CleanupComplete = false;
+    private bool IsSavingAiSettings = false;
+    private bool IsTestingAiApi = false;
+    private bool AiSettingsSaved = false;
+    private string? AiSettingsError;
 
     private bool IsDemoMode = false;
 
@@ -229,6 +391,7 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadSettings();
+        await LoadAiSettings();
         await LoadLogs();
 
         IsDemoMode = DemoService.IsDemoMode;
@@ -246,6 +409,126 @@
         {
             SystemConfig = new SystemSettings();
         }
+    }
+
+    private async Task LoadAiSettings()
+    {
+        AiConfig = await DataService.GetAiIrrigationOptionsAsync(AiDefaults.Value);
+        LatestAiDecision = await DataService.GetLatestAiDecisionAsync();
+        LatestAiApiCheck = AiApiHealth.GetLastResult();
+    }
+
+    private bool IsAiApiKeyConfigured =>
+        AiConfig != null &&
+        ApiKeyProvider.GetApiKey(AiConfig.ApiKeyEnvironmentVariable).IsConfigured;
+
+    private string GetAiApiKeyStatus()
+    {
+        if (AiConfig == null)
+        {
+            return "Unknown";
+        }
+
+        var lookup = ApiKeyProvider.GetApiKey(AiConfig.ApiKeyEnvironmentVariable);
+        return lookup.IsConfigured ? $"Configured ({lookup.Source})" : "Missing";
+    }
+
+    private string GetAiApiKeySource()
+    {
+        if (AiConfig == null)
+        {
+            return "OpenAI API key";
+        }
+
+        return ApiKeyProvider.GetApiKey(AiConfig.ApiKeyEnvironmentVariable).Source;
+    }
+
+    private string GetLatestAiDecisionSummary()
+    {
+        if (LatestAiDecision == null)
+        {
+            return "No decisions";
+        }
+
+        var mode = LatestAiDecision.AiWasAttempted ? "AI" : "Fallback";
+        return $"{mode} {LatestAiDecision.Timestamp:MM/dd HH:mm}";
+    }
+
+    private async Task SaveAiSettings()
+    {
+        if (AiConfig == null)
+        {
+            return;
+        }
+
+        IsSavingAiSettings = true;
+        AiSettingsSaved = false;
+        AiSettingsError = null;
+
+        if (LooksLikeSecretApiKey(AiConfig.ApiKeyEnvironmentVariable))
+        {
+            AiConfig.ApiKeyEnvironmentVariable = "OPENAI_API_KEY";
+            AiSettingsError = "That field is only for the environment variable name. Put the actual secret key in PowerShell as OPENAI_API_KEY, then restart the web app.";
+            IsSavingAiSettings = false;
+            return;
+        }
+
+        if (AiConfig.ApiKeyEnvironmentVariable.Length > 100)
+        {
+            AiSettingsError = "Environment variable names must be short. Use OPENAI_API_KEY here and put the long secret key in PowerShell.";
+            IsSavingAiSettings = false;
+            return;
+        }
+
+        try
+        {
+            if (await DataService.UpdateAiIrrigationOptionsAsync(AiConfig))
+            {
+                await LoadAiSettings();
+                await LoadLogs();
+                AiSettingsSaved = true;
+                await InvokeAsync(StateHasChanged);
+                await Task.Delay(2500);
+                AiSettingsSaved = false;
+            }
+        }
+        finally
+        {
+            IsSavingAiSettings = false;
+        }
+    }
+
+    private async Task TestAiApi()
+    {
+        if (AiConfig == null)
+        {
+            return;
+        }
+
+        IsTestingAiApi = true;
+        AiSettingsError = null;
+
+        try
+        {
+            LatestAiApiCheck = await AiApiHealth.CheckAsync(AiConfig);
+            await LoadLogs();
+        }
+        finally
+        {
+            IsTestingAiApi = false;
+        }
+    }
+
+    private static bool LooksLikeSecretApiKey(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        var trimmed = value.Trim();
+        return trimmed.StartsWith("sk-", StringComparison.OrdinalIgnoreCase) ||
+               trimmed.StartsWith("sk_", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task SaveSettingsImmediate()

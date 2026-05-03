@@ -18,17 +18,20 @@ public class OpenAiIrrigationService : IAiIrrigationService
     private readonly HttpClient HttpClient;
     private readonly SensorDataService DataService;
     private readonly IOptions<AiIrrigationOptions> Options;
+    private readonly OpenAiApiKeyProvider ApiKeyProvider;
     private readonly ILogger<OpenAiIrrigationService> Logger;
 
     public OpenAiIrrigationService(
         HttpClient httpClient,
         SensorDataService dataService,
         IOptions<AiIrrigationOptions> options,
+        OpenAiApiKeyProvider apiKeyProvider,
         ILogger<OpenAiIrrigationService> logger)
     {
         HttpClient = httpClient;
         DataService = dataService;
         Options = options;
+        ApiKeyProvider = apiKeyProvider;
         Logger = logger;
     }
 
@@ -37,14 +40,14 @@ public class OpenAiIrrigationService : IAiIrrigationService
         List<SensorReading> recentReadings,
         CancellationToken cancellationToken)
     {
-        var settings = Options.Value;
-        var apiKey = Environment.GetEnvironmentVariable(settings.ApiKeyEnvironmentVariable);
-        if (string.IsNullOrWhiteSpace(apiKey))
+        var settings = await DataService.GetAiIrrigationOptionsAsync(Options.Value);
+        var keyLookup = ApiKeyProvider.GetApiKey(settings.ApiKeyEnvironmentVariable);
+        if (!keyLookup.IsConfigured || string.IsNullOrWhiteSpace(keyLookup.ApiKey))
         {
-            throw new InvalidOperationException($"{settings.ApiKeyEnvironmentVariable} is not configured.");
+            throw new InvalidOperationException($"{keyLookup.Source} is not configured.");
         }
 
-        var userPrompt = await BuildUserPromptAsync(latestReading, recentReadings, cancellationToken);
+        var userPrompt = await BuildUserPromptAsync(latestReading, recentReadings, settings, cancellationToken);
         var requestBody = new
         {
             model = string.IsNullOrWhiteSpace(settings.Model) ? "gpt-4.1-nano" : settings.Model,
@@ -77,7 +80,7 @@ public class OpenAiIrrigationService : IAiIrrigationService
         };
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "responses");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", keyLookup.ApiKey);
         request.Content = JsonContent.Create(requestBody, options: JsonOptions);
 
         using var response = await HttpClient.SendAsync(request, cancellationToken);
@@ -86,7 +89,7 @@ public class OpenAiIrrigationService : IAiIrrigationService
         if (!response.IsSuccessStatusCode)
         {
             var apiError = ExtractApiError(responseJson);
-            throw new InvalidOperationException($"OpenAI API returned {(int)response.StatusCode} {response.ReasonPhrase}: {apiError}");
+            throw new OpenAiApiException((int)response.StatusCode, response.ReasonPhrase, apiError);
         }
 
         var outputText = ExtractOutputText(responseJson);
@@ -108,9 +111,9 @@ public class OpenAiIrrigationService : IAiIrrigationService
     private async Task<string> BuildUserPromptAsync(
         SensorReading latestReading,
         List<SensorReading> recentReadings,
+        AiIrrigationOptions settings,
         CancellationToken cancellationToken)
     {
-        var settings = Options.Value;
         var zones = await DataService.GetZonesAsync();
         var zone = zones.FirstOrDefault(z => z.Id == latestReading.ZoneId);
         var systemSettings = await DataService.GetSystemSettingsAsync() ?? new SystemSettings();

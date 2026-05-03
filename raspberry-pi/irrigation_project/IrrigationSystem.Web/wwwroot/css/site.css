@@ -643,6 +643,23 @@ input:checked + .toggle-slider:before {
     border-left: 4px solid #28a745;
 }
 
+.warning-message {
+    background: #fff3cd;
+    color: #856404;
+    padding: 12px;
+    border-radius: 5px;
+    margin-top: 15px;
+    border-left: 4px solid #f39c12;
+}
+
+.settings-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 18px;
+}
+
 .logs-container {
     background: #f8f9fa;
     padding: 15px;

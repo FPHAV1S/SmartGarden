@@ -13,10 +13,15 @@ builder.Services.AddControllers();
 builder.Services.AddHostedService<MqttWorkerService>();
 builder.Services.Configure<AiIrrigationOptions>(
     builder.Configuration.GetSection(AiIrrigationOptions.SectionName));
+builder.Services.AddHttpClient("OpenAI", client =>
+{
+    client.BaseAddress = new Uri("https://api.openai.com/v1/");
+    client.Timeout = TimeSpan.FromSeconds(60);
+});
 builder.Services.AddHttpClient<IAiIrrigationService, OpenAiIrrigationService>(client =>
 {
     client.BaseAddress = new Uri("https://api.openai.com/v1/");
-    client.Timeout = TimeSpan.FromSeconds(30);
+    client.Timeout = TimeSpan.FromSeconds(60);
 });
 
 builder.Services.AddScoped(sp =>
@@ -47,6 +52,8 @@ builder.Services.AddSingleton(sp =>
 
 builder.Services.AddSingleton<MqttService>();
 builder.Services.AddSingleton<IrrigationDecisionService>();
+builder.Services.AddSingleton<OpenAiApiKeyProvider>();
+builder.Services.AddSingleton<AiApiHealthService>();
 
 builder.Services.AddSingleton(sp => 
     new AdaptiveWateringService(connectionString, sp.GetRequiredService<ILogger<AdaptiveWateringService>>(), sp.GetRequiredService<SensorDataService>()));
@@ -56,6 +63,7 @@ builder.Services.AddSingleton(sp =>
 
 builder.Services.AddHostedService<AdaptiveBackgroundService>();
 builder.Services.AddHostedService<AutoWateringService>();
+builder.Services.AddHostedService<AiApiStartupCheckService>();
 builder.Services.AddSingleton<DemoModeService>();
 builder.Services.AddHostedService<DemoModeService>(sp => sp.GetRequiredService<DemoModeService>());
 

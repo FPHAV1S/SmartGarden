@@ -6,6 +6,13 @@
 const char* ssid = "GardenBrain";
 const char* password = "GardenBrain123";
 
+// Windows laptop hotspot defaults to the 192.168.137.0/24 network.
+IPAddress localIp(192, 168, 137, 100);
+IPAddress gateway(192, 168, 137, 1);
+IPAddress subnet(255, 255, 255, 0);
+IPAddress primaryDns(192, 168, 137, 1);
+IPAddress secondaryDns(8, 8, 8, 8);
+
 // ASP.NET API endpoint
 const char* apiUrl = "http://192.168.137.1:5000/api/sensor-readings";
 
@@ -17,6 +24,7 @@ const char* valveCommandTopic = "irrigation/zone/+/valve";
 const int zoneId = 1;
 const unsigned long sendIntervalMs = 5000;
 const unsigned long mqttReconnectIntervalMs = 5000;
+const int wifiConnectAttempts = 60;
 
 #define SOIL_PIN 0
 
@@ -74,8 +82,10 @@ void setup() {
   delay(500);
 
   WiFi.mode(WIFI_STA);
+  WiFi.setHostname("GardenBrainESP32-C3");
+  WiFi.setAutoReconnect(true);
+  WiFi.setSleep(false);
 
-  WiFi.begin(ssid, password);
   connectToWifi();
 
   mqttClient.setServer(mqttServer, mqttPort);
@@ -106,8 +116,6 @@ void loop() {
 
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("WiFi disconnected. Reconnecting...");
-    WiFi.disconnect();
-    WiFi.begin(ssid, password);
     connectToWifi();
   }
 
@@ -129,12 +137,56 @@ void loop() {
 }
 
 void connectToWifi() {
+  scanForWifiNetwork();
+
   Serial.print("Connecting to ");
   Serial.print(ssid);
+  Serial.println(" with static IP...");
+
+  if (tryWifiConnection(true)) {
+    return;
+  }
+
+  Serial.println("Static IP attempt failed. Trying DHCP...");
+
+  if (tryWifiConnection(false)) {
+    return;
+  }
+
+  Serial.print("Failed to connect to ");
+  Serial.println(ssid);
+  Serial.print("WiFi status code: ");
+  Serial.print(WiFi.status());
+  Serial.print(" (");
+  Serial.print(wifiStatusText(WiFi.status()));
+  Serial.println(")");
+  Serial.println("Make sure the Windows hotspot is using 2.4 GHz and the SSID/password are correct.");
+  Serial.println("If GardenBrain is not found in the scan, change Windows hotspot Network band to 2.4 GHz.");
+}
+
+bool tryWifiConnection(bool useStaticIp) {
+  WiFi.disconnect(false);
+  delay(200);
+
+  if (useStaticIp) {
+    if (!WiFi.config(localIp, gateway, subnet, primaryDns, secondaryDns)) {
+      Serial.println("Static IP configuration failed.");
+    }
+  } else {
+    WiFi.config(
+      IPAddress(0, 0, 0, 0),
+      IPAddress(0, 0, 0, 0),
+      IPAddress(0, 0, 0, 0),
+      IPAddress(0, 0, 0, 0),
+      IPAddress(0, 0, 0, 0)
+    );
+  }
+
+  WiFi.begin(ssid, password);
 
   int attempts = 0;
 
-  while (WiFi.status() != WL_CONNECTED && attempts < 60) {
+  while (WiFi.status() != WL_CONNECTED && attempts < wifiConnectAttempts) {
     delay(500);
     Serial.print(".");
     attempts++;
@@ -151,9 +203,71 @@ void connectToWifi() {
     Serial.print("Signal strength: ");
     Serial.print(WiFi.RSSI());
     Serial.println(" dBm");
-  } else {
-    Serial.println("Failed to connect to Raspberry Pi AP.");
-    Serial.println("Check that the AP name is exactly GardenBrain.");
+    return true;
+  }
+
+  Serial.print("Attempt ended with status ");
+  Serial.print(WiFi.status());
+  Serial.print(" (");
+  Serial.print(wifiStatusText(WiFi.status()));
+  Serial.println(")");
+  return false;
+}
+
+void scanForWifiNetwork() {
+  Serial.println("Scanning for WiFi networks...");
+
+  int networkCount = WiFi.scanNetworks(false, true);
+
+  if (networkCount < 0) {
+    Serial.print("WiFi scan failed with code ");
+    Serial.println(networkCount);
+    return;
+  }
+
+  bool found = false;
+
+  for (int i = 0; i < networkCount; i++) {
+    if (WiFi.SSID(i) == ssid) {
+      found = true;
+      Serial.print("Found ");
+      Serial.print(ssid);
+      Serial.print(" | channel ");
+      Serial.print(WiFi.channel(i));
+      Serial.print(" | RSSI ");
+      Serial.print(WiFi.RSSI(i));
+      Serial.print(" dBm | auth ");
+      Serial.println(WiFi.encryptionType(i));
+    }
+  }
+
+  if (!found) {
+    Serial.print(ssid);
+    Serial.println(" was not found by the ESP32-C3 scan.");
+    Serial.println("ESP32-C3 only supports 2.4 GHz WiFi. Set the Windows hotspot Network band to 2.4 GHz.");
+  }
+
+  WiFi.scanDelete();
+}
+
+const char* wifiStatusText(int status) {
+  switch (status) {
+    case WL_IDLE_STATUS:
+      return "idle";
+    case WL_NO_SSID_AVAIL:
+      return "SSID not available";
+    case WL_SCAN_COMPLETED:
+      return "scan completed";
+    case WL_CONNECTED:
+      return "connected";
+    case WL_CONNECT_FAILED:
+      return "connect failed";
+    case WL_CONNECTION_LOST:
+      return "connection lost";
+    case WL_DISCONNECTED:
+      return "disconnected";
+    default:
+      return "unknown";
   }
 }
 
