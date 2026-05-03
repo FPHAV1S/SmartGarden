@@ -63,12 +63,14 @@ unsigned long valve2AutoOffAt = 0;
 
 void setup() {
   Serial.begin(115200);
+  Serial.setDebugOutput(true);
   delay(2000);
 
   Serial.println();
   Serial.println("GardenBrain ESP32-C3");
   Serial.println("Soil Moisture + XY-MOS + MQTT valve commands");
   Serial.println("No BME280, no buck converter");
+  Serial.println("Serial is alive at 115200 baud.");
 
   analogReadResolution(12);
 
