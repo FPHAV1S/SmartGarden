@@ -8,7 +8,7 @@ namespace IrrigationSystem.Web.Services;
 
 public class AiApiHealthService
 {
-    private static readonly TimeSpan CheckTimeout = TimeSpan.FromSeconds(20);
+    private static readonly TimeSpan CheckTimeout = TimeSpan.FromSeconds(45);
     private static readonly TimeSpan QuotaOrRateLimitPause = TimeSpan.FromHours(1);
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -90,103 +90,207 @@ public class AiApiHealthService
         try
         {
             var settings = settingsOverride ?? await DataService.GetAiIrrigationOptionsAsync(Options.Value);
-            var model = string.IsNullOrWhiteSpace(settings.Model) ? "gpt-4.1-nano" : settings.Model.Trim();
-            var keyLookup = ApiKeyProvider.GetApiKey(settings.ApiKeyEnvironmentVariable);
-
-            if (!keyLookup.IsConfigured || string.IsNullOrWhiteSpace(keyLookup.ApiKey))
-            {
-                return await StoreAndLogAsync(new AiApiCheckResult
-                {
-                    IsConfigured = false,
-                    IsSuccess = false,
-                    Model = model,
-                    KeySource = keyLookup.Source,
-                    Message = $"No OpenAI API key found. Configure {keyLookup.Source}."
-                });
-            }
-
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeout.CancelAfter(CheckTimeout);
-
-            var requestBody = new
-            {
-                model,
-                input = "Reply with exactly OK.",
-                temperature = 0,
-                max_output_tokens = 16,
-                store = false
-            };
-
-            using var request = new HttpRequestMessage(HttpMethod.Post, "responses");
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", keyLookup.ApiKey);
-            request.Content = JsonContent.Create(requestBody, options: JsonOptions);
-
-            try
-            {
-                var client = HttpClientFactory.CreateClient("OpenAI");
-                using var response = await client.SendAsync(request, timeout.Token);
-                var responseBody = await response.Content.ReadAsStringAsync(timeout.Token);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    return await StoreAndLogAsync(new AiApiCheckResult
-                    {
-                        IsConfigured = true,
-                        IsSuccess = true,
-                        Model = model,
-                        KeySource = keyLookup.Source,
-                        StatusCode = (int)response.StatusCode,
-                        Message = $"OpenAI API key works, billing/quota is usable, and model {model} responded."
-                    });
-                }
-
-                var statusCode = (int)response.StatusCode;
-                var apiError = ExtractApiError(responseBody);
-                var retryAfter = statusCode == 429
-                    ? DateTime.Now.Add(QuotaOrRateLimitPause)
-                    : (DateTime?)null;
-                var message = statusCode == 429 && apiError.Contains("quota", StringComparison.OrdinalIgnoreCase)
-                    ? $"OpenAI API quota is exhausted for this account/project. AI decisions are paused until {retryAfter:HH:mm}; rule fallback continues."
-                    : $"OpenAI API check failed with {statusCode} {response.ReasonPhrase}: {apiError}";
-
-                return await StoreAndLogAsync(new AiApiCheckResult
-                {
-                    IsConfigured = true,
-                    IsSuccess = false,
-                    Model = model,
-                    KeySource = keyLookup.Source,
-                    StatusCode = statusCode,
-                    RetryAfter = retryAfter,
-                    Message = message
-                });
-            }
-            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-            {
-                return await StoreAndLogAsync(new AiApiCheckResult
-                {
-                    IsConfigured = true,
-                    IsSuccess = false,
-                    Model = model,
-                    KeySource = keyLookup.Source,
-                    Message = $"OpenAI API check timed out after {CheckTimeout.TotalSeconds:0} seconds."
-                });
-            }
-            catch (Exception ex)
-            {
-                Logger.LogWarning(ex, "OpenAI API health check failed");
-                return await StoreAndLogAsync(new AiApiCheckResult
-                {
-                    IsConfigured = true,
-                    IsSuccess = false,
-                    Model = model,
-                    KeySource = keyLookup.Source,
-                    Message = $"OpenAI API check failed: {ex.Message}"
-                });
-            }
+            return settings.UsesOllama
+                ? await CheckOllamaAsync(settings, cancellationToken)
+                : await CheckOpenAiAsync(settings, cancellationToken);
         }
         finally
         {
             CheckLock.Release();
+        }
+    }
+
+    private async Task<AiApiCheckResult> CheckOpenAiAsync(
+        AiIrrigationOptions settings,
+        CancellationToken cancellationToken)
+    {
+        var model = string.IsNullOrWhiteSpace(settings.Model) ? "gpt-4.1-nano" : settings.Model.Trim();
+        var keyLookup = ApiKeyProvider.GetApiKey(settings.ApiKeyEnvironmentVariable);
+
+        if (!keyLookup.IsConfigured || string.IsNullOrWhiteSpace(keyLookup.ApiKey))
+        {
+            return await StoreAndLogAsync(new AiApiCheckResult
+            {
+                IsConfigured = false,
+                IsSuccess = false,
+                Model = model,
+                KeySource = keyLookup.Source,
+                Message = $"No OpenAI API key found. Configure {keyLookup.Source}."
+            });
+        }
+
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(CheckTimeout);
+
+        var requestBody = new
+        {
+            model,
+            input = "Reply with exactly OK.",
+            temperature = 0,
+            max_output_tokens = 16,
+            store = false
+        };
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "responses");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", keyLookup.ApiKey);
+        request.Content = JsonContent.Create(requestBody, options: JsonOptions);
+
+        try
+        {
+            var client = HttpClientFactory.CreateClient("OpenAI");
+            using var response = await client.SendAsync(request, timeout.Token);
+            var responseBody = await response.Content.ReadAsStringAsync(timeout.Token);
+
+            if (response.IsSuccessStatusCode)
+            {
+                return await StoreAndLogAsync(new AiApiCheckResult
+                {
+                    IsConfigured = true,
+                    IsSuccess = true,
+                    Model = model,
+                    KeySource = keyLookup.Source,
+                    StatusCode = (int)response.StatusCode,
+                    Message = $"OpenAI API key works, billing/quota is usable, and model {model} responded."
+                });
+            }
+
+            var statusCode = (int)response.StatusCode;
+            var apiError = ExtractApiError(responseBody);
+            var retryAfter = statusCode == 429
+                ? DateTime.Now.Add(QuotaOrRateLimitPause)
+                : (DateTime?)null;
+            var message = statusCode == 429 && apiError.Contains("quota", StringComparison.OrdinalIgnoreCase)
+                ? $"OpenAI API quota is exhausted for this account/project. AI decisions are paused until {retryAfter:HH:mm}; rule fallback continues."
+                : $"OpenAI API check failed with {statusCode} {response.ReasonPhrase}: {apiError}";
+
+            return await StoreAndLogAsync(new AiApiCheckResult
+            {
+                IsConfigured = true,
+                IsSuccess = false,
+                Model = model,
+                KeySource = keyLookup.Source,
+                StatusCode = statusCode,
+                RetryAfter = retryAfter,
+                Message = message
+            });
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return await StoreAndLogAsync(new AiApiCheckResult
+            {
+                IsConfigured = true,
+                IsSuccess = false,
+                Model = model,
+                KeySource = keyLookup.Source,
+                Message = $"OpenAI API check timed out after {CheckTimeout.TotalSeconds:0} seconds."
+            });
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "OpenAI API health check failed");
+            return await StoreAndLogAsync(new AiApiCheckResult
+            {
+                IsConfigured = true,
+                IsSuccess = false,
+                Model = model,
+                KeySource = keyLookup.Source,
+                Message = $"OpenAI API check failed: {ex.Message}"
+            });
+        }
+    }
+
+    private async Task<AiApiCheckResult> CheckOllamaAsync(
+        AiIrrigationOptions settings,
+        CancellationToken cancellationToken)
+    {
+        var model = string.IsNullOrWhiteSpace(settings.Model) ? "qwen3:1.7b" : settings.Model.Trim();
+        var baseUrl = string.IsNullOrWhiteSpace(settings.OllamaBaseUrl)
+            ? "http://localhost:11434"
+            : settings.OllamaBaseUrl.Trim().TrimEnd('/');
+
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(CheckTimeout);
+
+        var requestBody = new
+        {
+            model,
+            stream = false,
+            think = false,
+            messages = new[]
+            {
+                new { role = "user", content = "Return only this JSON object: {\"status\":\"OK\"}" }
+            },
+            format = new
+            {
+                type = "object",
+                additionalProperties = false,
+                required = new[] { "status" },
+                properties = new Dictionary<string, object>
+                {
+                    ["status"] = new { type = "string" }
+                }
+            },
+            options = new
+            {
+                temperature = 0,
+                num_predict = 96
+            }
+        };
+
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, BuildOllamaChatUri(baseUrl));
+            request.Content = JsonContent.Create(requestBody, options: JsonOptions);
+
+            var client = HttpClientFactory.CreateClient();
+            using var response = await client.SendAsync(request, timeout.Token);
+            var responseBody = await response.Content.ReadAsStringAsync(timeout.Token);
+
+            if (response.IsSuccessStatusCode)
+            {
+                return await StoreAndLogAsync(new AiApiCheckResult
+                {
+                    IsConfigured = true,
+                    IsSuccess = true,
+                    Model = model,
+                    KeySource = baseUrl,
+                    StatusCode = (int)response.StatusCode,
+                    Message = $"Ollama responded at {baseUrl} using model {model}."
+                });
+            }
+
+            return await StoreAndLogAsync(new AiApiCheckResult
+            {
+                IsConfigured = true,
+                IsSuccess = false,
+                Model = model,
+                KeySource = baseUrl,
+                StatusCode = (int)response.StatusCode,
+                Message = $"Ollama check failed with {(int)response.StatusCode} {response.ReasonPhrase}: {ExtractOllamaError(responseBody)}"
+            });
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return await StoreAndLogAsync(new AiApiCheckResult
+            {
+                IsConfigured = true,
+                IsSuccess = false,
+                Model = model,
+                KeySource = baseUrl,
+                Message = $"Ollama check timed out after {CheckTimeout.TotalSeconds:0} seconds at {baseUrl}."
+            });
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Ollama health check failed");
+            return await StoreAndLogAsync(new AiApiCheckResult
+            {
+                IsConfigured = true,
+                IsSuccess = false,
+                Model = model,
+                KeySource = baseUrl,
+                Message = $"Ollama check failed at {baseUrl}: {ex.Message}"
+            });
         }
     }
 
@@ -197,9 +301,20 @@ public class AiApiHealthService
 
         await DataService.LogSystemMessageAsync(
             result.IsSuccess ? "INFO" : "WARNING",
-            $"OpenAI API check: {result.Message}");
+            $"AI provider check: {result.Message}");
 
         return result;
+    }
+
+    private static Uri BuildOllamaChatUri(string baseUrl)
+    {
+        if (!baseUrl.Contains("://", StringComparison.Ordinal))
+        {
+            baseUrl = $"http://{baseUrl}";
+        }
+
+        var baseUri = new Uri($"{baseUrl.TrimEnd('/')}/", UriKind.Absolute);
+        return new Uri(baseUri, "api/chat");
     }
 
     private static string ExtractApiError(string responseJson)
@@ -212,6 +327,24 @@ public class AiApiHealthService
                 message.ValueKind == JsonValueKind.String)
             {
                 return message.GetString() ?? "No error message returned.";
+            }
+        }
+        catch (JsonException)
+        {
+        }
+
+        return "No structured error message returned.";
+    }
+
+    private static string ExtractOllamaError(string responseJson)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(responseJson);
+            if (document.RootElement.TryGetProperty("error", out var error) &&
+                error.ValueKind == JsonValueKind.String)
+            {
+                return error.GetString() ?? "No error message returned.";
             }
         }
         catch (JsonException)

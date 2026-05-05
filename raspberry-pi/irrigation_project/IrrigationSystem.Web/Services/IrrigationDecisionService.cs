@@ -54,16 +54,18 @@ public class IrrigationDecisionService
         var aiWasAttempted = false;
         string? aiErrorMessage = null;
 
-        var keyLookup = ApiKeyProvider.GetApiKey(settings.ApiKeyEnvironmentVariable);
-        var activeApiPause = AiApiHealth.GetActivePause();
+        var keyLookup = settings.RequiresApiKey
+            ? ApiKeyProvider.GetApiKey(settings.ApiKeyEnvironmentVariable)
+            : null;
+        var activeApiPause = settings.UsesOpenAi ? AiApiHealth.GetActivePause() : null;
 
         if (!settings.EnableAiDecisionMaking)
         {
             aiErrorMessage = "AI decision making is disabled; using rule fallback.";
         }
-        else if (!keyLookup.IsConfigured)
+        else if (settings.RequiresApiKey && keyLookup?.IsConfigured != true)
         {
-            aiErrorMessage = $"{keyLookup.Source} is not configured; using rule fallback.";
+            aiErrorMessage = $"{keyLookup?.Source ?? "OpenAI API key"} is not configured; using rule fallback.";
         }
         else if (activeApiPause != null)
         {
@@ -77,7 +79,8 @@ public class IrrigationDecisionService
         {
             aiWasAttempted = true;
             Logger.LogInformation(
-                "Calling AI irrigation analysis from {Source} for zone {ZoneId} with latest moisture {Moisture}",
+                "Calling {Provider} irrigation analysis from {Source} for zone {ZoneId} with latest moisture {Moisture}",
+                settings.Provider,
                 source,
                 latestReading.ZoneId,
                 latestReading.Moisture);

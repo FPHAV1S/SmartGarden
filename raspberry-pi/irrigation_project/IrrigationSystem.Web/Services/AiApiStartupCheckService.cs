@@ -22,11 +22,11 @@ public class AiApiStartupCheckService : BackgroundService
 
             if (result.IsSuccess)
             {
-                Logger.LogInformation("OpenAI API startup check passed: {Message}", result.Message);
+                Logger.LogInformation("AI provider startup check passed: {Message}", result.Message);
             }
             else
             {
-                Logger.LogWarning("OpenAI API startup check failed: {Message}", result.Message);
+                Logger.LogWarning("AI provider startup check failed: {Message}", result.Message);
             }
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -34,7 +34,7 @@ public class AiApiStartupCheckService : BackgroundService
         }
         catch (Exception ex)
         {
-            Logger.LogWarning(ex, "OpenAI API startup check failed unexpectedly");
+            Logger.LogWarning(ex, "AI provider startup check failed unexpectedly");
         }
     }
 }

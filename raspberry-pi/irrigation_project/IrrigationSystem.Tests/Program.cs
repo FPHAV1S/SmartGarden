@@ -254,11 +254,24 @@ internal static class Tests
             .GetProperty("ConnectionStrings")
             .GetProperty("DefaultConnection")
             .GetString();
+        var aiSettings = document.RootElement.GetProperty("AiIrrigation");
 
         Assert.Equal(
             "Host=localhost;Database=irrigation_db;Username=postgres;Password=1203",
             connectionString,
             "Web app should point at the local irrigation database used by setup.sh.");
+        Assert.Equal(
+            "Ollama",
+            aiSettings.GetProperty("Provider").GetString(),
+            "Web app should default to the local Ollama provider.");
+        Assert.Equal(
+            "qwen3:1.7b",
+            aiSettings.GetProperty("Model").GetString(),
+            "Web app should default to the installed local Qwen model.");
+        Assert.Equal(
+            "http://localhost:11434",
+            aiSettings.GetProperty("OllamaBaseUrl").GetString(),
+            "Web app should point at the default local Ollama API.");
 
         return Task.CompletedTask;
     }
@@ -302,16 +315,20 @@ internal static class Tests
 
         Assert.Contains("AI Decision Management", settingsPage);
         Assert.Contains("Enable AI Decision Making", settingsPage);
+        Assert.Contains("AI Provider", settingsPage);
+        Assert.Contains("Ollama Base URL", settingsPage);
         Assert.Contains("API Key Environment Variable Name", settingsPage);
-        Assert.Contains("Test OpenAI API", settingsPage);
+        Assert.Contains("Test AI Provider", settingsPage);
         Assert.Contains("LooksLikeSecretApiKey", settingsPage);
         Assert.Contains("ApiKeyProvider.GetApiKey", settingsPage);
         Assert.Contains("SaveAiSettings", settingsPage);
         Assert.Contains("ai_irrigation_settings", dataService);
         Assert.Contains("UpdateAiIrrigationOptionsAsync", dataService);
+        Assert.Contains("NormalizeAiProvider", dataService);
+        Assert.Contains("NormalizeOllamaBaseUrl", dataService);
         Assert.Contains("NormalizeApiKeyEnvironmentVariableName", dataService);
         Assert.Contains("GetAiIrrigationOptionsAsync(Options.Value)", decisionService);
-        Assert.Contains("ApiKeyProvider.GetApiKey(settings.ApiKeyEnvironmentVariable)", decisionService);
+        Assert.Contains("settings.RequiresApiKey", decisionService);
         Assert.Contains("AiApiHealth.GetActivePause", decisionService);
         Assert.Contains("RecordOpenAiFailureAsync", decisionService);
 
@@ -339,6 +356,7 @@ internal static class Tests
             "AiApiHealthService.cs"));
 
         Assert.Contains("HttpMethod.Post, \"responses\"", healthService);
+        Assert.Contains("api/chat", healthService);
         Assert.Contains("QuotaOrRateLimitPause", healthService);
 
         return Task.CompletedTask;

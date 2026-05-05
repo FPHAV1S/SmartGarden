@@ -143,10 +143,10 @@ dotnet run --project IrrigationSystem.Tests
 
 ## AI Irrigation Decisions
 
-The web backend can optionally call the OpenAI API when sensor readings arrive
-or when the auto-watering service checks a zone. The AI recommendation is never
-used directly as a valve command. It is passed through the existing
-rule-based fallback and safety checks first.
+The web backend can optionally call a local Ollama model or the OpenAI API when
+sensor readings arrive or when the auto-watering service checks a zone. The AI
+recommendation is never used directly as a valve command. It is passed through
+the existing rule-based fallback and safety checks first.
 
 The AI reads:
 
@@ -162,11 +162,37 @@ The final decision is based on:
 sensor reading + old rule logic + AI recommendation + safety checks + history logs
 ```
 
-### Enable AI
+### Enable Local Ollama AI
 
-The API key must come from the environment variable `OPENAI_API_KEY`. Do not put
-the key in the ESP32 sketch, frontend files, GitHub, `appsettings.json`, or any
-public file.
+On Windows, install Ollama and pull the small local model:
+
+```powershell
+ollama pull qwen3:1.7b
+ollama run qwen3:1.7b
+```
+
+The web app calls Ollama at `http://localhost:11434/api/chat`. Configure
+`raspberry-pi/irrigation_project/IrrigationSystem.Web/appsettings.json`:
+
+```json
+"AiIrrigation": {
+  "EnableAiDecisionMaking": true,
+  "Provider": "Ollama",
+  "Model": "qwen3:1.7b",
+  "OllamaBaseUrl": "http://localhost:11434",
+  "MinimumMinutesBetweenAiCalls": 15
+}
+```
+
+If the settings row already exists in PostgreSQL, open the dashboard Settings
+page, turn on `Enable AI Decision Making`, choose `Ollama`, set the model to
+`qwen3:1.7b`, and click `Test AI Provider`.
+
+### Enable OpenAI AI
+
+When using `Provider: "OpenAI"`, the API key must come from the environment
+variable `OPENAI_API_KEY`. Do not put the key in the ESP32 sketch, frontend
+files, GitHub, `appsettings.json`, or any public file.
 
 Linux/Raspberry Pi:
 
@@ -186,18 +212,19 @@ Then enable AI in
 ```json
 "AiIrrigation": {
   "EnableAiDecisionMaking": true,
+  "Provider": "OpenAI",
   "Model": "gpt-4.1-nano",
   "ApiKeyEnvironmentVariable": "OPENAI_API_KEY",
   "MinimumMinutesBetweenAiCalls": 15
 }
 ```
 
-`gpt-4.1-nano` is configured as a cheap/fast default. You can change the model
-name in config without changing code.
+`qwen3:1.7b` is configured as the local default. `gpt-4.1-nano` remains a
+cheap/fast hosted option when the provider is OpenAI. You can change the
+provider and model name in config or on the Settings page without changing code.
 
-If AI is disabled, the key is missing, the internet is unavailable, the API
-call fails, or the AI returns invalid JSON, the system keeps working with the
-old rule-based logic.
+If AI is disabled, Ollama/OpenAI is unavailable, the API call fails, or the AI
+returns invalid JSON, the system keeps working with the old rule-based logic.
 
 ### Safety Rules
 

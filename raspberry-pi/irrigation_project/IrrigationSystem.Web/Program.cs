@@ -21,7 +21,7 @@ builder.Services.AddHttpClient("OpenAI", client =>
 builder.Services.AddHttpClient<IAiIrrigationService, OpenAiIrrigationService>(client =>
 {
     client.BaseAddress = new Uri("https://api.openai.com/v1/");
-    client.Timeout = TimeSpan.FromSeconds(60);
+    client.Timeout = TimeSpan.FromSeconds(120);
 });
 
 builder.Services.AddScoped(sp =>

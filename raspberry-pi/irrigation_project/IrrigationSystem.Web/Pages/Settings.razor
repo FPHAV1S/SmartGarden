@@ -124,8 +124,12 @@
                     <span class="info-value">@(AiConfig.EnableAiDecisionMaking ? "Enabled" : "Disabled")</span>
                 </div>
                 <div class="info-item">
-                    <span class="info-label">API key:</span>
-                    <span class="info-value">@GetAiApiKeyStatus()</span>
+                    <span class="info-label">AI provider:</span>
+                    <span class="info-value">@AiConfig.Provider</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Provider access:</span>
+                    <span class="info-value">@GetAiProviderAccessStatus()</span>
                 </div>
                 <div class="info-item">
                     <span class="info-label">Model:</span>
@@ -136,12 +140,12 @@
                     <span class="info-value">@GetLatestAiDecisionSummary()</span>
                 </div>
                 <div class="info-item">
-                    <span class="info-label">API test:</span>
+                    <span class="info-label">Provider test:</span>
                     <span class="info-value">@(LatestAiApiCheck?.IsSuccess == true ? "Passed" : LatestAiApiCheck == null ? "Not tested" : "Failed")</span>
                 </div>
             </div>
 
-            @if (!IsAiApiKeyConfigured)
+            @if (IsAiApiKeyMissing)
             {
                 <div class="warning-message">@GetAiApiKeySource() is not set on this server.</div>
             }
@@ -158,24 +162,48 @@
                         <span class="toggle-slider-sm"></span>
                         <span class="toggle-text">Enable AI Decision Making</span>
                     </label>
-                    <small>Sensor readings still use rule fallback when this is off or the API key is missing</small>
+                    <small>Sensor readings still use rule fallback when this is off or the provider is unavailable</small>
                 </div>
 
                 <div class="setting-item">
-                    <label>OpenAI Model</label>
+                    <label>AI Provider</label>
+                    <select @bind="AiConfig.Provider" class="form-input">
+                        <option value="@AiIrrigationOptions.OllamaProvider">Ollama</option>
+                        <option value="@AiIrrigationOptions.OpenAiProvider">OpenAI</option>
+                    </select>
+                    <small>Ollama uses the local laptop model; OpenAI uses the hosted API</small>
+                </div>
+
+                <div class="setting-item">
+                    <label>AI Model</label>
                     <input type="text" @bind="AiConfig.Model" class="form-input" />
                     <small>Configured model name used for irrigation analysis</small>
                 </div>
 
-                <div class="setting-item">
-                    <label>API Key Environment Variable Name</label>
-                    <input type="text"
-                           maxlength="100"
-                           placeholder="OPENAI_API_KEY"
-                           @bind="AiConfig.ApiKeyEnvironmentVariable"
-                           class="form-input" />
-                    <small>Put the secret key in PowerShell as OPENAI_API_KEY; this box stores only the variable name</small>
-                </div>
+                @if (AiConfig.UsesOllama)
+                {
+                    <div class="setting-item">
+                        <label>Ollama Base URL</label>
+                        <input type="text"
+                               maxlength="200"
+                               placeholder="http://localhost:11434"
+                               @bind="AiConfig.OllamaBaseUrl"
+                               class="form-input" />
+                        <small>Local Ollama API endpoint used by the web app</small>
+                    </div>
+                }
+                else
+                {
+                    <div class="setting-item">
+                        <label>API Key Environment Variable Name</label>
+                        <input type="text"
+                               maxlength="100"
+                               placeholder="OPENAI_API_KEY"
+                               @bind="AiConfig.ApiKeyEnvironmentVariable"
+                               class="form-input" />
+                        <small>Put the secret key in PowerShell as OPENAI_API_KEY; this box stores only the variable name</small>
+                    </div>
+                }
 
                 <div class="setting-item">
                     <label>Minimum Minutes Between AI Calls</label>
@@ -237,7 +265,7 @@
                     @(IsSavingAiSettings ? "Saving AI Settings..." : "Save AI Settings")
                 </button>
                 <button class="btn-warning" @onclick="TestAiApi" disabled="@IsTestingAiApi">
-                    @(IsTestingAiApi ? "Testing OpenAI API..." : "Test OpenAI API")
+                    @(IsTestingAiApi ? "Testing AI Provider..." : "Test AI Provider")
                 </button>
                 <button class="btn-secondary" @onclick="LoadAiSettings">Refresh AI Status</button>
             </div>
@@ -418,15 +446,21 @@
         LatestAiApiCheck = AiApiHealth.GetLastResult();
     }
 
-    private bool IsAiApiKeyConfigured =>
+    private bool IsAiApiKeyMissing =>
         AiConfig != null &&
-        ApiKeyProvider.GetApiKey(AiConfig.ApiKeyEnvironmentVariable).IsConfigured;
+        AiConfig.RequiresApiKey &&
+        !ApiKeyProvider.GetApiKey(AiConfig.ApiKeyEnvironmentVariable).IsConfigured;
 
-    private string GetAiApiKeyStatus()
+    private string GetAiProviderAccessStatus()
     {
         if (AiConfig == null)
         {
             return "Unknown";
+        }
+
+        if (AiConfig.UsesOllama)
+        {
+            return AiConfig.OllamaBaseUrl;
         }
 
         var lookup = ApiKeyProvider.GetApiKey(AiConfig.ApiKeyEnvironmentVariable);
@@ -465,7 +499,7 @@
         AiSettingsSaved = false;
         AiSettingsError = null;
 
-        if (LooksLikeSecretApiKey(AiConfig.ApiKeyEnvironmentVariable))
+        if (AiConfig.RequiresApiKey && LooksLikeSecretApiKey(AiConfig.ApiKeyEnvironmentVariable))
         {
             AiConfig.ApiKeyEnvironmentVariable = "OPENAI_API_KEY";
             AiSettingsError = "That field is only for the environment variable name. Put the actual secret key in PowerShell as OPENAI_API_KEY, then restart the web app.";
@@ -473,9 +507,16 @@
             return;
         }
 
-        if (AiConfig.ApiKeyEnvironmentVariable.Length > 100)
+        if (AiConfig.RequiresApiKey && (AiConfig.ApiKeyEnvironmentVariable?.Length ?? 0) > 100)
         {
             AiSettingsError = "Environment variable names must be short. Use OPENAI_API_KEY here and put the long secret key in PowerShell.";
+            IsSavingAiSettings = false;
+            return;
+        }
+
+        if (AiConfig.UsesOllama && (AiConfig.OllamaBaseUrl?.Length ?? 0) > 200)
+        {
+            AiSettingsError = "Ollama base URLs must be 200 characters or fewer.";
             IsSavingAiSettings = false;
             return;
         }

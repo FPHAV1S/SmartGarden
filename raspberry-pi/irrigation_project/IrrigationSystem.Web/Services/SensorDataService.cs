@@ -433,7 +433,8 @@ public class SensorDataService
 
             await EnsureAiSettingsRowAsync(conn, normalizedDefaults);
 
-            var sql = @"SELECT enable_ai_decision_making, model, api_key_environment_variable,
+            var sql = @"SELECT enable_ai_decision_making, provider, model, ollama_base_url,
+                            api_key_environment_variable,
                             minimum_minutes_between_ai_calls, recent_history_hours, recent_watering_events,
                             pattern_memory_count, high_moisture_block_percent, max_duration_seconds,
                             low_confidence_threshold, minimum_minutes_between_waterings,
@@ -469,7 +470,9 @@ public class SensorDataService
             var sql = @"INSERT INTO ai_irrigation_settings (
                             id,
                             enable_ai_decision_making,
+                            provider,
                             model,
+                            ollama_base_url,
                             api_key_environment_variable,
                             minimum_minutes_between_ai_calls,
                             recent_history_hours,
@@ -484,7 +487,9 @@ public class SensorDataService
                         VALUES (
                             1,
                             @enable_ai,
+                            @provider,
                             @model,
+                            @ollama_base_url,
                             @api_key_env,
                             @minimum_ai_interval,
                             @recent_history_hours,
@@ -498,7 +503,9 @@ public class SensorDataService
                             NOW())
                         ON CONFLICT (id) DO UPDATE
                         SET enable_ai_decision_making = EXCLUDED.enable_ai_decision_making,
+                            provider = EXCLUDED.provider,
                             model = EXCLUDED.model,
+                            ollama_base_url = EXCLUDED.ollama_base_url,
                             api_key_environment_variable = EXCLUDED.api_key_environment_variable,
                             minimum_minutes_between_ai_calls = EXCLUDED.minimum_minutes_between_ai_calls,
                             recent_history_hours = EXCLUDED.recent_history_hours,
@@ -518,7 +525,7 @@ public class SensorDataService
 
             await LogSystemMessageAsync(
                 "INFO",
-                $"AI settings updated: Enabled={normalized.EnableAiDecisionMaking}, Model={normalized.Model}, Cooldown={normalized.MinimumMinutesBetweenAiCalls}m");
+                $"AI settings updated: Enabled={normalized.EnableAiDecisionMaking}, Provider={normalized.Provider}, Model={normalized.Model}, Cooldown={normalized.MinimumMinutesBetweenAiCalls}m");
 
             return true;
         }
@@ -948,7 +955,9 @@ public class SensorDataService
                 CREATE TABLE IF NOT EXISTS ai_irrigation_settings (
                     id integer PRIMARY KEY DEFAULT 1,
                     enable_ai_decision_making boolean DEFAULT false NOT NULL,
-                    model character varying(100) DEFAULT 'gpt-4.1-nano' NOT NULL,
+                    provider character varying(20) DEFAULT 'Ollama' NOT NULL,
+                    model character varying(100) DEFAULT 'qwen3:1.7b' NOT NULL,
+                    ollama_base_url character varying(200) DEFAULT 'http://localhost:11434' NOT NULL,
                     api_key_environment_variable character varying(100) DEFAULT 'OPENAI_API_KEY' NOT NULL,
                     minimum_minutes_between_ai_calls integer DEFAULT 15 NOT NULL,
                     recent_history_hours integer DEFAULT 24 NOT NULL,
@@ -961,7 +970,19 @@ public class SensorDataService
                     default_fallback_duration_seconds integer DEFAULT 10 NOT NULL,
                     updated_at timestamp without time zone DEFAULT now() NOT NULL,
                     CONSTRAINT ai_irrigation_settings_singleton CHECK (id = 1)
-                );";
+                );
+
+                ALTER TABLE ai_irrigation_settings
+                    ADD COLUMN IF NOT EXISTS provider character varying(20) DEFAULT 'Ollama' NOT NULL,
+                    ADD COLUMN IF NOT EXISTS ollama_base_url character varying(200) DEFAULT 'http://localhost:11434' NOT NULL;
+
+                UPDATE ai_irrigation_settings
+                SET provider = 'Ollama',
+                    model = 'qwen3:1.7b'
+                WHERE id = 1
+                    AND provider IN ('OpenAI', 'Ollama')
+                    AND model = 'gpt-4.1-nano'
+                    AND enable_ai_decision_making = false;";
 
             await using var cmd = new NpgsqlCommand(sql, conn);
             await cmd.ExecuteNonQueryAsync();
@@ -976,10 +997,14 @@ public class SensorDataService
 
     private static AiIrrigationOptions NormalizeAiIrrigationOptions(AiIrrigationOptions source)
     {
+        var provider = NormalizeAiProvider(source.Provider);
+
         return new AiIrrigationOptions
         {
             EnableAiDecisionMaking = source.EnableAiDecisionMaking,
-            Model = NormalizeShortSetting(source.Model, "gpt-4.1-nano"),
+            Provider = provider,
+            Model = NormalizeShortSetting(source.Model, GetDefaultModel(provider)),
+            OllamaBaseUrl = NormalizeOllamaBaseUrl(source.OllamaBaseUrl),
             ApiKeyEnvironmentVariable = NormalizeApiKeyEnvironmentVariableName(source.ApiKeyEnvironmentVariable),
             MinimumMinutesBetweenAiCalls = Math.Clamp(source.MinimumMinutesBetweenAiCalls, 0, 1440),
             RecentHistoryHours = Math.Clamp(source.RecentHistoryHours, 1, 168),
@@ -991,6 +1016,23 @@ public class SensorDataService
             MinimumMinutesBetweenWaterings = Math.Clamp(source.MinimumMinutesBetweenWaterings, 0, 1440),
             DefaultFallbackDurationSeconds = Math.Clamp(source.DefaultFallbackDurationSeconds, 1, 3600)
         };
+    }
+
+    private static string NormalizeAiProvider(string? value)
+    {
+        if (string.Equals(value, AiIrrigationOptions.OpenAiProvider, StringComparison.OrdinalIgnoreCase))
+        {
+            return AiIrrigationOptions.OpenAiProvider;
+        }
+
+        return AiIrrigationOptions.OllamaProvider;
+    }
+
+    private static string GetDefaultModel(string provider)
+    {
+        return string.Equals(provider, AiIrrigationOptions.OpenAiProvider, StringComparison.OrdinalIgnoreCase)
+            ? "gpt-4.1-nano"
+            : "qwen3:1.7b";
     }
 
     private static string NormalizeShortSetting(string? value, string fallback)
@@ -1022,12 +1064,39 @@ public class SensorDataService
         return trimmed;
     }
 
+    private static string NormalizeOllamaBaseUrl(string? value)
+    {
+        var fallback = "http://localhost:11434";
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return fallback;
+        }
+
+        var trimmed = value.Trim().TrimEnd('/');
+        if (trimmed.Length > 200)
+        {
+            return fallback;
+        }
+
+        if (!trimmed.Contains("://", StringComparison.Ordinal))
+        {
+            trimmed = $"http://{trimmed}";
+        }
+
+        return Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) &&
+            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
+            ? uri.ToString().TrimEnd('/')
+            : fallback;
+    }
+
     private static async Task EnsureAiSettingsRowAsync(NpgsqlConnection conn, AiIrrigationOptions defaults)
     {
         var sql = @"INSERT INTO ai_irrigation_settings (
                         id,
                         enable_ai_decision_making,
+                        provider,
                         model,
+                        ollama_base_url,
                         api_key_environment_variable,
                         minimum_minutes_between_ai_calls,
                         recent_history_hours,
@@ -1042,7 +1111,9 @@ public class SensorDataService
                     VALUES (
                         1,
                         @enable_ai,
+                        @provider,
                         @model,
+                        @ollama_base_url,
                         @api_key_env,
                         @minimum_ai_interval,
                         @recent_history_hours,
@@ -1064,7 +1135,9 @@ public class SensorDataService
     private static void AddAiSettingsParameters(NpgsqlCommand cmd, AiIrrigationOptions settings)
     {
         cmd.Parameters.AddWithValue("enable_ai", settings.EnableAiDecisionMaking);
+        cmd.Parameters.AddWithValue("provider", settings.Provider);
         cmd.Parameters.AddWithValue("model", settings.Model);
+        cmd.Parameters.AddWithValue("ollama_base_url", settings.OllamaBaseUrl);
         cmd.Parameters.AddWithValue("api_key_env", settings.ApiKeyEnvironmentVariable);
         cmd.Parameters.AddWithValue("minimum_ai_interval", settings.MinimumMinutesBetweenAiCalls);
         cmd.Parameters.AddWithValue("recent_history_hours", settings.RecentHistoryHours);
@@ -1082,17 +1155,19 @@ public class SensorDataService
         return NormalizeAiIrrigationOptions(new AiIrrigationOptions
         {
             EnableAiDecisionMaking = reader.GetBoolean(0),
-            Model = reader.GetString(1),
-            ApiKeyEnvironmentVariable = reader.GetString(2),
-            MinimumMinutesBetweenAiCalls = reader.GetInt32(3),
-            RecentHistoryHours = reader.GetInt32(4),
-            RecentWateringEvents = reader.GetInt32(5),
-            PatternMemoryCount = reader.GetInt32(6),
-            HighMoistureBlockPercent = Convert.ToSingle(reader.GetDouble(7)),
-            MaxDurationSeconds = reader.GetInt32(8),
-            LowConfidenceThreshold = reader.GetDouble(9),
-            MinimumMinutesBetweenWaterings = reader.GetInt32(10),
-            DefaultFallbackDurationSeconds = reader.GetInt32(11)
+            Provider = reader.GetString(1),
+            Model = reader.GetString(2),
+            OllamaBaseUrl = reader.GetString(3),
+            ApiKeyEnvironmentVariable = reader.GetString(4),
+            MinimumMinutesBetweenAiCalls = reader.GetInt32(5),
+            RecentHistoryHours = reader.GetInt32(6),
+            RecentWateringEvents = reader.GetInt32(7),
+            PatternMemoryCount = reader.GetInt32(8),
+            HighMoistureBlockPercent = Convert.ToSingle(reader.GetDouble(9)),
+            MaxDurationSeconds = reader.GetInt32(10),
+            LowConfidenceThreshold = reader.GetDouble(11),
+            MinimumMinutesBetweenWaterings = reader.GetInt32(12),
+            DefaultFallbackDurationSeconds = reader.GetInt32(13)
         });
     }
 
