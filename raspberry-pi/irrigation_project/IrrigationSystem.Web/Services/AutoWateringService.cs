@@ -6,19 +6,19 @@ public class AutoWateringService : BackgroundService
 {
     private readonly ILogger<AutoWateringService> Logger;
     private readonly SensorDataService DataService;
-    private readonly MqttService MqttService;
+    private readonly IValveCommandService ValveCommands;
     private readonly IrrigationDecisionService DecisionService;
     private readonly int CheckIntervalSeconds = 300;
 
     public AutoWateringService(
         ILogger<AutoWateringService> logger,
         SensorDataService dataService,
-        MqttService mqttService,
+        IValveCommandService valveCommands,
         IrrigationDecisionService decisionService)
     {
         Logger = logger;
         DataService = dataService;
-        MqttService = mqttService;
+        ValveCommands = valveCommands;
         DecisionService = decisionService;
     }
 
@@ -128,12 +128,12 @@ public class AutoWateringService : BackgroundService
 
     private async Task WaterZoneAsync(int zoneId, float moistureBefore, int durationSeconds, string triggerReason)
     {
-        var eventId = await DataService.StartIrrigationEventAsync(zoneId, triggerReason, moistureBefore);
-        
-        var success = await MqttService.OpenValveAsync(zoneId, durationSeconds);
+        var success = await ValveCommands.OpenValveAsync(zoneId, durationSeconds);
         
         if (success)
         {
+            var eventId = await DataService.StartIrrigationEventAsync(zoneId, triggerReason, moistureBefore);
+
             Logger.LogInformation("Zone {ZoneId}: Valve opened for {Duration}s", zoneId, durationSeconds);
             
             await DataService.LogSystemMessageAsync("INFO", 
@@ -141,7 +141,7 @@ public class AutoWateringService : BackgroundService
 
             await Task.Delay(durationSeconds * 1000);
             
-            await MqttService.CloseValveAsync(zoneId);
+            await ValveCommands.CloseValveAsync(zoneId);
             
             await Task.Delay(5000);
             
@@ -149,7 +149,10 @@ public class AutoWateringService : BackgroundService
             var newReading = newReadings.FirstOrDefault(r => r.ZoneId == zoneId);
             var moistureAfter = newReading?.Moisture;
 
-            await DataService.EndIrrigationEventAsync(eventId, durationSeconds, moistureAfter);
+            if (eventId > 0)
+            {
+                await DataService.EndIrrigationEventAsync(eventId, durationSeconds, moistureAfter);
+            }
             
             Logger.LogInformation("Zone {ZoneId}: Watering complete - moisture before: {Before:F1}%, after: {After}", 
                 zoneId, moistureBefore, moistureAfter.HasValue ? $"{moistureAfter.Value:F1}%" : "N/A");

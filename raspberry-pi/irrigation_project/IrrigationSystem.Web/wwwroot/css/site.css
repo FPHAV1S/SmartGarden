@@ -278,6 +278,11 @@ main {
     --metric-soft: #eef3ff;
 }
 
+.metric-pressure {
+    --metric-color: #2e8b57;
+    --metric-soft: #eaf7ef;
+}
+
 .chart-card-header {
     display: flex;
     justify-content: space-between;

@@ -7,7 +7,9 @@ public class SensorDataService
 {
     private readonly string ConnectionString;
     private readonly ILogger<SensorDataService> Logger;
+    private readonly SemaphoreSlim SensorSchemaLock = new(1, 1);
     private readonly SemaphoreSlim AiSchemaLock = new(1, 1);
+    private bool SensorSchemaEnsured;
     private bool AiSchemaEnsured;
 
     public SensorDataService(string connectionString, ILogger<SensorDataService> logger)
@@ -22,12 +24,14 @@ public class SensorDataService
 
         try
         {
+            await EnsureSensorReadingSchemaAsync();
+
             await using var conn = new NpgsqlConnection(ConnectionString);
             await conn.OpenAsync();
 
             var sql = @"
                 SELECT DISTINCT ON (zone_id)
-                    id, zone_id, moisture, temperature, humidity, recorded_at
+                    id, zone_id, moisture, temperature, humidity, pressure, recorded_at
                 FROM sensor_readings
                 ORDER BY zone_id, recorded_at DESC";
 
@@ -40,10 +44,11 @@ public class SensorDataService
                 {
                     Id = reader.GetInt32(0),
                     ZoneId = reader.GetInt32(1),
-                    Moisture = reader.IsDBNull(2) ? null : reader.GetFloat(2),
-                    Temperature = reader.IsDBNull(3) ? null : reader.GetFloat(3),
-                    Humidity = reader.IsDBNull(4) ? null : reader.GetFloat(4),
-                    RecordedAt = reader.GetDateTime(5)
+                    Moisture = ReadNullableFloat(reader, 2),
+                    Temperature = ReadNullableFloat(reader, 3),
+                    Humidity = ReadNullableFloat(reader, 4),
+                    Pressure = ReadNullableFloat(reader, 5),
+                    RecordedAt = reader.GetDateTime(6)
                 });
             }
         }
@@ -61,11 +66,13 @@ public class SensorDataService
 
         try
         {
+            await EnsureSensorReadingSchemaAsync();
+
             await using var conn = new NpgsqlConnection(ConnectionString);
             await conn.OpenAsync();
 
             var sql = $@"
-                SELECT id, zone_id, moisture, temperature, humidity, recorded_at
+                SELECT id, zone_id, moisture, temperature, humidity, pressure, recorded_at
                 FROM sensor_readings
                 WHERE zone_id = @zone_id 
                 AND recorded_at >= NOW() - INTERVAL '{hours} hours'
@@ -82,10 +89,11 @@ public class SensorDataService
                 {
                     Id = reader.GetInt32(0),
                     ZoneId = reader.GetInt32(1),
-                    Moisture = reader.IsDBNull(2) ? null : reader.GetFloat(2),
-                    Temperature = reader.IsDBNull(3) ? null : reader.GetFloat(3),
-                    Humidity = reader.IsDBNull(4) ? null : reader.GetFloat(4),
-                    RecordedAt = reader.GetDateTime(5)
+                    Moisture = ReadNullableFloat(reader, 2),
+                    Temperature = ReadNullableFloat(reader, 3),
+                    Humidity = ReadNullableFloat(reader, 4),
+                    Pressure = ReadNullableFloat(reader, 5),
+                    RecordedAt = reader.GetDateTime(6)
                 });
             }
         }
@@ -753,20 +761,32 @@ public class SensorDataService
         }
     }
 
-    public async Task<int> CleanOldDataAsync(int daysToKeep)
+    public Task<int> CleanOldDataAsync(int daysToKeep)
+    {
+        return CleanOldDataAsync(TimeSpan.FromDays(daysToKeep));
+    }
+
+    public async Task<int> CleanOldDataAsync(TimeSpan retention)
     {
         try
         {
+            if (retention <= TimeSpan.Zero)
+            {
+                retention = TimeSpan.FromSeconds(1);
+            }
+
             await using var conn = new NpgsqlConnection(ConnectionString);
             await conn.OpenAsync();
 
-            var sql = $@"DELETE FROM sensor_readings 
-                        WHERE recorded_at < NOW() - INTERVAL '{daysToKeep} days'";
+            var cutoff = DateTime.SpecifyKind(DateTime.Now.Subtract(retention), DateTimeKind.Unspecified);
+            var sql = @"DELETE FROM sensor_readings
+                        WHERE recorded_at < @cutoff";
 
             await using var cmd = new NpgsqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("cutoff", NpgsqlTypes.NpgsqlDbType.Timestamp, cutoff);
             var deleted = await cmd.ExecuteNonQueryAsync();
 
-            await LogSystemMessageAsync("INFO", $"Database cleanup: {deleted} old sensor readings deleted");
+            await LogSystemMessageAsync("INFO", $"Database cleanup: {deleted} sensor readings older than {cutoff:yyyy-MM-dd HH:mm:ss} deleted");
             
             return deleted;
         }
@@ -852,16 +872,23 @@ public class SensorDataService
             return false;
         }
     }
-    public async Task<SensorReading> InsertSensorReadingAsync(int zoneId, float moisture, float temperature, float humidity)
+    public async Task<SensorReading> InsertSensorReadingAsync(
+        int zoneId,
+        float moisture,
+        float temperature,
+        float humidity,
+        float? pressure = null)
     {
         try
-        {   
+        {
+            await EnsureSensorReadingSchemaAsync();
+
             using var connection = new NpgsqlConnection(ConnectionString);
             await connection.OpenAsync();
 
             var sql = @"
-                INSERT INTO sensor_readings (zone_id, moisture, temperature, humidity, recorded_at)
-                VALUES (@zone_id, @moisture, @temperature, @humidity, NOW())
+                INSERT INTO sensor_readings (zone_id, moisture, temperature, humidity, pressure, recorded_at)
+                VALUES (@zone_id, @moisture, @temperature, @humidity, @pressure, NOW())
                 RETURNING id, recorded_at";
 
             using var command = new NpgsqlCommand(sql, connection);
@@ -869,6 +896,7 @@ public class SensorDataService
             command.Parameters.AddWithValue("moisture", moisture);
             command.Parameters.AddWithValue("temperature", temperature);
             command.Parameters.AddWithValue("humidity", humidity);
+            command.Parameters.AddWithValue("pressure", (object?)pressure ?? DBNull.Value);
 
             await using var reader = await command.ExecuteReaderAsync();
             if (await reader.ReadAsync())
@@ -880,6 +908,7 @@ public class SensorDataService
                     Moisture = moisture,
                     Temperature = temperature,
                     Humidity = humidity,
+                    Pressure = pressure,
                     RecordedAt = reader.GetDateTime(1)
                 };
             }
@@ -891,6 +920,46 @@ public class SensorDataService
             Logger.LogError(ex, "Error inserting sensor reading for zone {ZoneId}", zoneId);
             throw;
         }
+    }
+
+    private async Task EnsureSensorReadingSchemaAsync()
+    {
+        if (SensorSchemaEnsured)
+        {
+            return;
+        }
+
+        await SensorSchemaLock.WaitAsync();
+        try
+        {
+            if (SensorSchemaEnsured)
+            {
+                return;
+            }
+
+            await using var conn = new NpgsqlConnection(ConnectionString);
+            await conn.OpenAsync();
+
+            var sql = @"
+                ALTER TABLE IF EXISTS sensor_readings
+                ADD COLUMN IF NOT EXISTS pressure double precision";
+
+            await using var cmd = new NpgsqlCommand(sql, conn);
+            await cmd.ExecuteNonQueryAsync();
+
+            SensorSchemaEnsured = true;
+        }
+        finally
+        {
+            SensorSchemaLock.Release();
+        }
+    }
+
+    private static float? ReadNullableFloat(NpgsqlDataReader reader, int ordinal)
+    {
+        return reader.IsDBNull(ordinal)
+            ? null
+            : Convert.ToSingle(reader.GetValue(ordinal));
     }
 
     private async Task EnsureAiTablesAsync()

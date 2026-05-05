@@ -80,7 +80,7 @@ public class Worker : BackgroundService
                 if (data != null)
                 {
                     await Db.InsertSensorReadingAsync(zoneId, data.moisture, data.temperature,
-                                                        data.humidity);
+                                                        data.humidity, data.pressure);
                 }
             }
         }
@@ -109,4 +109,5 @@ public class SensorData
     public float? moisture { get; set; }
     public float? temperature { get; set; }
     public float? humidity { get; set; }
+    public float? pressure { get; set; }
 }

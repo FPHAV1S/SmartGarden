@@ -4,7 +4,13 @@ using System.Text.Json;
 
 namespace IrrigationSystem.Web.Services;
 
-public class MqttService
+public interface IValveCommandService
+{
+    Task<bool> OpenValveAsync(int zoneId, int durationSeconds);
+    Task<bool> CloseValveAsync(int zoneId);
+}
+
+public class MqttService : IValveCommandService
 {
     private readonly IMqttClient MqttClient;
     private readonly MqttClientOptions Options;

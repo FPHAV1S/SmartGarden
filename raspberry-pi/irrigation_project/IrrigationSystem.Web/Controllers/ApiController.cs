@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using IrrigationSystem.Web.Models;
 using IrrigationSystem.Web.Services;
 
 namespace IrrigationSystem.Web.Controllers;
@@ -9,18 +10,18 @@ public class ApiController : ControllerBase
 {
     private readonly SensorDataService DataService;
     private readonly AdaptiveWateringService AdaptiveService;
-    private readonly IrrigationDecisionService DecisionService;
+    private readonly SensorReadingDecisionQueue DecisionQueue;
     private readonly ILogger<ApiController> Logger;
 
     public ApiController(
         SensorDataService dataService,
         AdaptiveWateringService adaptiveService,
-        IrrigationDecisionService decisionService,
+        SensorReadingDecisionQueue decisionQueue,
         ILogger<ApiController> logger)
     {
         DataService = dataService;
         AdaptiveService = adaptiveService;
-        DecisionService = decisionService;
+        DecisionQueue = decisionQueue;
         Logger = logger;
     }
 
@@ -59,38 +60,65 @@ public class ApiController : ControllerBase
         }
 
         var zones = await DataService.EnsureDefaultZonesAsync();
+        if (zones.Count == 0)
+        {
+            return Problem(
+                title: "Sensor storage is not ready",
+                detail: "No zones are available. Check the database connection and schema setup.",
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+
         if (!zones.Any(zone => zone.Id == request.ZoneId))
         {
             return BadRequest(new { message = $"Zone {request.ZoneId} does not exist" });
         }
 
-        var reading = await DataService.InsertSensorReadingAsync(
-            request.ZoneId,
-            moisture.Value,
-            request.Temperature.Value,
-            request.Humidity.Value);
+        SensorReading reading;
+        try
+        {
+            reading = await DataService.InsertSensorReadingAsync(
+                request.ZoneId,
+                moisture.Value,
+                request.Temperature.Value,
+                request.Humidity.Value,
+                request.Pressure);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to store sensor reading from {Device} for zone {ZoneId}",
+                string.IsNullOrWhiteSpace(request.Device) ? "unknown device" : request.Device,
+                request.ZoneId);
 
-        var finalDecision = await DecisionService.EvaluateAsync(
+            return Problem(
+                title: "Failed to store sensor reading",
+                detail: "The reading payload was valid, but the server could not save it. Check PostgreSQL and the web app logs.",
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+
+        var decisionQueued = DecisionQueue.TryQueue(
             reading,
-            $"sensor-api:{(string.IsNullOrWhiteSpace(request.Device) ? "unknown" : request.Device)}",
-            CancellationToken.None);
+            $"sensor-api:{(string.IsNullOrWhiteSpace(request.Device) ? "unknown" : request.Device)}");
 
         Logger.LogInformation(
-            "Received sensor reading from {Device} for zone {ZoneId}: moisture={Moisture}, temperature={Temperature}, humidity={Humidity}",
+            "Received sensor reading from {Device} for zone {ZoneId}: moisture={Moisture}, temperature={Temperature}, humidity={Humidity}, pressure={Pressure}, decisionQueued={DecisionQueued}",
             string.IsNullOrWhiteSpace(request.Device) ? "unknown device" : request.Device,
             request.ZoneId,
             moisture.Value,
             request.Temperature.Value,
-            request.Humidity.Value);
+            request.Humidity.Value,
+            request.Pressure,
+            decisionQueued);
 
         return Ok(new
         {
             success = true,
+            readingId = reading.Id,
             zoneId = request.ZoneId,
             moisture = moisture.Value,
             temperature = request.Temperature.Value,
             humidity = request.Humidity.Value,
-            finalDecision
+            pressure = request.Pressure,
+            decisionQueued
         });
     }
 
@@ -137,6 +165,12 @@ public class SensorReadingRequest
     public float? Humidity { get; set; }
     public string? Device { get; set; }
     public int? ReadingCount { get; set; }
+    public float? Pressure { get; set; }
+    public bool? Bme280Ready { get; set; }
+    public string? Bme280Status { get; set; }
+    public int? SoilRaw { get; set; }
+    public bool? Valve1 { get; set; }
+    public bool? Valve2 { get; set; }
     public int? Rssi { get; set; }
     public string? Ip { get; set; }
 }

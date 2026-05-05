@@ -51,7 +51,10 @@ builder.Services.AddSingleton(sp =>
     new SensorDataService(connectionString, sp.GetRequiredService<ILogger<SensorDataService>>()));
 
 builder.Services.AddSingleton<MqttService>();
+builder.Services.AddSingleton<IValveCommandService>(sp => sp.GetRequiredService<MqttService>());
 builder.Services.AddSingleton<IrrigationDecisionService>();
+builder.Services.AddSingleton<SensorReadingDecisionQueue>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<SensorReadingDecisionQueue>());
 builder.Services.AddSingleton<OpenAiApiKeyProvider>();
 builder.Services.AddSingleton<AiApiHealthService>();
 

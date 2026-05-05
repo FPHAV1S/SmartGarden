@@ -2,7 +2,7 @@
 @layout MainLayout
 @using System.Globalization
 @inject SensorDataService DataService
-@inject MqttService MqttService
+@inject IValveCommandService ValveCommands
 @implements IDisposable
 
 <PageTitle>Dashboard - Irrigation System</PageTitle>
@@ -44,6 +44,10 @@
                             <div class="sensor-item">
                                 <span class="label">Humidity:</span>
                                 <span class="value">@reading.Humidity?.ToString("F1")%</span>
+                            </div>
+                            <div class="sensor-item">
+                                <span class="label">Pressure:</span>
+                                <span class="value">@(reading.Pressure?.ToString("F1") ?? "N/A") hPa</span>
                             </div>
                             <div class="last-update">
                                 Updated: @reading.RecordedAt.ToString("HH:mm:ss")
@@ -116,15 +120,18 @@
         var reading = GetLatestReading(zoneId);
         var moistureBefore = reading?.Moisture;
 
-        var eventId = await DataService.StartIrrigationEventAsync(zoneId, "Manual", moistureBefore);
-        
-        var success = await MqttService.OpenValveAsync(zoneId, 10);
+        var success = await ValveCommands.OpenValveAsync(zoneId, 10);
         
         if (success)
         {
+            var eventId = await DataService.StartIrrigationEventAsync(zoneId, "Manual", moistureBefore);
+
             await Task.Delay(10000);
-            await MqttService.CloseValveAsync(zoneId);
-            await DataService.EndIrrigationEventAsync(eventId, 10, null);
+            await ValveCommands.CloseValveAsync(zoneId);
+            if (eventId > 0)
+            {
+                await DataService.EndIrrigationEventAsync(eventId, 10, null);
+            }
         }
     }
 

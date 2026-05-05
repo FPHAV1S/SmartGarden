@@ -11,6 +11,7 @@ public class DemoModeService : BackgroundService
     private float[] ZoneMoisture = { 35.0f, 40.0f, 38.0f };
     private float[] ZoneTemperature = { 22.0f, 23.0f, 21.5f };
     private float[] ZoneHumidity = { 65.0f, 68.0f, 66.0f };
+    private float[] ZonePressure = { 1012.0f, 1011.5f, 1012.7f };
 
     public DemoModeService(
         ILogger<DemoModeService> logger,
@@ -82,7 +83,8 @@ public class DemoModeService : BackgroundService
                     demoZones[zoneIndex].Id,
                     ZoneMoisture[zoneIndex],
                     ZoneTemperature[zoneIndex],
-                    ZoneHumidity[zoneIndex]
+                    ZoneHumidity[zoneIndex],
+                    ZonePressure[zoneIndex]
                 );
             }
 
@@ -111,9 +113,11 @@ public class DemoModeService : BackgroundService
 
         ZoneHumidity[zoneIndex] = 85.0f - (ZoneTemperature[zoneIndex] - 15.0f) * 1.5f;
         ZoneHumidity[zoneIndex] += (float)(Rng.NextDouble() * 4 - 2);
+        ZonePressure[zoneIndex] += (float)(Rng.NextDouble() * 1.2 - 0.6);
 
         ZoneTemperature[zoneIndex] = Math.Clamp(ZoneTemperature[zoneIndex], 15.0f, 35.0f);
         ZoneHumidity[zoneIndex] = Math.Clamp(ZoneHumidity[zoneIndex], 30.0f, 90.0f);
+        ZonePressure[zoneIndex] = Math.Clamp(ZonePressure[zoneIndex], 980.0f, 1045.0f);
     }
 
     public void SimulateWatering(int zoneId)

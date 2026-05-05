@@ -15,21 +15,22 @@ public class DatabaseService
     }
 
     public async Task InsertSensorReadingAsync(int zoneId, float? moisture, float? temperature,
-                                               float? humidity)
+                                               float? humidity, float? pressure = null)
     {
         try
         {
             await using var conn = new NpgsqlConnection(ConnectionString);
             await conn.OpenAsync();
 
-            var sql = @"INSERT INTO sensor_readings (zone_id, moisture, temperature, humidity)
-                        VALUES (@zone_id, @moisture, @temperature, @humidity)";
+            var sql = @"INSERT INTO sensor_readings (zone_id, moisture, temperature, humidity, pressure)
+                        VALUES (@zone_id, @moisture, @temperature, @humidity, @pressure)";
 
             await using var cmd = new NpgsqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("zone_id", zoneId);
             cmd.Parameters.AddWithValue("moisture", (object?)moisture ?? DBNull.Value);
             cmd.Parameters.AddWithValue("temperature", (object?)temperature ?? DBNull.Value);
             cmd.Parameters.AddWithValue("humidity", (object?)humidity ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("pressure", (object?)pressure ?? DBNull.Value);
 
             await cmd.ExecuteNonQueryAsync();
             Logger.LogInformation("Inserted sensor reading for zone {ZoneId}", zoneId);

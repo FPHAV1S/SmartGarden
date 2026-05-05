@@ -7,5 +7,6 @@ public class SensorReading
     public float? Moisture { get; set; }
     public float? Temperature { get; set; }
     public float? Humidity { get; set; }
+    public float? Pressure { get; set; }
     public DateTime RecordedAt { get; set; }
 }

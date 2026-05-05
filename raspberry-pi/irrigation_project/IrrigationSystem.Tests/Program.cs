@@ -22,10 +22,16 @@ var tests = new TestCase[]
     new("API failure falls back to rules", Tests.ApiFailureFallsBackToRules),
     new("Database schema contains required tables", Tests.DatabaseSchemaContainsRequiredTables),
     new("Web appsettings uses the expected local database", Tests.WebAppSettingsUseExpectedDatabase),
+    new("Setup script keeps the PostgreSQL password aligned with appsettings", Tests.SetupScriptKeepsDatabasePasswordAligned),
+    new("Setup and docs use postgres as the default web user", Tests.SetupAndDocsUsePostgresWebLogin),
     new("Dashboard moisture bar uses CSS-safe percentages", Tests.DashboardMoistureBarUsesCssSafePercentages),
+    new("History chart averages dense readings", Tests.HistoryChartAveragesDenseReadings),
+    new("Database cleanup supports one-second retention", Tests.DatabaseCleanupSupportsOneSecondRetention),
     new("Settings page exposes AI management", Tests.SettingsPageExposesAiManagement),
     new("ESP32 sketch posts to the web sensor API", Tests.Esp32SketchPostsToWebSensorApi),
     new("ESP32 sketch subscribes to web valve commands", Tests.Esp32SketchSubscribesToWebValveCommands),
+    new("Sensor API applies safe watering decisions through MQTT", Tests.SensorApiAppliesSafeWateringDecisionsThroughMqtt),
+    new("Watering events start only after MQTT valve commands succeed", Tests.WateringEventsStartAfterMqttOpenSucceeds),
     new("Web host allows slow embedded request bodies", Tests.WebHostAllowsSlowEmbeddedRequestBodies),
     new("Web host is configured for port 5000", Tests.WebHostUsesPort5000)
 };
@@ -236,6 +242,7 @@ internal static class Tests
 
         Assert.Contains("FOREIGN KEY (zone_id) REFERENCES public.zones(id)", schema);
         Assert.Contains("users_username_key UNIQUE (username)", schema);
+        Assert.Contains("pressure double precision", schema);
         Assert.Contains("OPENAI_API_KEY", File.ReadAllText(FindRepoFile("README.md")));
 
         return Task.CompletedTask;
@@ -276,6 +283,42 @@ internal static class Tests
         return Task.CompletedTask;
     }
 
+    public static Task SetupScriptKeepsDatabasePasswordAligned()
+    {
+        var setup = File.ReadAllText(FindRepoFile("raspberry-pi", "setup.sh"));
+        var appsettings = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "appsettings.json"));
+        var workerAppsettings = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Worker",
+            "appsettings.json"));
+
+        Assert.Contains("DB_PASSWORD=\"1203\"", setup);
+        Assert.Contains("ALTER USER postgres PASSWORD '$DB_PASSWORD';", setup);
+        Assert.Contains("Password=1203", appsettings);
+        Assert.Contains("Password=1203", workerAppsettings);
+        Assert.False(setup.Contains("PASSWORD 'postgres';"), "setup.sh should not reset the database role to a different password.");
+
+        return Task.CompletedTask;
+    }
+
+    public static Task SetupAndDocsUsePostgresWebLogin()
+    {
+        var setup = File.ReadAllText(FindRepoFile("raspberry-pi", "setup.sh"));
+        var readme = File.ReadAllText(FindRepoFile("README.md"));
+
+        Assert.Contains("VALUES ('postgres'", setup);
+        Assert.Contains("Username: postgres", readme);
+        Assert.Contains("Password: 12344321", readme);
+        Assert.False(readme.Contains("Username: denis"), "README should document postgres as the default web login.");
+
+        return Task.CompletedTask;
+    }
+
     public static Task DashboardMoistureBarUsesCssSafePercentages()
     {
         var dashboard = File.ReadAllText(FindRepoFile(
@@ -286,8 +329,64 @@ internal static class Tests
             "Index.razor"));
 
         Assert.Contains("GetMoistureWidthStyle(reading.Moisture)", dashboard);
+        Assert.Contains("Pressure:", dashboard);
         Assert.Contains("CultureInfo.InvariantCulture", dashboard);
         Assert.Contains("Math.Clamp(moisture ?? 0, 0, 100)", dashboard);
+
+        return Task.CompletedTask;
+    }
+
+    public static Task HistoryChartAveragesDenseReadings()
+    {
+        var historyPage = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Pages",
+            "History.razor"));
+
+        Assert.Contains("Chart Average:", historyPage);
+        Assert.Contains("ChartBucketMinutes = 10", historyPage);
+        Assert.Contains("<option value=\"10\">10 minutes</option>", historyPage);
+        Assert.Contains("BuildAveragedChartData(HistoryData, ChartBucketMinutes)", historyPage);
+        Assert.Contains("BuildMetricChartData", historyPage);
+        Assert.Contains("AverageNullable", historyPage);
+        Assert.Contains("metric-pressure", historyPage);
+        Assert.Contains("PressureChartData", historyPage);
+        Assert.Contains("ValueProperty=\"Value\"", historyPage);
+        Assert.Contains("Pressure = AverageNullable", historyPage);
+        Assert.Contains("Pressure (hPa)", historyPage);
+        Assert.Contains("No pressure data available.", historyPage);
+        Assert.Contains("Chart Points:", historyPage);
+        Assert.False(historyPage.Contains("ChartData.Insert(0"), "History chart should not inject artificial extra points.");
+
+        return Task.CompletedTask;
+    }
+
+    public static Task DatabaseCleanupSupportsOneSecondRetention()
+    {
+        var settingsPage = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Pages",
+            "Settings.razor"));
+        var dataService = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Services",
+            "SensorDataService.cs"));
+
+        Assert.Contains("Database Management", settingsPage);
+        Assert.Contains("<option value=\"1\">1 second</option>", settingsPage);
+        Assert.Contains("CleanupRetentionSeconds", settingsPage);
+        Assert.Contains("TimeSpan.FromSeconds(CleanupRetentionSeconds)", settingsPage);
+        Assert.False(settingsPage.Contains("DaysToKeep"), "Database cleanup should no longer be limited to whole days.");
+        Assert.Contains("CleanOldDataAsync(TimeSpan retention)", dataService);
+        Assert.Contains("NpgsqlDbType.Timestamp", dataService);
+        Assert.Contains("recorded_at < @cutoff", dataService);
+        Assert.False(dataService.Contains("INTERVAL '{daysToKeep} days'"), "Database cleanup should use a parameterized cutoff timestamp.");
 
         return Task.CompletedTask;
     }
@@ -331,6 +430,8 @@ internal static class Tests
         Assert.Contains("settings.RequiresApiKey", decisionService);
         Assert.Contains("AiApiHealth.GetActivePause", decisionService);
         Assert.Contains("RecordOpenAiFailureAsync", decisionService);
+        Assert.Contains("RecordOllamaFailureAsync", decisionService);
+        Assert.Contains("AiAnalysisLock", decisionService);
 
         var program = File.ReadAllText(FindRepoFile(
             "raspberry-pi",
@@ -354,10 +455,19 @@ internal static class Tests
             "IrrigationSystem.Web",
             "Services",
             "AiApiHealthService.cs"));
+        var aiService = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Services",
+            "OpenAiIrrigationService.cs"));
 
         Assert.Contains("HttpMethod.Post, \"responses\"", healthService);
-        Assert.Contains("api/chat", healthService);
+        Assert.Contains("api/tags", healthService);
         Assert.Contains("QuotaOrRateLimitPause", healthService);
+        Assert.Contains("OllamaFailurePause", healthService);
+        Assert.Contains("OllamaAnalysisTimeout", aiService);
+        Assert.Contains("api/chat", aiService);
 
         return Task.CompletedTask;
     }
@@ -373,7 +483,10 @@ internal static class Tests
         Assert.Contains("\\\"zoneId\\\"", sketch);
         Assert.Contains("\\\"temperature\\\"", sketch);
         Assert.Contains("\\\"humidity\\\"", sketch);
+        Assert.Contains("\\\"pressure\\\"", sketch);
         Assert.Contains("\\\"soilMoisture\\\"", sketch);
+        Assert.Contains("http.errorToString", sketch);
+        Assert.Contains("http.setReuse(false)", sketch);
 
         return Task.CompletedTask;
     }
@@ -390,6 +503,73 @@ internal static class Tests
         Assert.Contains("setValve(1, false)", sketch);
         Assert.Contains("setValve(2, false)", sketch);
         Assert.Contains("PubSubClient", libraries);
+
+        return Task.CompletedTask;
+    }
+
+    public static Task SensorApiAppliesSafeWateringDecisionsThroughMqtt()
+    {
+        var apiController = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Controllers",
+            "ApiController.cs"));
+        var decisionQueue = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Services",
+            "SensorReadingDecisionQueue.cs"));
+        var mqttService = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Services",
+            "MqttService.cs"));
+        var program = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Program.cs"));
+
+        Assert.Contains("IValveCommandService", mqttService);
+        Assert.Contains("SensorReadingDecisionQueue", apiController);
+        Assert.Contains("DecisionQueue.TryQueue", apiController);
+        Assert.Contains("IValveCommandService", decisionQueue);
+        Assert.Contains("TryApplyWateringDecisionAsync", decisionQueue);
+        Assert.Contains("ValveCommands.OpenValveAsync(finalDecision.ZoneId, durationSeconds)", decisionQueue);
+        Assert.Contains("CompleteIrrigationEventLaterAsync", decisionQueue);
+        Assert.Contains("AddSingleton<IValveCommandService>", program);
+        Assert.Contains("AddSingleton<SensorReadingDecisionQueue>", program);
+        Assert.Contains("AddHostedService(sp => sp.GetRequiredService<SensorReadingDecisionQueue>())", program);
+
+        return Task.CompletedTask;
+    }
+
+    public static Task WateringEventsStartAfterMqttOpenSucceeds()
+    {
+        var dashboard = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Pages",
+            "Index.razor"));
+        var autoWatering = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Services",
+            "AutoWateringService.cs"));
+
+        Assert.True(
+            dashboard.IndexOf("ValveCommands.OpenValveAsync", StringComparison.Ordinal) <
+            dashboard.IndexOf("StartIrrigationEventAsync", StringComparison.Ordinal),
+            "Manual watering should not create an irrigation event until the MQTT open command succeeds.");
+        Assert.True(
+            autoWatering.IndexOf("ValveCommands.OpenValveAsync", StringComparison.Ordinal) <
+            autoWatering.IndexOf("StartIrrigationEventAsync", StringComparison.Ordinal),
+            "Auto-watering should not create an irrigation event until the MQTT open command succeeds.");
 
         return Task.CompletedTask;
     }
@@ -444,8 +624,17 @@ internal static class Tests
                 new OpenAiApiKeyProvider(new ConfigurationBuilder().Build()),
                 new TestLogger<AiApiHealthService>()),
             new TestLogger<IrrigationDecisionService>());
+        var decisionQueue = new SensorReadingDecisionQueue(
+            dataService,
+            decisionService,
+            new FakeValveCommandService(),
+            new TestLogger<SensorReadingDecisionQueue>());
 
-        return new ApiController(dataService, adaptiveService, decisionService, new TestLogger<ApiController>());
+        return new ApiController(
+            dataService,
+            adaptiveService,
+            decisionQueue,
+            new TestLogger<ApiController>());
     }
 
     private static IrrigationDecisionResult ApplySafety(
@@ -639,6 +828,19 @@ internal sealed class TestHttpClientFactory : IHttpClientFactory
                 Content = new StringContent("{}")
             });
         }
+    }
+}
+
+internal sealed class FakeValveCommandService : IValveCommandService
+{
+    public Task<bool> OpenValveAsync(int zoneId, int durationSeconds)
+    {
+        return Task.FromResult(true);
+    }
+
+    public Task<bool> CloseValveAsync(int zoneId)
+    {
+        return Task.FromResult(true);
     }
 }
 

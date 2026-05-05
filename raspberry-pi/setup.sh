@@ -183,6 +183,10 @@ else
     sudo -u postgres psql -v ON_ERROR_STOP=1 -d "$DB_NAME" < "$SQL_FILE"
 fi
 
+echo "Ensuring sensor pressure column..."
+sudo -u postgres psql -v ON_ERROR_STOP=1 -d "$DB_NAME" -c \
+    "ALTER TABLE public.sensor_readings ADD COLUMN IF NOT EXISTS pressure double precision;"
+
 # Seed required defaults
 echo "Seeding default settings and login..."
 sudo -u postgres psql -v ON_ERROR_STOP=1 -d "$DB_NAME" <<'SQL'
@@ -204,9 +208,9 @@ ON CONFLICT (username) DO UPDATE
 SET password_hash = EXCLUDED.password_hash;
 SQL
 
-# Set postgres password (for easy testing)
-echo "Setting postgres password..."
-sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres';"
+# Confirm the database password used by appsettings.json and helper scripts.
+echo "Confirming postgres database password..."
+sudo -u postgres psql -c "ALTER USER postgres PASSWORD '$DB_PASSWORD';"
 
 # Allow local connections
 echo "Configuring PostgreSQL access..."

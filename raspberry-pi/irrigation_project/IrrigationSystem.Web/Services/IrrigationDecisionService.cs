@@ -11,6 +11,7 @@ public class IrrigationDecisionService
     private readonly OpenAiApiKeyProvider ApiKeyProvider;
     private readonly AiApiHealthService AiApiHealth;
     private readonly ILogger<IrrigationDecisionService> Logger;
+    private readonly SemaphoreSlim AiAnalysisLock = new(1, 1);
 
     public IrrigationDecisionService(
         SensorDataService dataService,
@@ -57,7 +58,7 @@ public class IrrigationDecisionService
         var keyLookup = settings.RequiresApiKey
             ? ApiKeyProvider.GetApiKey(settings.ApiKeyEnvironmentVariable)
             : null;
-        var activeApiPause = settings.UsesOpenAi ? AiApiHealth.GetActivePause() : null;
+        var activeApiPause = AiApiHealth.GetActivePause(settings);
 
         if (!settings.EnableAiDecisionMaking)
         {
@@ -75,23 +76,40 @@ public class IrrigationDecisionService
         {
             aiErrorMessage = $"AI call skipped because the minimum interval is {settings.MinimumMinutesBetweenAiCalls} minutes; using rule fallback.";
         }
+        else if (!AiAnalysisLock.Wait(0))
+        {
+            aiErrorMessage = "AI call skipped because another AI analysis is already running; using rule fallback.";
+        }
         else
         {
-            aiWasAttempted = true;
-            Logger.LogInformation(
-                "Calling {Provider} irrigation analysis from {Source} for zone {ZoneId} with latest moisture {Moisture}",
-                settings.Provider,
-                source,
-                latestReading.ZoneId,
-                latestReading.Moisture);
-
             try
             {
+                aiWasAttempted = true;
+                Logger.LogInformation(
+                    "Calling {Provider} irrigation analysis from {Source} for zone {ZoneId} with latest moisture {Moisture}",
+                    settings.Provider,
+                    source,
+                    latestReading.ZoneId,
+                    latestReading.Moisture);
+
                 aiDecision = await AiService.AnalyzeAsync(latestReading, recentReadings, cancellationToken);
             }
             catch (OpenAiApiException ex)
             {
                 var apiResult = await AiApiHealth.RecordOpenAiFailureAsync(ex, settings);
+                aiErrorMessage = apiResult.Message;
+                Logger.LogWarning(
+                    ex,
+                    "AI irrigation analysis failed for zone {ZoneId}; falling back to rule-based logic",
+                    latestReading.ZoneId);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex) when (settings.UsesOllama)
+            {
+                var apiResult = await AiApiHealth.RecordOllamaFailureAsync(ex, settings);
                 aiErrorMessage = apiResult.Message;
                 Logger.LogWarning(
                     ex,
@@ -105,6 +123,10 @@ public class IrrigationDecisionService
                     ex,
                     "AI irrigation analysis failed for zone {ZoneId}; falling back to rule-based logic",
                     latestReading.ZoneId);
+            }
+            finally
+            {
+                AiAnalysisLock.Release();
             }
         }
 

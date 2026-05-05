@@ -28,6 +28,19 @@
             </select>
         </label>
 
+        <label>
+            Chart Average:
+            <select @bind="ChartBucketMinutes" @bind:after="ApplyChartAveraging">
+                <option value="0">No averaging</option>
+                <option value="1">1 minute</option>
+                <option value="5">5 minutes</option>
+                <option value="10">10 minutes</option>
+                <option value="15">15 minutes</option>
+                <option value="30">30 minutes</option>
+                <option value="60">60 minutes</option>
+            </select>
+        </label>
+
         <button class="btn-refresh" @onclick="LoadHistory">Refresh</button>
     </div>
 
@@ -50,21 +63,28 @@
                     </div>
                     <div class="metric-pill"><span></span>%</div>
                 </div>
-                <RadzenChart class="history-chart" Style="height: 300px;">
-                    <RadzenLegend Visible="false" />
-                    <RadzenLineSeries Data="@ChartData"
-                                      CategoryProperty="RecordedAt"
-                                      ValueProperty="Moisture"
-                                      Title="Moisture"
-                                      Stroke="#FF6B35"
-                                      StrokeWidth="2">
-                        <RadzenMarkers MarkerType="MarkerType.Circle" Fill="#FF6B35" Size="4" />
-                    </RadzenLineSeries>
-                    <RadzenCategoryAxis FormatString="{0:HH:mm}" />
-                    <RadzenValueAxis Min="0" Max="100">
-                        <RadzenGridLines Visible="true" />
-                    </RadzenValueAxis>
-                </RadzenChart>
+                @if (MoistureChartData.Count > 0)
+                {
+                    <RadzenChart class="history-chart" Style="height: 300px;">
+                        <RadzenLegend Visible="false" />
+                        <RadzenLineSeries Data="@MoistureChartData"
+                                          CategoryProperty="RecordedAt"
+                                          ValueProperty="Value"
+                                          Title="Moisture"
+                                          Stroke="#FF6B35"
+                                          StrokeWidth="2">
+                            <RadzenMarkers MarkerType="MarkerType.Circle" Fill="#FF6B35" Size="4" />
+                        </RadzenLineSeries>
+                        <RadzenCategoryAxis FormatString="{0:HH:mm}" />
+                        <RadzenValueAxis Min="0" Max="100">
+                            <RadzenGridLines Visible="true" />
+                        </RadzenValueAxis>
+                    </RadzenChart>
+                }
+                else
+                {
+                    <p class="no-data">No moisture data available.</p>
+                }
             </div>
 
             <div class="chart-card metric-card metric-temperature">
@@ -75,21 +95,28 @@
                     </div>
                     <div class="metric-pill"><span></span>°C</div>
                 </div>
-                <RadzenChart class="history-chart" Style="height: 300px;">
-                    <RadzenLegend Visible="false" />
-                    <RadzenLineSeries Data="@ChartData"
-                                      CategoryProperty="RecordedAt"
-                                      ValueProperty="Temperature"
-                                      Title="Temperature"
-                                      Stroke="#DC143C"
-                                      StrokeWidth="2">
-                        <RadzenMarkers MarkerType="MarkerType.Circle" Fill="#DC143C" Size="4" />
-                    </RadzenLineSeries>
-                    <RadzenCategoryAxis FormatString="{0:HH:mm}" />
-                    <RadzenValueAxis Min="0" Max="40">
-                        <RadzenGridLines Visible="true" />
-                    </RadzenValueAxis>
-                </RadzenChart>
+                @if (TemperatureChartData.Count > 0)
+                {
+                    <RadzenChart class="history-chart" Style="height: 300px;">
+                        <RadzenLegend Visible="false" />
+                        <RadzenLineSeries Data="@TemperatureChartData"
+                                          CategoryProperty="RecordedAt"
+                                          ValueProperty="Value"
+                                          Title="Temperature"
+                                          Stroke="#DC143C"
+                                          StrokeWidth="2">
+                            <RadzenMarkers MarkerType="MarkerType.Circle" Fill="#DC143C" Size="4" />
+                        </RadzenLineSeries>
+                        <RadzenCategoryAxis FormatString="{0:HH:mm}" />
+                        <RadzenValueAxis Min="0" Max="40">
+                            <RadzenGridLines Visible="true" />
+                        </RadzenValueAxis>
+                    </RadzenChart>
+                }
+                else
+                {
+                    <p class="no-data">No temperature data available.</p>
+                }
             </div>
 
             <div class="chart-card metric-card metric-humidity">
@@ -100,21 +127,60 @@
                     </div>
                     <div class="metric-pill"><span></span>%</div>
                 </div>
-                <RadzenChart class="history-chart" Style="height: 300px;">
-                    <RadzenLegend Visible="false" />
-                    <RadzenLineSeries Data="@ChartData"
-                                      CategoryProperty="RecordedAt"
-                                      ValueProperty="Humidity"
-                                      Title="Humidity"
-                                      Stroke="#4169E1"
-                                      StrokeWidth="2">
-                        <RadzenMarkers MarkerType="MarkerType.Circle" Fill="#4169E1" Size="4" />
-                    </RadzenLineSeries>
-                    <RadzenCategoryAxis FormatString="{0:HH:mm}" />
-                    <RadzenValueAxis Min="0" Max="100">
-                        <RadzenGridLines Visible="true" />
-                    </RadzenValueAxis>
-                </RadzenChart>
+                @if (HumidityChartData.Count > 0)
+                {
+                    <RadzenChart class="history-chart" Style="height: 300px;">
+                        <RadzenLegend Visible="false" />
+                        <RadzenLineSeries Data="@HumidityChartData"
+                                          CategoryProperty="RecordedAt"
+                                          ValueProperty="Value"
+                                          Title="Humidity"
+                                          Stroke="#4169E1"
+                                          StrokeWidth="2">
+                            <RadzenMarkers MarkerType="MarkerType.Circle" Fill="#4169E1" Size="4" />
+                        </RadzenLineSeries>
+                        <RadzenCategoryAxis FormatString="{0:HH:mm}" />
+                        <RadzenValueAxis Min="0" Max="100">
+                            <RadzenGridLines Visible="true" />
+                        </RadzenValueAxis>
+                    </RadzenChart>
+                }
+                else
+                {
+                    <p class="no-data">No humidity data available.</p>
+                }
+            </div>
+
+            <div class="chart-card metric-card metric-pressure">
+                <div class="chart-card-header">
+                    <div>
+                        <h4>Pressure</h4>
+                        <span>Barometric sensor reading</span>
+                    </div>
+                    <div class="metric-pill"><span></span>hPa</div>
+                </div>
+                @if (PressureChartData.Count > 0)
+                {
+                    <RadzenChart class="history-chart" Style="height: 300px;">
+                        <RadzenLegend Visible="false" />
+                        <RadzenLineSeries Data="@PressureChartData"
+                                          CategoryProperty="RecordedAt"
+                                          ValueProperty="Value"
+                                          Title="Pressure"
+                                          Stroke="#2E8B57"
+                                          StrokeWidth="2">
+                            <RadzenMarkers MarkerType="MarkerType.Circle" Fill="#2E8B57" Size="4" />
+                        </RadzenLineSeries>
+                        <RadzenCategoryAxis FormatString="{0:HH:mm}" />
+                        <RadzenValueAxis>
+                            <RadzenGridLines Visible="true" />
+                        </RadzenValueAxis>
+                    </RadzenChart>
+                }
+                else
+                {
+                    <p class="no-data">No pressure data available.</p>
+                }
             </div>
         </div>
 
@@ -135,8 +201,16 @@
                         <td>@HistoryData.Max(d => d.Moisture ?? 0).ToString("F1")%</td>
                     </tr>
                     <tr>
-                        <td><strong>Data Points:</strong></td>
+                        <td><strong>Raw Data Points:</strong></td>
                         <td>@HistoryData.Count</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Avg Pressure:</strong></td>
+                        <td>@FormatAverage(HistoryData.Select(d => d.Pressure), "hPa")</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Chart Points:</strong></td>
+                        <td>@ChartData.Count</td>
                     </tr>
                 </tbody>
             </table>
@@ -151,6 +225,7 @@
                         <th>Moisture (%)</th>
                         <th>Temperature (°C)</th>
                         <th>Humidity (%)</th>
+                        <th>Pressure (hPa)</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -161,6 +236,7 @@
                             <td>@(data.Moisture?.ToString("F1") ?? "N/A")</td>
                             <td>@(data.Temperature?.ToString("F1") ?? "N/A")</td>
                             <td>@(data.Humidity?.ToString("F1") ?? "N/A")</td>
+                            <td>@(data.Pressure?.ToString("F1") ?? "N/A")</td>
                         </tr>
                     }
                 </tbody>
@@ -172,8 +248,13 @@
 @code {
     private List<SensorReading> HistoryData = new();
     private List<SensorReading> ChartData = new();
+    private List<MetricChartPoint> MoistureChartData = new();
+    private List<MetricChartPoint> TemperatureChartData = new();
+    private List<MetricChartPoint> HumidityChartData = new();
+    private List<MetricChartPoint> PressureChartData = new();
     private int SelectedZoneId = 1;
     private int TimeRangeHours = 24;
+    private int ChartBucketMinutes = 10;
     private bool IsLoading = true;
 
     protected override async Task OnInitializedAsync()
@@ -186,21 +267,90 @@
         IsLoading = true;
 
         HistoryData = await DataService.GetZoneHistoryAsync(SelectedZoneId, TimeRangeHours);
-        ChartData = new List<SensorReading>(HistoryData);
-
-        if (ChartData.Count > 0)
-        {
-            var first = ChartData.First();
-
-            ChartData.Insert(0, new SensorReading
-            {
-                RecordedAt = first.RecordedAt.AddMinutes(-1),
-                Moisture = first.Moisture,
-                Temperature = first.Temperature,
-                Humidity = first.Humidity
-            });
-        }
+        ApplyChartAveraging();
 
         IsLoading = false;
     }
+
+    private void ApplyChartAveraging()
+    {
+        ChartData = BuildAveragedChartData(HistoryData, ChartBucketMinutes);
+        MoistureChartData = BuildMetricChartData(ChartData, reading => reading.Moisture);
+        TemperatureChartData = BuildMetricChartData(ChartData, reading => reading.Temperature);
+        HumidityChartData = BuildMetricChartData(ChartData, reading => reading.Humidity);
+        PressureChartData = BuildMetricChartData(ChartData, reading => reading.Pressure);
+    }
+
+    private static List<SensorReading> BuildAveragedChartData(IEnumerable<SensorReading> readings, int bucketMinutes)
+    {
+        var orderedReadings = readings.OrderBy(reading => reading.RecordedAt).ToList();
+        if (bucketMinutes <= 0)
+        {
+            return orderedReadings;
+        }
+
+        var bucketTicks = TimeSpan.FromMinutes(bucketMinutes).Ticks;
+
+        return orderedReadings
+            .GroupBy(reading => reading.RecordedAt.Ticks / bucketTicks)
+            .Select(group =>
+            {
+                var bucket = group.ToList();
+                var first = bucket.First();
+
+                return new SensorReading
+                {
+                    ZoneId = first.ZoneId,
+                    RecordedAt = new DateTime(group.Key * bucketTicks, first.RecordedAt.Kind),
+                    Moisture = AverageNullable(bucket.Select(reading => reading.Moisture)),
+                    Temperature = AverageNullable(bucket.Select(reading => reading.Temperature)),
+                    Humidity = AverageNullable(bucket.Select(reading => reading.Humidity)),
+                    Pressure = AverageNullable(bucket.Select(reading => reading.Pressure))
+                };
+            })
+            .OrderBy(reading => reading.RecordedAt)
+            .ToList();
+    }
+
+    private static List<MetricChartPoint> BuildMetricChartData(
+        IEnumerable<SensorReading> readings,
+        Func<SensorReading, float?> valueSelector)
+    {
+        return readings
+            .Select(reading => new
+            {
+                reading.RecordedAt,
+                Value = valueSelector(reading)
+            })
+            .Where(point => point.Value.HasValue)
+            .Select(point => new MetricChartPoint(point.RecordedAt, point.Value!.Value))
+            .ToList();
+    }
+
+    private static float? AverageNullable(IEnumerable<float?> values)
+    {
+        var total = 0f;
+        var count = 0;
+
+        foreach (var value in values)
+        {
+            if (!value.HasValue)
+            {
+                continue;
+            }
+
+            total += value.Value;
+            count++;
+        }
+
+        return count == 0 ? null : total / count;
+    }
+
+    private static string FormatAverage(IEnumerable<float?> values, string unit)
+    {
+        var average = AverageNullable(values);
+        return average.HasValue ? $"{average.Value:F1} {unit}" : "N/A";
+    }
+
+    private sealed record MetricChartPoint(DateTime RecordedAt, float Value);
 }

@@ -110,6 +110,7 @@ CREATE TABLE public.sensor_readings (
     moisture double precision,
     temperature double precision,
     humidity double precision,
+    pressure double precision,
     recorded_at timestamp without time zone DEFAULT now()
 );
 
@@ -502,4 +503,3 @@ GRANT ALL ON SCHEMA public TO postgres;
 --
 
 \unrestrict oeCb3tiJMSmtcKdWYaud1ix6NfcI9B76VgNkRI4kaZmDbjebhUKQ2tb1vzRZ3Rb
-

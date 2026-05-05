@@ -9,6 +9,7 @@ namespace IrrigationSystem.Web.Services;
 public class OpenAiIrrigationService : IAiIrrigationService
 {
     private const string SystemPrompt = "You are an irrigation assistant for a student smart garden project. You analyze soil moisture history and recommend safe watering decisions. You must return only valid JSON. You are not allowed to ignore safety limits. Prefer conservative watering. If data is unclear, recommend not watering. Do not include markdown, explanations outside JSON, or thinking tags.";
+    private static readonly TimeSpan OllamaAnalysisTimeout = TimeSpan.FromSeconds(45);
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -126,52 +127,63 @@ public class OpenAiIrrigationService : IAiIrrigationService
         AiIrrigationOptions settings,
         CancellationToken cancellationToken)
     {
-        var userPrompt = await BuildUserPromptAsync(latestReading, recentReadings, settings, cancellationToken);
-        var requestBody = new
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(OllamaAnalysisTimeout);
+
+        try
         {
-            model = string.IsNullOrWhiteSpace(settings.Model) ? "qwen3:1.7b" : settings.Model,
-            stream = false,
-            think = false,
-            messages = new[]
+            var userPrompt = await BuildUserPromptAsync(latestReading, recentReadings, settings, timeout.Token);
+            var requestBody = new
             {
-                new { role = "system", content = SystemPrompt },
-                new { role = "user", content = userPrompt }
-            },
-            format = CreateDecisionSchema(),
-            options = new
+                model = string.IsNullOrWhiteSpace(settings.Model) ? "qwen3:1.7b" : settings.Model,
+                stream = false,
+                think = false,
+                messages = new[]
+                {
+                    new { role = "system", content = SystemPrompt },
+                    new { role = "user", content = userPrompt }
+                },
+                format = CreateDecisionSchema(),
+                options = new
+                {
+                    temperature = 0.2,
+                    num_predict = 360
+                }
+            };
+
+            using var request = new HttpRequestMessage(HttpMethod.Post, BuildOllamaChatUri(settings));
+            request.Content = JsonContent.Create(requestBody, options: JsonOptions);
+
+            using var response = await HttpClient.SendAsync(request, timeout.Token);
+            var responseJson = await response.Content.ReadAsStringAsync(timeout.Token);
+
+            if (!response.IsSuccessStatusCode)
             {
-                temperature = 0.2,
-                num_predict = 600
+                var apiError = ExtractOllamaError(responseJson);
+                throw new InvalidOperationException(
+                    $"Ollama returned {(int)response.StatusCode} {response.ReasonPhrase}: {apiError}");
             }
-        };
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, BuildOllamaChatUri(settings));
-        request.Content = JsonContent.Create(requestBody, options: JsonOptions);
+            var outputText = ExtractOllamaOutputText(responseJson);
+            if (!AiIrrigationDecisionParser.TryParse(outputText, out var decision, out var parseError))
+            {
+                throw new InvalidOperationException(parseError);
+            }
 
-        using var response = await HttpClient.SendAsync(request, cancellationToken);
-        var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
+            Logger.LogInformation(
+                "Ollama irrigation decision received for zone {ZoneId}: shouldWater={ShouldWater}, confidence={Confidence:F2}, risk={RiskLevel}",
+                latestReading.ZoneId,
+                decision.ShouldWater,
+                decision.Confidence,
+                decision.RiskLevel);
 
-        if (!response.IsSuccessStatusCode)
-        {
-            var apiError = ExtractOllamaError(responseJson);
-            throw new InvalidOperationException(
-                $"Ollama returned {(int)response.StatusCode} {response.ReasonPhrase}: {apiError}");
+            return decision;
         }
-
-        var outputText = ExtractOllamaOutputText(responseJson);
-        if (!AiIrrigationDecisionParser.TryParse(outputText, out var decision, out var parseError))
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            throw new InvalidOperationException(parseError);
+            throw new TimeoutException(
+                $"Ollama irrigation analysis timed out after {OllamaAnalysisTimeout.TotalSeconds:0} seconds.");
         }
-
-        Logger.LogInformation(
-            "Ollama irrigation decision received for zone {ZoneId}: shouldWater={ShouldWater}, confidence={Confidence:F2}, risk={RiskLevel}",
-            latestReading.ZoneId,
-            decision.ShouldWater,
-            decision.Confidence,
-            decision.RiskLevel);
-
-        return decision;
     }
 
     private async Task<string> BuildUserPromptAsync(
@@ -202,6 +214,7 @@ public class OpenAiIrrigationService : IAiIrrigationService
                 MoisturePercent = latestReading.Moisture,
                 latestReading.Temperature,
                 latestReading.Humidity,
+                PressureHpa = latestReading.Pressure,
                 latestReading.RecordedAt
             },
             recentReadings = recentReadings
@@ -214,6 +227,7 @@ public class OpenAiIrrigationService : IAiIrrigationService
                     MoisturePercent = reading.Moisture,
                     reading.Temperature,
                     reading.Humidity,
+                    PressureHpa = reading.Pressure,
                     reading.RecordedAt
                 }),
             previousWateringEvents = recentEvents.Select(irrigationEvent => new

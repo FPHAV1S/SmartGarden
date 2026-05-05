@@ -1,10 +1,15 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <WebServer.h>
+#include <Wire.h>
 #include <PubSubClient.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BME280.h>
+#include <math.h>
 
 const char* ssid = "GardenBrain";
 const char* password = "GardenBrain123";
+const char* wifiHostname = "GardenBrainESP32-C3";
 
 // Windows laptop hotspot defaults to the 192.168.137.0/24 network.
 IPAddress localIp(192, 168, 137, 100);
@@ -23,10 +28,15 @@ const char* valveCommandTopic = "irrigation/zone/+/valve";
 
 const int zoneId = 1;
 const unsigned long sendIntervalMs = 5000;
+const uint16_t httpConnectTimeoutMs = 5000;
+const uint16_t httpRequestTimeoutMs = 15000;
 const unsigned long mqttReconnectIntervalMs = 5000;
+const unsigned long bmeRetryIntervalMs = 30000;
 const int wifiConnectAttempts = 60;
 
 #define SOIL_PIN 0
+#define BME_SDA_PIN 8
+#define BME_SCL_PIN 9
 
 #define MOSFET1_PIN 6
 #define MOSFET2_PIN 7
@@ -39,19 +49,31 @@ const int dryValue = 3730;
 const int wetValue = 200;
 
 WebServer server(80);
+Adafruit_BME280 bme;
 WiFiClient mqttWifiClient;
 PubSubClient mqttClient(mqttWifiClient);
+
+uint8_t targetBssid[6] = { 0, 0, 0, 0, 0, 0 };
+int32_t targetChannel = 0;
+int32_t targetRssi = -1000;
+bool targetNetworkFound = false;
 
 int readingCount = 0;
 unsigned long lastSend = 0;
 unsigned long lastMqttReconnectAttempt = 0;
+unsigned long lastBmeInitAttempt = 0;
 
 int lastHttpCode = 0;
 String lastResponse = "No request sent yet";
 String lastMqttCommand = "No MQTT valve command received yet";
 
-float temperature = 24.5;  // fake for now
-float humidity = 60.0;    // fake for now
+bool bmeReady = false;
+uint8_t bmeAddress = 0;
+String bmeStatus = "BME280 not initialized";
+
+float temperature = 24.5;  // fallback until the first BME280 reading succeeds
+float humidity = 60.0;     // fallback until the first BME280 reading succeeds
+float pressureHpa = 0.0;
 
 int soilRaw = 0;
 float soilMoisture = 0.0;
@@ -68,11 +90,14 @@ void setup() {
 
   Serial.println();
   Serial.println("GardenBrain ESP32-C3");
-  Serial.println("Soil Moisture + XY-MOS + MQTT valve commands");
-  Serial.println("No BME280, no buck converter");
+  Serial.println("Soil Moisture + BME280 + XY-MOS + MQTT valve commands");
+  Serial.println("BME280 I2C pins: SDA GPIO8, SCL GPIO9");
   Serial.println("Serial is alive at 115200 baud.");
 
   analogReadResolution(12);
+  Wire.begin(BME_SDA_PIN, BME_SCL_PIN);
+  Wire.setClock(100000);
+  initializeBme280();
 
   pinMode(MOSFET1_PIN, OUTPUT);
   pinMode(MOSFET2_PIN, OUTPUT);
@@ -80,13 +105,7 @@ void setup() {
   setValve(1, false);
   setValve(2, false);
 
-  WiFi.disconnect(true);
-  delay(500);
-
-  WiFi.mode(WIFI_STA);
-  WiFi.setHostname("GardenBrainESP32-C3");
-  WiFi.setAutoReconnect(true);
-  WiFi.setSleep(false);
+  WiFi.persistent(false);
 
   connectToWifi();
 
@@ -138,21 +157,134 @@ void loop() {
   delay(10);
 }
 
+void initializeBme280() {
+  lastBmeInitAttempt = millis();
+
+  Serial.print("Initializing BME280 on SDA GPIO");
+  Serial.print(BME_SDA_PIN);
+  Serial.print(", SCL GPIO");
+  Serial.print(BME_SCL_PIN);
+  Serial.println("...");
+
+  bmeReady = false;
+  bmeAddress = 0;
+
+  if (bme.begin(0x76, &Wire)) {
+    bmeAddress = 0x76;
+    bmeReady = true;
+  } else if (bme.begin(0x77, &Wire)) {
+    bmeAddress = 0x77;
+    bmeReady = true;
+  }
+
+  if (!bmeReady) {
+    bmeStatus = "BME280 not found at 0x76 or 0x77";
+    Serial.println(bmeStatus);
+    Serial.println("Check BME280 VIN/3V3, GND, SDA GPIO8, SCL GPIO9, and sensor address jumper.");
+    return;
+  }
+
+  bme.setSampling(
+    Adafruit_BME280::MODE_NORMAL,
+    Adafruit_BME280::SAMPLING_X2,
+    Adafruit_BME280::SAMPLING_X16,
+    Adafruit_BME280::SAMPLING_X1,
+    Adafruit_BME280::FILTER_X16,
+    Adafruit_BME280::STANDBY_MS_500
+  );
+
+  bmeStatus = "BME280 online at ";
+  bmeStatus += bmeAddressText();
+  Serial.println(bmeStatus);
+}
+
+void ensureBme280Ready() {
+  if (bmeReady) {
+    return;
+  }
+
+  unsigned long now = millis();
+  if (now - lastBmeInitAttempt < bmeRetryIntervalMs) {
+    return;
+  }
+
+  initializeBme280();
+}
+
+void readBme280() {
+  ensureBme280Ready();
+
+  if (!bmeReady) {
+    return;
+  }
+
+  float nextTemperature = bme.readTemperature();
+  float nextHumidity = bme.readHumidity();
+  float nextPressureHpa = bme.readPressure() / 100.0F;
+
+  if (isnan(nextTemperature) || isnan(nextHumidity) || isnan(nextPressureHpa)) {
+    bmeReady = false;
+    bmeStatus = "BME280 read failed; keeping previous values";
+    Serial.println(bmeStatus);
+    return;
+  }
+
+  temperature = nextTemperature;
+  humidity = nextHumidity;
+  pressureHpa = nextPressureHpa;
+
+  if (humidity < 0.0) humidity = 0.0;
+  if (humidity > 100.0) humidity = 100.0;
+  if (pressureHpa < 0.0) pressureHpa = 0.0;
+
+  bmeStatus = "BME280 online at ";
+  bmeStatus += bmeAddressText();
+}
+
+String bmeAddressText() {
+  if (bmeAddress == 0) {
+    return "none";
+  }
+
+  String address = String(bmeAddress, HEX);
+  address.toUpperCase();
+
+  String text = "0x";
+  text += address;
+  return text;
+}
+
 void connectToWifi() {
+  WiFi.setAutoReconnect(false);
+  resetWifiStation();
   scanForWifiNetwork();
 
   Serial.print("Connecting to ");
   Serial.print(ssid);
-  Serial.println(" with static IP...");
+  Serial.println("...");
 
-  if (tryWifiConnection(true)) {
+  if (tryWifiConnection(true, false)) {
     return;
   }
 
-  Serial.println("Static IP attempt failed. Trying DHCP...");
+  Serial.println("Plain static IP attempt failed. Trying plain DHCP...");
 
-  if (tryWifiConnection(false)) {
+  if (tryWifiConnection(false, false)) {
     return;
+  }
+
+  if (targetNetworkFound && targetChannel > 0) {
+    Serial.println("Plain attempts failed. Trying scanned AP channel/BSSID as a fallback...");
+
+    if (tryWifiConnection(true, true)) {
+      return;
+    }
+
+    Serial.println("Scanned AP static IP attempt failed. Trying scanned AP with DHCP...");
+
+    if (tryWifiConnection(false, true)) {
+      return;
+    }
   }
 
   Serial.print("Failed to connect to ");
@@ -166,15 +298,34 @@ void connectToWifi() {
   Serial.println("If GardenBrain is not found in the scan, change Windows hotspot Network band to 2.4 GHz.");
 }
 
-bool tryWifiConnection(bool useStaticIp) {
-  WiFi.disconnect(false);
-  delay(200);
+void resetWifiStation() {
+  WiFi.setAutoReconnect(false);
+  WiFi.disconnect(true);
+
+  unsigned long startedAt = millis();
+  while (WiFi.status() != WL_DISCONNECTED && millis() - startedAt < 2000) {
+    delay(100);
+  }
+
+  WiFi.mode(WIFI_OFF);
+  delay(300);
+  WiFi.mode(WIFI_STA);
+  delay(300);
+
+  WiFi.setHostname(wifiHostname);
+  WiFi.setSleep(false);
+}
+
+bool tryWifiConnection(bool useStaticIp, bool lockToScannedAp) {
+  resetWifiStation();
 
   if (useStaticIp) {
+    Serial.println("Using static IP 192.168.137.100.");
     if (!WiFi.config(localIp, gateway, subnet, primaryDns, secondaryDns)) {
       Serial.println("Static IP configuration failed.");
     }
   } else {
+    Serial.println("Using DHCP.");
     WiFi.config(
       IPAddress(0, 0, 0, 0),
       IPAddress(0, 0, 0, 0),
@@ -184,11 +335,40 @@ bool tryWifiConnection(bool useStaticIp) {
     );
   }
 
-  WiFi.begin(ssid, password);
+  int beginStatus;
+
+  if (lockToScannedAp && targetNetworkFound && targetChannel > 0) {
+    Serial.print("Connecting to scanned AP on channel ");
+    Serial.print(targetChannel);
+    Serial.print(" BSSID ");
+    Serial.println(targetBssidText());
+    beginStatus = WiFi.begin(ssid, password, targetChannel, targetBssid);
+  } else {
+    Serial.println("Connecting with normal SSID/password join.");
+    beginStatus = WiFi.begin(ssid, password);
+  }
+
+  Serial.print("WiFi.begin returned ");
+  Serial.print(beginStatus);
+  Serial.print(" (");
+  Serial.print(wifiStatusText(beginStatus));
+  Serial.println(")");
 
   int attempts = 0;
+  int lastStatus = -1;
 
   while (WiFi.status() != WL_CONNECTED && attempts < wifiConnectAttempts) {
+    int status = WiFi.status();
+    if (status != lastStatus) {
+      Serial.println();
+      Serial.print("WiFi status: ");
+      Serial.print(status);
+      Serial.print(" (");
+      Serial.print(wifiStatusText(status));
+      Serial.println(")");
+      lastStatus = status;
+    }
+
     delay(500);
     Serial.print(".");
     attempts++;
@@ -197,6 +377,7 @@ bool tryWifiConnection(bool useStaticIp) {
   Serial.println();
 
   if (WiFi.status() == WL_CONNECTED) {
+    WiFi.setAutoReconnect(true);
     Serial.println("Connected successfully.");
     Serial.print("ESP32-C3 IP address: ");
     Serial.println(WiFi.localIP());
@@ -219,6 +400,10 @@ bool tryWifiConnection(bool useStaticIp) {
 void scanForWifiNetwork() {
   Serial.println("Scanning for WiFi networks...");
 
+  targetNetworkFound = false;
+  targetChannel = 0;
+  targetRssi = -1000;
+
   int networkCount = WiFi.scanNetworks(false, true);
 
   if (networkCount < 0) {
@@ -232,14 +417,32 @@ void scanForWifiNetwork() {
   for (int i = 0; i < networkCount; i++) {
     if (WiFi.SSID(i) == ssid) {
       found = true;
+      if (!targetNetworkFound || WiFi.RSSI(i) > targetRssi) {
+        targetNetworkFound = true;
+        targetChannel = WiFi.channel(i);
+        targetRssi = WiFi.RSSI(i);
+
+        uint8_t* bssid = WiFi.BSSID(i);
+        if (bssid != nullptr) {
+          for (int j = 0; j < 6; j++) {
+            targetBssid[j] = bssid[j];
+          }
+        }
+      }
+
       Serial.print("Found ");
       Serial.print(ssid);
       Serial.print(" | channel ");
       Serial.print(WiFi.channel(i));
+      Serial.print(" | BSSID ");
+      Serial.print(bssidText(WiFi.BSSID(i)));
       Serial.print(" | RSSI ");
       Serial.print(WiFi.RSSI(i));
       Serial.print(" dBm | auth ");
-      Serial.println(WiFi.encryptionType(i));
+      Serial.print(WiFi.encryptionType(i));
+      Serial.print(" (");
+      Serial.print(wifiAuthText(WiFi.encryptionType(i)));
+      Serial.println(")");
     }
   }
 
@@ -250,6 +453,54 @@ void scanForWifiNetwork() {
   }
 
   WiFi.scanDelete();
+}
+
+String targetBssidText() {
+  return bssidText(targetBssid);
+}
+
+String bssidText(const uint8_t* bssid) {
+  if (bssid == nullptr) {
+    return "unknown";
+  }
+
+  char text[18];
+  snprintf(
+    text,
+    sizeof(text),
+    "%02X:%02X:%02X:%02X:%02X:%02X",
+    bssid[0],
+    bssid[1],
+    bssid[2],
+    bssid[3],
+    bssid[4],
+    bssid[5]
+  );
+
+  return String(text);
+}
+
+const char* wifiAuthText(int auth) {
+  switch (auth) {
+    case 0:
+      return "open";
+    case 1:
+      return "WEP";
+    case 2:
+      return "WPA PSK";
+    case 3:
+      return "WPA2 PSK";
+    case 4:
+      return "WPA/WPA2 PSK";
+    case 5:
+      return "WPA2 Enterprise";
+    case 6:
+      return "WPA3 PSK";
+    case 7:
+      return "WPA2/WPA3 PSK";
+    default:
+      return "unknown";
+  }
 }
 
 const char* wifiStatusText(int status) {
@@ -482,16 +733,22 @@ void updateSensorData() {
   readingCount++;
 
   soilMoisture = readSoilMoisturePercent();
-
-  // Fake values until BME280 is added later
-  temperature += 0.1;
-  humidity += 0.2;
-
-  if (temperature > 30.0) temperature = 24.5;
-  if (humidity > 80.0) humidity = 60.0;
+  readBme280();
 
   Serial.print("Reading #");
   Serial.print(readingCount);
+
+  Serial.print(" | Temp: ");
+  Serial.print(temperature);
+  Serial.print(" C");
+
+  Serial.print(" | Humidity: ");
+  Serial.print(humidity);
+  Serial.print("%");
+
+  Serial.print(" | Pressure: ");
+  Serial.print(pressureHpa);
+  Serial.print(" hPa");
 
   Serial.print(" | Soil raw: ");
   Serial.print(soilRaw);
@@ -499,6 +756,9 @@ void updateSensorData() {
   Serial.print(" | Moisture: ");
   Serial.print(soilMoisture);
   Serial.print("%");
+
+  Serial.print(" | BME280: ");
+  Serial.print(bmeReady ? "OK" : "offline");
 
   Serial.print(" | Valve 1: ");
   Serial.print(valve1State ? "ON" : "OFF");
@@ -606,11 +866,29 @@ void sendReading() {
   Serial.println(apiUrl);
   Serial.println(payload);
 
-  http.begin(apiUrl);
+  if (!http.begin(apiUrl)) {
+    lastHttpCode = -7;
+    lastResponse = "HTTP begin failed; check apiUrl";
+
+    Serial.print("HTTP status: ");
+    Serial.println(lastHttpCode);
+    Serial.print("Response: ");
+    Serial.println(lastResponse);
+    return;
+  }
+
+  http.setConnectTimeout(httpConnectTimeoutMs);
+  http.setTimeout(httpRequestTimeoutMs);
+  http.setReuse(false);
   http.addHeader("Content-Type", "application/json");
+  http.addHeader("Connection", "close");
 
   lastHttpCode = http.POST(payload);
-  lastResponse = http.getString();
+  if (lastHttpCode < 0) {
+    lastResponse = http.errorToString(lastHttpCode);
+  } else {
+    lastResponse = http.getString();
+  }
 
   Serial.print("HTTP status: ");
   Serial.println(lastHttpCode);
@@ -628,6 +906,9 @@ String buildPayload() {
   json += "\"readingCount\":" + String(readingCount) + ",";
   json += "\"temperature\":" + String(temperature, 2) + ",";
   json += "\"humidity\":" + String(humidity, 2) + ",";
+  json += "\"pressure\":" + String(pressureHpa, 2) + ",";
+  json += "\"bme280Ready\":" + String(bmeReady ? "true" : "false") + ",";
+  json += "\"bme280Status\":\"" + escapeJson(bmeStatus) + "\",";
   json += "\"soilMoisture\":" + String(soilMoisture, 2) + ",";
   json += "\"soilRaw\":" + String(soilRaw) + ",";
   json += "\"valve1\":" + String(valve1State ? "true" : "false") + ",";
@@ -659,6 +940,10 @@ void handleRoot() {
   html += "<script>";
   html += "function updateData(){fetch('/data').then(r=>r.json()).then(d=>{";
   html += "document.getElementById('count').innerText=d.readingCount;";
+  html += "document.getElementById('temp').innerText=d.temperature.toFixed(1);";
+  html += "document.getElementById('humidity').innerText=d.humidity.toFixed(1);";
+  html += "document.getElementById('pressure').innerText=d.pressure.toFixed(1);";
+  html += "document.getElementById('bmeStatus').innerText=d.bme280Status;";
   html += "document.getElementById('raw').innerText=d.soilRaw;";
   html += "document.getElementById('soil').innerText=d.soilMoisture.toFixed(1);";
   html += "document.getElementById('v1').innerText=d.valve1?'ON':'OFF';";
@@ -704,8 +989,20 @@ void handleRoot() {
 
   html += "<div class='card'>";
   html += "<p>Reading Count: <span id='count' class='value'>0</span></p>";
+  html += "<p>Temperature: <span id='temp' class='value'>";
+  html += String(temperature, 1);
+  html += "</span> C</p>";
+  html += "<p>Humidity: <span id='humidity' class='value'>";
+  html += String(humidity, 1);
+  html += "</span> %</p>";
+  html += "<p>Pressure: <span id='pressure' class='value'>";
+  html += String(pressureHpa, 1);
+  html += "</span> hPa</p>";
   html += "<p>Soil Raw: <span id='raw' class='value'>0</span></p>";
   html += "<p>Soil Moisture: <span id='soil' class='value'>0</span> %</p>";
+  html += "<p>BME280: <span id='bmeStatus'>";
+  html += escapeHtml(bmeStatus);
+  html += "</span></p>";
   html += "</div>";
 
   html += "<div class='card'>";
@@ -726,7 +1023,7 @@ void handleRoot() {
   html += "<div class='card'>";
   html += "<p>Signal Strength: <span id='rssi'>0</span> dBm</p>";
   html += "<p>Last MQTT Command: <span id='mqttCommand'>";
-  html += escapeJson(lastMqttCommand);
+  html += escapeHtml(lastMqttCommand);
   html += "</span></p>";
   html += "<p>Last HTTP Status: <span id='http'>0</span></p>";
   html += "<p>Last Response: <span id='response'>No request sent yet</span></p>";
@@ -751,6 +1048,9 @@ void handleData() {
   json += "\"readingCount\":" + String(readingCount) + ",";
   json += "\"temperature\":" + String(temperature, 2) + ",";
   json += "\"humidity\":" + String(humidity, 2) + ",";
+  json += "\"pressure\":" + String(pressureHpa, 2) + ",";
+  json += "\"bme280Ready\":" + String(bmeReady ? "true" : "false") + ",";
+  json += "\"bme280Status\":\"" + escapeJson(bmeStatus) + "\",";
   json += "\"soilRaw\":" + String(soilRaw) + ",";
   json += "\"soilMoisture\":" + String(soilMoisture, 2) + ",";
   json += "\"valve1\":" + String(valve1State ? "true" : "false") + ",";
@@ -830,6 +1130,15 @@ void handleSendNow() {
 
 void handleNotFound() {
   server.send(404, "text/plain", "Not found");
+}
+
+String escapeHtml(String value) {
+  value.replace("&", "&amp;");
+  value.replace("<", "&lt;");
+  value.replace(">", "&gt;");
+  value.replace("\"", "&quot;");
+  value.replace("'", "&#39;");
+  return value;
 }
 
 String escapeJson(String value) {

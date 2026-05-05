@@ -124,14 +124,15 @@ public class MqttWorkerService : BackgroundService
                 zoneId,
                 data.Moisture,
                 data.Temperature,
-                data.Humidity
+                data.Humidity,
+                data.Pressure
             );
 
             await decisionService.EvaluateAsync(reading, "mqtt-sensor");
 
             Logger.LogInformation(
-                "Saved sensor reading for Zone {ZoneId}: Moisture={Moisture}%, Temp={Temp}°C, Humidity={Humidity}%",
-                zoneId, data.Moisture, data.Temperature, data.Humidity);
+                "Saved sensor reading for Zone {ZoneId}: Moisture={Moisture}%, Temp={Temp}°C, Humidity={Humidity}%, Pressure={Pressure} hPa",
+                zoneId, data.Moisture, data.Temperature, data.Humidity, data.Pressure);
         }
         catch (Exception ex)
         {
@@ -144,5 +145,6 @@ public class MqttWorkerService : BackgroundService
         public float Moisture { get; set; }
         public float Temperature { get; set; }
         public float Humidity { get; set; }
+        public float? Pressure { get; set; }
     }
 }

@@ -28,9 +28,8 @@ The current repository contains:
 - Manual and automatic watering publish valve commands to MQTT topic
   `irrigation/zone/{zoneId}/valve`.
 - Demo Mode can generate readings for active zones without ESP32 hardware.
-- The ESP32 sketch reads the configured soil sensor pin, sends fake temperature
-  and humidity values until a BME280 is added, and drives two XY-MOS valve
-  outputs.
+- The ESP32 sketch reads the configured soil sensor pin, reads temperature,
+  humidity, and pressure from a BME280, and drives two XY-MOS valve outputs.
 - The ESP32 subscribes to MQTT valve commands from the web app.
 
 ## Hardware Assumptions
@@ -39,7 +38,7 @@ The current repository contains:
 - ESP32-C3 or compatible ESP32 board for `esp32/esp32.ino`.
 - Optional XY-MOS relay/valve hardware connected to the ESP32-C3.
 - Optional real sensors. The checked-in ESP32 sketch currently reads soil
-  moisture and generates placeholder temperature/humidity readings in code.
+  moisture plus BME280 temperature, humidity, and pressure.
 
 ## Software Requirements
 
@@ -105,7 +104,7 @@ http://<raspberry-pi-ip>:5000
 Default web login:
 
 ```text
-Username: denis
+Username: postgres
 Password: 12344321
 ```
 
@@ -150,7 +149,7 @@ the existing rule-based fallback and safety checks first.
 
 The AI reads:
 
-- latest soil moisture, temperature, humidity, zone, and timestamp;
+- latest soil moisture, temperature, humidity, pressure, zone, and timestamp;
 - recent sensor history for the zone;
 - recent watering events;
 - current zone threshold and system settings;
@@ -285,10 +284,11 @@ You can post a reading directly:
 ```bash
 curl -X POST http://localhost:5000/api/sensor-readings \
   -H "Content-Type: application/json" \
-  -d '{"device":"manual-test","zoneId":1,"temperature":24.5,"humidity":60,"soilMoisture":45}'
+  -d '{"device":"manual-test","zoneId":1,"temperature":24.5,"humidity":60,"pressure":1012.8,"soilMoisture":45}'
 ```
 
-The API accepts either `soilMoisture` or `moisture`.
+The API accepts either `soilMoisture` or `moisture`. `pressure` is optional
+for older clients, but the ESP32 sketch now sends it from the BME280.
 
 ### Option 3: ESP32-C3 Sketch
 
@@ -312,6 +312,8 @@ broker runs on a different host, update `apiUrl` and `mqttServer` in the sketch.
 After upload, the ESP32:
 
 - posts a JSON reading every 5 seconds;
+- receives a quick API acknowledgement after the reading is stored while
+  AI/watering decisions continue in the web app background queue;
 - exposes a status page at `http://192.168.137.100/`;
 - exposes latest JSON data at `http://192.168.137.100/data`;
 - can send a reading immediately from `http://192.168.137.100/send-now`;
@@ -343,6 +345,7 @@ Example sensor payload:
   "readingCount": 42,
   "temperature": 24.5,
   "humidity": 60.0,
+  "pressure": 1012.8,
   "soilMoisture": 45.0,
   "rssi": -55,
   "ip": "192.168.137.100"
@@ -398,7 +401,7 @@ garden/zone3/sensors
 Expected payload:
 
 ```json
-{"moisture":45,"temperature":24.5,"humidity":60}
+{"moisture":45,"temperature":24.5,"humidity":60,"pressure":1012.8}
 ```
 
 The optional standalone worker project uses a different sensor topic pattern:
@@ -427,7 +430,7 @@ dotnet run
 - loads `raspberry-pi/irrigation_db.sql`;
 - seeds default system settings;
 - seeds the default web login for user `postgres`;
-- sets the PostgreSQL `postgres` password to `postgres`;
+- confirms the PostgreSQL `postgres` password is `1203`;
 - changes local PostgreSQL auth entries from `peer` to `trust`.
 
 The SQL file was dumped from PostgreSQL 17.8. If your distribution installs an
@@ -558,6 +561,13 @@ Check that:
 - the laptop hotspot IP is `192.168.137.1`;
 - the web app is running on port `5000`;
 - the ESP32 static IP `192.168.137.100` is not already in use.
+
+If the serial monitor prints `HTTP status: -1`, the ESP32 HTTP client did not
+receive a normal HTTP response. In the checked-in sketch, the `Response:` line
+prints the underlying client error, such as `connection refused` or `read
+Timeout`. Confirm that `http://192.168.137.1:5000/api/zones` opens from the
+laptop and that Windows Firewall allows inbound TCP `5000` on the hotspot
+network.
 
 ### ESP32-C3 serial monitor is blank
 
