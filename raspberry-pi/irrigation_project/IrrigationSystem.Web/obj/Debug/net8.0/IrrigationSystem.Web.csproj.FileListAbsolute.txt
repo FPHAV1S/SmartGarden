@@ -175,3 +175,17 @@ C:\Users\dpenis\Documents\SmartGarden\raspberry-pi\irrigation_project\Irrigation
 C:\Users\dpenis\Documents\SmartGarden\raspberry-pi\irrigation_project\IrrigationSystem.Web\.test-bin\Debug\net8.0\Radzen.Blazor.dll
 C:\Users\dpenis\Documents\SmartGarden\raspberry-pi\irrigation_project\IrrigationSystem.Web\.test-bin\Debug\net8.0\System.Diagnostics.DiagnosticSource.dll
 C:\Users\dpenis\Documents\SmartGarden\raspberry-pi\irrigation_project\IrrigationSystem.Web\bin\Debug\net8.0\IrrigationSystem.Web.exe
+C:\Users\dpenis\AppData\Local\Temp\SmartGardenRun\Debug\net8.0\appsettings.Development.json
+C:\Users\dpenis\AppData\Local\Temp\SmartGardenRun\Debug\net8.0\appsettings.json
+C:\Users\dpenis\AppData\Local\Temp\SmartGardenRun\Debug\net8.0\bin\Debug\net8.0\appsettings.Development.json
+C:\Users\dpenis\AppData\Local\Temp\SmartGardenRun\Debug\net8.0\bin\Debug\net8.0\appsettings.json
+C:\Users\dpenis\AppData\Local\Temp\SmartGardenRun\Debug\net8.0\bin\Debug\net8.0\IrrigationSystem.Web.deps.json
+C:\Users\dpenis\AppData\Local\Temp\SmartGardenRun\Debug\net8.0\bin\Debug\net8.0\IrrigationSystem.Web.runtimeconfig.json
+C:\Users\dpenis\AppData\Local\Temp\SmartGardenRun\Debug\net8.0\bin\Debug\net8.0\IrrigationSystem.Web.staticwebassets.endpoints.json
+C:\Users\dpenis\AppData\Local\Temp\SmartGardenRun\Debug\net8.0\bin\Debug\net8.0\IrrigationSystem.Web.staticwebassets.runtime.json
+C:\Users\dpenis\AppData\Local\Temp\SmartGardenRun\Debug\net8.0\IrrigationSystem.Web.staticwebassets.runtime.json
+C:\Users\dpenis\AppData\Local\Temp\SmartGardenRun\Debug\net8.0\IrrigationSystem.Web.staticwebassets.endpoints.json
+C:\Users\dpenis\AppData\Local\Temp\SmartGardenRun\Debug\net8.0\IrrigationSystem.Web.deps.json
+C:\Users\dpenis\AppData\Local\Temp\SmartGardenRun\Debug\net8.0\IrrigationSystem.Web.runtimeconfig.json
+C:\Users\dpenis\AppData\Local\Temp\SmartGardenRun\Debug\net8.0\IrrigationSystem.Web.dll
+C:\Users\dpenis\AppData\Local\Temp\SmartGardenRun\Debug\net8.0\IrrigationSystem.Web.pdb

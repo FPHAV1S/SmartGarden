@@ -18,6 +18,7 @@ public class AiIrrigationOptions
     public float HighMoistureBlockPercent { get; set; } = 60.0f;
     public int MaxDurationSeconds { get; set; } = 120;
     public double LowConfidenceThreshold { get; set; } = 0.65;
+    public bool EnableWateringCooldown { get; set; } = true;
     public int MinimumMinutesBetweenWaterings { get; set; } = 120;
     public int DefaultFallbackDurationSeconds { get; set; } = 10;
 

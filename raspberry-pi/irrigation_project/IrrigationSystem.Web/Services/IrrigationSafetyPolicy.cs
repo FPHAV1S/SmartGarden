@@ -127,9 +127,9 @@ public static class IrrigationSafetyPolicy
             notes.Add(aiErrorMessage);
         }
 
-        if (weatherAdvice != null && weatherAdvice.ShouldBlockAutomaticWatering)
+        if (weatherAdvice?.IsWeatherDataAvailable == true && weatherAdvice.ShouldBlockAutomaticWatering)
         {
-            notes.Add($"Safety blocked watering because weather forecasts rain ({weatherAdvice.MaxRainProbabilityPercent}%, {weatherAdvice.ExpectedRainMm:F1}mm).");
+            notes.Add($"Safety blocked watering because weather forecasts rain in the next {weatherAdvice.LookaheadHours} hours ({weatherAdvice.MaxRainProbabilityPercent}%, {weatherAdvice.ExpectedRainMm:F1}mm).");
             reason = weatherAdvice.AdviceText;
             hardBlock = true;
         }
@@ -259,6 +259,13 @@ public static class IrrigationSafetyPolicy
         out double minutesSinceWatering,
         out double cooldownMinutes)
     {
+        if (!options.EnableWateringCooldown || options.MinimumMinutesBetweenWaterings <= 0)
+        {
+            minutesSinceWatering = double.MaxValue;
+            cooldownMinutes = 0;
+            return false;
+        }
+
         var lastWatering = recentEvents
             .OrderByDescending(irrigationEvent => irrigationEvent.StartedAt)
             .FirstOrDefault();

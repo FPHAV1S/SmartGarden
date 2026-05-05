@@ -4,17 +4,30 @@ namespace IrrigationSystem.Web.Models;
 
 public class WeatherForecastResult
 {
+    [JsonPropertyName("timezone")]
     public string Timezone { get; set; } = string.Empty;
+
+    [JsonPropertyName("hourly")]
     public WeatherForecastHourly Hourly { get; set; } = new();
 }
 
 public class WeatherForecastHourly
 {
+    [JsonPropertyName("time")]
     public List<string> Time { get; set; } = new();
+
+    [JsonPropertyName("precipitation_probability")]
     public List<double> PrecipitationProbability { get; set; } = new();
+
+    [JsonPropertyName("precipitation")]
     public List<double> Precipitation { get; set; } = new();
+
+    [JsonPropertyName("rain")]
     public List<double> Rain { get; set; } = new();
+
+    [JsonPropertyName("showers")]
     public List<double> Showers { get; set; } = new();
+
     [JsonPropertyName("weather_code")]
     public List<int> WeatherCode { get; set; } = new();
 }
@@ -31,6 +44,7 @@ public class WeatherHourForecast
 
 public class WeatherWateringAdvice
 {
+    public bool IsIntegrationEnabled { get; set; }
     public bool IsWeatherDataAvailable { get; set; }
     public bool RainLikelySoon { get; set; }
     public int MaxRainProbabilityPercent { get; set; }

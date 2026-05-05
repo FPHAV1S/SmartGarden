@@ -1,5 +1,6 @@
 @using IrrigationSystem.Web.Models
 @using IrrigationSystem.Web.Services
+@using System.Globalization
 @using Microsoft.Extensions.Options
 @page "/settings"
 @layout MainLayout
@@ -249,9 +250,18 @@
                 </div>
 
                 <div class="setting-item">
+                    <label class="toggle-label">
+                        <input type="checkbox" @bind="AiConfig.EnableWateringCooldown" class="toggle-input" />
+                        <span class="toggle-slider-sm"></span>
+                        <span class="toggle-text">Enable Watering Cooldown</span>
+                    </label>
+                    <small>Block repeated automatic watering for the same zone after a recent watering event</small>
+                </div>
+
+                <div class="setting-item">
                     <label>Minimum Minutes Between Waterings</label>
-                    <input type="number" min="0" max="1440" @bind="AiConfig.MinimumMinutesBetweenWaterings" class="form-input" />
-                    <small>Safety cooldown between watering events for a zone</small>
+                    <input type="number" min="0" max="1440" @bind="AiConfig.MinimumMinutesBetweenWaterings" class="form-input" disabled="@(!AiConfig.EnableWateringCooldown)" />
+                    <small>@(AiConfig.EnableWateringCooldown ? "Safety cooldown between watering events for a zone" : "Cooldown is disabled; automatic watering can run without this interval check")</small>
                 </div>
 
                 <div class="setting-item">
@@ -350,13 +360,18 @@
                 <div class="success-message">Weather settings saved.</div>
             }
 
+            @if (!string.IsNullOrWhiteSpace(WeatherSettingsError))
+            {
+                <div class="warning-message">@WeatherSettingsError</div>
+            }
+
             @if (LatestWeatherAdvice != null)
             {
                 <div class="weather-info-panel">
                     <p><strong>Latest weather advice:</strong> @LatestWeatherAdvice.AdviceText</p>
                     <p>
                         Rain probability: @LatestWeatherAdvice.MaxRainProbabilityPercent% &nbsp;|&nbsp;
-                        Expected rain: @LatestWeatherAdvice.ExpectedRainMm.ToString("F1") mm &nbsp;|&nbsp;
+                        Expected rain: @LatestWeatherAdvice.ExpectedRainMm.ToString("F1", CultureInfo.InvariantCulture) mm &nbsp;|&nbsp;
                         Lookahead: @LatestWeatherAdvice.LookaheadHours hours
                     </p>
                     <p>Last updated: @LatestWeatherAdvice.LastUpdated.ToString("g")</p>
@@ -489,6 +504,7 @@
     private string? AiSettingsError;
     private bool IsSavingWeatherSettings = false;
     private bool WeatherSettingsSaved = false;
+    private string? WeatherSettingsError;
     private WeatherWateringAdvice? LatestWeatherAdvice;
 
     private bool IsDemoMode = false;
@@ -631,11 +647,26 @@
     private async Task SaveWeatherSettings()
     {
         if (WeatherConfig == null) return;
+
         IsSavingWeatherSettings = true;
+        WeatherSettingsSaved = false;
+        WeatherSettingsError = null;
+
         try 
         {
-            await DataService.UpdateWeatherSettingsAsync(WeatherConfig);
-            WeatherSettingsSaved = true;
+            NormalizeWeatherSettings(WeatherConfig);
+            if (await DataService.UpdateWeatherSettingsAsync(WeatherConfig))
+            {
+                Weather.ClearCache();
+                LatestWeatherAdvice = await Weather.GetAdviceAsync(forceRefresh: true);
+                await LoadLogs();
+                WeatherSettingsSaved = true;
+            }
+            else
+            {
+                WeatherSettingsError = "Weather settings could not be saved. Check the system logs for details.";
+            }
+
             await Task.Delay(2500);
             WeatherSettingsSaved = false;
         } 
@@ -647,10 +678,25 @@
 
     private async Task TestWeatherApi()
     {
+        Weather.ClearCache();
         var advice = await Weather.GetAdviceAsync(forceRefresh: true);
         LatestWeatherAdvice = advice;
         await DataService.LogSystemMessageAsync("INFO", $"Weather API Test: {advice.AdviceText}");
         await LoadLogs();
+    }
+
+    private static void NormalizeWeatherSettings(WeatherIntegrationSettings settings)
+    {
+        settings.Latitude = double.IsFinite(settings.Latitude) && settings.Latitude >= -90 && settings.Latitude <= 90
+            ? settings.Latitude
+            : 42.5048;
+        settings.Longitude = double.IsFinite(settings.Longitude) && settings.Longitude >= -180 && settings.Longitude <= 180
+            ? settings.Longitude
+            : 27.4626;
+        settings.RainProbabilityThresholdPercent = Math.Clamp(settings.RainProbabilityThresholdPercent, 0, 100);
+        settings.RainLookaheadHours = Math.Clamp(settings.RainLookaheadHours, 1, 48);
+        settings.ExpectedRainMmThreshold = Math.Clamp(settings.ExpectedRainMmThreshold, 0, 100);
+        settings.ConfirmedWeatherPauseHours = Math.Clamp(settings.ConfirmedWeatherPauseHours, 1, 72);
     }
 
     private async Task TestAiApi()

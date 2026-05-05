@@ -76,7 +76,7 @@
             </div>
         }
 
-        @if (WeatherAdvice != null && WeatherAdvice.IsWeatherDataAvailable)
+        @if (WeatherAdvice != null)
         {
             <div class="weather-card @(WeatherAdvice.RainLikelySoon ? "weather-warning" : "weather-ok")">
                 <div class="weather-header">
@@ -86,24 +86,24 @@
                 <div class="weather-info">
                     <div class="info-row">
                         <span>Rain Probability:</span>
-                        <span>@WeatherAdvice.MaxRainProbabilityPercent%</span>
+                        <span>@(WeatherAdvice.IsWeatherDataAvailable ? $"{WeatherAdvice.MaxRainProbabilityPercent}%" : "Unavailable")</span>
                     </div>
                     <div class="info-row">
                         <span>Expected Rain:</span>
-                        <span>@WeatherAdvice.ExpectedRainMm.ToString("F1") mm</span>
+                        <span>@(WeatherAdvice.IsWeatherDataAvailable ? $"{WeatherAdvice.ExpectedRainMm.ToString("F1", CultureInfo.InvariantCulture)} mm" : "Unavailable")</span>
                     </div>
                     <p class="weather-advice">@WeatherAdvice.AdviceText</p>
                 </div>
                 
                 @if (WeatherAdvice.RainLikelySoon)
                 {
-                    <p class="warning-text">⚠️ Rain is expected soon. Recommended: do not water.</p>
+                    <p class="warning-text">Rain is expected soon. Recommended: do not water.</p>
                 }
 
                 <div class="weather-actions">
                     @if (ActiveBlock != null)
                     {
-                        <span class="pause-active">⏸️ Watering paused until @ActiveBlock.ActiveUntil.ToString("HH:mm")</span>
+                        <span class="pause-active">Watering paused until @ActiveBlock.ActiveUntil.ToString("HH:mm")</span>
                     }
                     else
                     {
@@ -153,7 +153,7 @@
 
                         @if (WeatherAdvice?.RainLikelySoon == true)
                         {
-                            <div class="warning-text">⚠️ Rain is likely soon. Manual watering is still available, but use caution.</div>
+                            <div class="warning-text">Rain is likely soon. Manual watering is still available, but use caution.</div>
                         }
                         <button class="btn-water" @onclick="() => WaterZone(zone.Id)">
                             💧 Water Now
@@ -228,17 +228,22 @@
         var until = DateTime.Now.AddHours(settings.ConfirmedWeatherPauseHours);
         await DataService.CreateWateringBlockAsync("Confirmed weather pause", "Dashboard", until);
         ActiveBlock = await DataService.GetActiveWateringBlockAsync();
-        DashboardNotice = BuildDashboardNotice();
+        DashboardNotice = $"Confirmed weather pause is active until {until:HH:mm}.";
     }
 
     private string? BuildDashboardNotice()
     {
         if (ActiveBlock != null)
         {
-            return $"⏸️ Active weather pause is blocking automatic watering until {ActiveBlock.ActiveUntil:HH:mm}. Reason: {ActiveBlock.Reason}.";
+            return $"Active weather pause is blocking automatic watering until {ActiveBlock.ActiveUntil:HH:mm}. Reason: {ActiveBlock.Reason}.";
         }
 
-        var cooldownMinutes = AiConfig?.MinimumMinutesBetweenWaterings ?? 120;
+        if (AiConfig?.EnableWateringCooldown != true || AiConfig.MinimumMinutesBetweenWaterings <= 0)
+        {
+            return null;
+        }
+
+        var cooldownMinutes = AiConfig.MinimumMinutesBetweenWaterings;
         var zonesInCooldown = new List<string>();
 
         foreach (var zone in Zones.Where(z => z.IsActive))
@@ -263,7 +268,7 @@
 
         if (zonesInCooldown.Count > 0)
         {
-            return $"⏱️ Auto-watering cooldown active for: {string.Join(", ", zonesInCooldown)}.";
+            return $"Auto-watering cooldown active for: {string.Join(", ", zonesInCooldown)}.";
         }
 
         return null;

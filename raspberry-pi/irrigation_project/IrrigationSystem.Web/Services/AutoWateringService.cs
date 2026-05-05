@@ -1,3 +1,4 @@
+using System.Globalization;
 using IrrigationSystem.Web.Models;
 
 namespace IrrigationSystem.Web.Services;
@@ -80,10 +81,11 @@ public class AutoWateringService : BackgroundService
         }
 
         var weatherAdvice = await Weather.GetAdviceAsync();
-        if (weatherAdvice.ShouldBlockAutomaticWatering)
+        if (weatherAdvice.IsWeatherDataAvailable && weatherAdvice.ShouldBlockAutomaticWatering)
         {
-            Logger.LogInformation("Weather safety blocked automatic watering because rain is likely in the next {Hours} hours: {Prob}% probability, {Mm:F1}mm expected.", 
-                weatherAdvice.LookaheadHours, weatherAdvice.MaxRainProbabilityPercent, weatherAdvice.ExpectedRainMm);
+            var expectedRain = weatherAdvice.ExpectedRainMm.ToString("F1", CultureInfo.InvariantCulture);
+            var message = $"Weather safety blocked automatic watering because rain is likely in the next {weatherAdvice.LookaheadHours} hours: {weatherAdvice.MaxRainProbabilityPercent}% probability, {expectedRain} mm expected.";
+            Logger.LogInformation("{Message}", message);
             return;
         }
 

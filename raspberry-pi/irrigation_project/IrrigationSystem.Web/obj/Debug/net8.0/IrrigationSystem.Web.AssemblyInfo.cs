@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("IrrigationSystem.Web")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0bbc22ce0baa0f23048728f82e92a7e971584fce")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+270f101caae3ac145704a67c43847b66e1ee7e7b")]
 [assembly: System.Reflection.AssemblyProductAttribute("IrrigationSystem.Web")]
 [assembly: System.Reflection.AssemblyTitleAttribute("IrrigationSystem.Web")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

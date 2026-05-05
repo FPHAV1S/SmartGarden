@@ -179,7 +179,9 @@ The web app calls Ollama at `http://localhost:11434/api/chat`. Configure
   "Provider": "Ollama",
   "Model": "qwen3:1.7b",
   "OllamaBaseUrl": "http://localhost:11434",
-  "MinimumMinutesBetweenAiCalls": 15
+  "MinimumMinutesBetweenAiCalls": 15,
+  "EnableWateringCooldown": true,
+  "MinimumMinutesBetweenWaterings": 120
 }
 ```
 
@@ -214,7 +216,9 @@ Then enable AI in
   "Provider": "OpenAI",
   "Model": "gpt-4.1-nano",
   "ApiKeyEnvironmentVariable": "OPENAI_API_KEY",
-  "MinimumMinutesBetweenAiCalls": 15
+  "MinimumMinutesBetweenAiCalls": 15,
+  "EnableWateringCooldown": true,
+  "MinimumMinutesBetweenWaterings": 120
 }
 ```
 
@@ -235,6 +239,8 @@ When rain is likely in the configured lookahead window or expected rainfall
 exceeds the configured threshold, automatic watering is blocked by safety
 logic. The dashboard shows a weather card with rain probability, expected rain,
 lookahead hours, advice text, and a temporary weather pause button.
+AI irrigation prompts also receive the weather context so recommendations can
+mention rain when it affects the decision.
 
 A confirmed pause stores a watering block in PostgreSQL and prevents the auto-
 watering service from opening valves until the block expires.
@@ -263,7 +269,7 @@ After parsing, safety still blocks or changes the decision when needed:
 
 - moisture at or above 60% forces `OFF`;
 - duration is clamped to 120 seconds;
-- repeated watering is blocked by the cooldown;
+- repeated watering is blocked by the cooldown when `EnableWateringCooldown` is on;
 - low AI confidence uses the old rule-based decision;
 - `riskLevel: "HIGH"` blocks automatic watering;
 - missing/invalid AI output uses the old rule-based decision.
@@ -281,18 +287,6 @@ from stored context:
 Future AI calls receive recent readings, watering events, and pattern memory as
 context, so the recommendations can adapt to the garden's history without
 claiming true model training.
-
-## Weather Integration
-
-SmartGarden integrates with the **Open-Meteo API** to check for upcoming rain. This feature is enabled by default and uses coordinates for Burgas, Bulgaria (lat: 42.5048, lon: 27.4626), but you can change this in the Settings page.
-
-- **No API Key Required**: Open-Meteo provides free, anonymous forecast data.
-- **Safety Blocking**: Automatic watering is blocked if rain is likely (e.g. >60% probability or >1.0mm expected in the next 6 hours).
-- **Dashboard Card**: Shows current forecast and watering advice.
-- **Confirmed Pause**: You can manually pause all automatic watering for a set duration (e.g. 6 hours) directly from the dashboard if you foresee rain or just watered manually.
-- **AI Context**: The AI assistant receives the weather forecast in its prompt, helping it make smarter decisions.
-
-If the Open-Meteo API is unreachable, the system safely falls back to standard sensor-based rules and AI logic without crashing.
 
 ## Getting Data Into the Dashboard
 

@@ -19,7 +19,11 @@ var tests = new TestCase[]
     new("High moisture safety blocks watering", Tests.HighMoistureSafetyBlocksWatering),
     new("AI duration is clamped to max safety limit", Tests.AiDurationIsClampedToMaxSafetyLimit),
     new("Low AI confidence falls back to rules", Tests.LowAiConfidenceFallsBackToRules),
+    new("Watering cooldown blocks repeated automatic watering when enabled", Tests.WateringCooldownBlocksRepeatedAutomaticWateringWhenEnabled),
+    new("Watering cooldown can be disabled", Tests.WateringCooldownCanBeDisabled),
     new("API failure falls back to rules", Tests.ApiFailureFallsBackToRules),
+    new("Open-Meteo hourly JSON maps to weather model", Tests.OpenMeteoHourlyJsonMapsToWeatherModel),
+    new("Weather forecast safety blocks automatic watering", Tests.WeatherForecastSafetyBlocksAutomaticWatering),
     new("Database schema contains required tables", Tests.DatabaseSchemaContainsRequiredTables),
     new("Web appsettings uses the expected local database", Tests.WebAppSettingsUseExpectedDatabase),
     new("Setup script keeps the PostgreSQL password aligned with appsettings", Tests.SetupScriptKeepsDatabasePasswordAligned),
@@ -208,6 +212,58 @@ internal static class Tests
         return Task.CompletedTask;
     }
 
+    public static Task WateringCooldownBlocksRepeatedAutomaticWateringWhenEnabled()
+    {
+        var recentEvents = new[]
+        {
+            new IrrigationEvent
+            {
+                Id = 25,
+                ZoneId = 1,
+                StartedAt = DateTime.Now.AddMinutes(-10),
+                DurationSec = 10,
+                TriggerReason = "Auto"
+            }
+        };
+        var aiDecision = CreateAiDecision(shouldWater: true, durationSeconds: 30, confidence: 0.95);
+
+        var result = ApplySafety(aiDecision, moisture: 20, recentEvents: recentEvents);
+
+        Assert.False(result.FinalShouldWaterAfterSafety, "Cooldown should block repeated automatic watering by default.");
+        Assert.Equal("OFF", result.RecommendedValveState, "Cooldown should force the final valve state off.");
+        Assert.Contains("cooldown is 120 minutes", result.SafetyNotes);
+
+        return Task.CompletedTask;
+    }
+
+    public static Task WateringCooldownCanBeDisabled()
+    {
+        var recentEvents = new[]
+        {
+            new IrrigationEvent
+            {
+                Id = 26,
+                ZoneId = 1,
+                StartedAt = DateTime.Now.AddMinutes(-10),
+                DurationSec = 10,
+                TriggerReason = "Auto"
+            }
+        };
+        var aiDecision = CreateAiDecision(shouldWater: true, durationSeconds: 30, confidence: 0.95);
+
+        var result = ApplySafety(
+            aiDecision,
+            moisture: 20,
+            recentEvents: recentEvents,
+            enableWateringCooldown: false);
+
+        Assert.True(result.FinalShouldWaterAfterSafety, "Disabling the cooldown should allow an otherwise safe watering decision.");
+        Assert.Equal("ON", result.RecommendedValveState, "Disabled cooldown should not force the final valve state off.");
+        Assert.False(result.SafetyNotes.Contains("cooldown", StringComparison.OrdinalIgnoreCase), "Disabled cooldown should not add cooldown safety notes.");
+
+        return Task.CompletedTask;
+    }
+
     public static Task ApiFailureFallsBackToRules()
     {
         var result = ApplySafety(null, aiWasAttempted: true, aiErrorMessage: "OpenAI API returned 503 Service Unavailable");
@@ -215,6 +271,57 @@ internal static class Tests
         Assert.True(result.WasFallbackUsed, "API failures should use rule fallback.");
         Assert.True(result.FinalShouldWaterAfterSafety, "Rule fallback should still produce a final decision.");
         Assert.Contains("OpenAI API returned 503", result.SafetyNotes);
+
+        return Task.CompletedTask;
+    }
+
+    public static Task OpenMeteoHourlyJsonMapsToWeatherModel()
+    {
+        var json = """
+        {
+          "timezone": "Europe/Sofia",
+          "hourly": {
+            "time": ["2026-05-05T12:00"],
+            "precipitation_probability": [82],
+            "precipitation": [3.4],
+            "rain": [2.1],
+            "showers": [1.3],
+            "weather_code": [61]
+          }
+        }
+        """;
+
+        var forecast = JsonSerializer.Deserialize<WeatherForecastResult>(json);
+
+        Assert.Equal("Europe/Sofia", forecast?.Timezone, "Timezone should map from Open-Meteo JSON.");
+        Assert.Equal(1, forecast?.Hourly.PrecipitationProbability.Count ?? 0, "Precipitation probability should map from snake_case JSON.");
+        Assert.Equal(82d, forecast!.Hourly.PrecipitationProbability[0], "Rain probability should be preserved.");
+        Assert.Equal(3.4d, forecast.Hourly.Precipitation[0], "Expected precipitation should be preserved.");
+        Assert.Equal(61, forecast.Hourly.WeatherCode[0], "Weather code should be preserved.");
+
+        return Task.CompletedTask;
+    }
+
+    public static Task WeatherForecastSafetyBlocksAutomaticWatering()
+    {
+        var aiDecision = CreateAiDecision(shouldWater: true, durationSeconds: 30, confidence: 0.95);
+        var weatherAdvice = new WeatherWateringAdvice
+        {
+            IsIntegrationEnabled = true,
+            IsWeatherDataAvailable = true,
+            RainLikelySoon = true,
+            MaxRainProbabilityPercent = 82,
+            ExpectedRainMm = 3.4f,
+            LookaheadHours = 6,
+            AdviceText = "Rain is likely soon, prefer not watering.",
+            ShouldBlockAutomaticWatering = true
+        };
+
+        var result = ApplySafety(aiDecision, moisture: 20, aiWasAttempted: true, weatherAdvice: weatherAdvice);
+
+        Assert.False(result.FinalShouldWaterAfterSafety, "Weather safety should block automatic watering even when AI recommends watering.");
+        Assert.Equal("OFF", result.RecommendedValveState, "Weather safety should force the valve off.");
+        Assert.Contains("weather forecasts rain", result.SafetyNotes);
 
         return Task.CompletedTask;
     }
@@ -279,6 +386,9 @@ internal static class Tests
             "http://localhost:11434",
             aiSettings.GetProperty("OllamaBaseUrl").GetString(),
             "Web app should point at the default local Ollama API.");
+        Assert.True(
+            aiSettings.GetProperty("EnableWateringCooldown").GetBoolean(),
+            "Watering cooldown should be enabled by default.");
 
         return Task.CompletedTask;
     }
@@ -417,12 +527,14 @@ internal static class Tests
         Assert.Contains("AI Provider", settingsPage);
         Assert.Contains("Ollama Base URL", settingsPage);
         Assert.Contains("API Key Environment Variable Name", settingsPage);
+        Assert.Contains("Enable Watering Cooldown", settingsPage);
         Assert.Contains("Test AI Provider", settingsPage);
         Assert.Contains("LooksLikeSecretApiKey", settingsPage);
         Assert.Contains("ApiKeyProvider.GetApiKey", settingsPage);
         Assert.Contains("SaveAiSettings", settingsPage);
         Assert.Contains("ai_irrigation_settings", dataService);
         Assert.Contains("UpdateAiIrrigationOptionsAsync", dataService);
+        Assert.Contains("enable_watering_cooldown", dataService);
         Assert.Contains("NormalizeAiProvider", dataService);
         Assert.Contains("NormalizeOllamaBaseUrl", dataService);
         Assert.Contains("NormalizeApiKeyEnvironmentVariableName", dataService);
@@ -624,7 +736,7 @@ internal static class Tests
                 new OpenAiApiKeyProvider(new ConfigurationBuilder().Build()),
                 new TestLogger<AiApiHealthService>()),
             new TestLogger<IrrigationDecisionService>(),
-            new WeatherForecastService(new HttpClient(), dataService, new TestLogger<WeatherForecastService>()));
+            new WeatherForecastService(new TestHttpClientFactory(), dataService, new TestLogger<WeatherForecastService>()));
         var decisionQueue = new SensorReadingDecisionQueue(
             dataService,
             decisionService,
@@ -642,8 +754,12 @@ internal static class Tests
         AiIrrigationDecision? aiDecision,
         float moisture = 20,
         bool aiWasAttempted = false,
-        string? aiErrorMessage = null)
+        string? aiErrorMessage = null,
+        WeatherWateringAdvice? weatherAdvice = null,
+        IReadOnlyList<IrrigationEvent>? recentEvents = null,
+        bool enableWateringCooldown = true)
     {
+        recentEvents ??= Array.Empty<IrrigationEvent>();
         var reading = new SensorReading
         {
             Id = 10,
@@ -672,25 +788,27 @@ internal static class Tests
             LowConfidenceThreshold = 0.65,
             HighMoistureBlockPercent = 60,
             MaxDurationSeconds = 120,
+            EnableWateringCooldown = enableWateringCooldown,
             MinimumMinutesBetweenWaterings = 120
         };
         var fallback = IrrigationSafetyPolicy.BuildRuleBasedDecision(
             reading,
             zone,
             settings,
-            Array.Empty<IrrigationEvent>(),
+            recentEvents,
             options);
 
         return IrrigationSafetyPolicy.Apply(
             reading,
             zone,
             settings,
-            Array.Empty<IrrigationEvent>(),
+            recentEvents,
             fallback,
             aiDecision,
             options,
             aiWasAttempted,
-            aiErrorMessage);
+            aiErrorMessage,
+            weatherAdvice);
     }
 
     private static AiIrrigationDecision CreateAiDecision(bool shouldWater, int durationSeconds, double confidence)

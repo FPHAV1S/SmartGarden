@@ -206,14 +206,20 @@ public class OpenAiIrrigationService : IAiIrrigationService
 
         cancellationToken.ThrowIfCancellationRequested();
         
+        var weatherSettings = await DataService.GetWeatherSettingsAsync();
         var weatherAdvice = await Weather.GetAdviceAsync();
         var weatherForecast = new {
-            enabled = weatherAdvice.IsWeatherDataAvailable,
-            location = "Burgas, Bulgaria",
+            enabled = weatherSettings.EnableWeatherIntegration,
+            dataAvailable = weatherAdvice.IsWeatherDataAvailable,
+            location = BuildWeatherLocation(weatherSettings),
+            latitude = weatherSettings.Latitude,
+            longitude = weatherSettings.Longitude,
             rainLikelySoon = weatherAdvice.RainLikelySoon,
             maxRainProbabilityPercent = weatherAdvice.MaxRainProbabilityPercent,
             expectedRainMm = weatherAdvice.ExpectedRainMm,
             lookaheadHours = weatherAdvice.LookaheadHours,
+            rainProbabilityThresholdPercent = weatherSettings.RainProbabilityThresholdPercent,
+            expectedRainMmThreshold = weatherSettings.ExpectedRainMmThreshold,
             advice = weatherAdvice.AdviceText
         };
 
@@ -271,6 +277,7 @@ public class OpenAiIrrigationService : IAiIrrigationService
                 settings.HighMoistureBlockPercent,
                 settings.MaxDurationSeconds,
                 settings.LowConfidenceThreshold,
+                settings.EnableWateringCooldown,
                 settings.MinimumMinutesBetweenWaterings
             },
             patternMemories = patternMemories.Select(memory => new
@@ -289,12 +296,24 @@ public class OpenAiIrrigationService : IAiIrrigationService
                 "Do not recommend watering if moisture is already high.",
                 "Do not recommend a duration above 120 seconds.",
                 "Prefer not watering when rain is likely soon.",
-                "Mention weather in the reason when it affects the decision."
+                "Mention weather in the reason when it affects the decision.",
+                "Treat unavailable weather data as neutral; do not block watering solely because the forecast API is unavailable."
             }
         };
 
         return "Analyze this irrigation context and return only JSON matching the required schema: " +
             JsonSerializer.Serialize(context, JsonOptions);
+    }
+
+    private static string BuildWeatherLocation(WeatherIntegrationSettings settings)
+    {
+        var isDefaultBurgas =
+            Math.Abs(settings.Latitude - 42.5048) < 0.0001 &&
+            Math.Abs(settings.Longitude - 27.4626) < 0.0001;
+
+        return isDefaultBurgas
+            ? "Burgas, Bulgaria"
+            : FormattableString.Invariant($"lat {settings.Latitude:F4}, lon {settings.Longitude:F4}");
     }
 
     private static object CreateOpenAiJsonSchemaFormat()

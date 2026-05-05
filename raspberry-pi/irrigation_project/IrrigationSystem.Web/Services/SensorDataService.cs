@@ -489,7 +489,7 @@ public class SensorDataService
                             api_key_environment_variable,
                             minimum_minutes_between_ai_calls, recent_history_hours, recent_watering_events,
                             pattern_memory_count, high_moisture_block_percent, max_duration_seconds,
-                            low_confidence_threshold, minimum_minutes_between_waterings,
+                            low_confidence_threshold, enable_watering_cooldown, minimum_minutes_between_waterings,
                             default_fallback_duration_seconds
                         FROM ai_irrigation_settings
                         WHERE id = 1";
@@ -533,6 +533,7 @@ public class SensorDataService
                             high_moisture_block_percent,
                             max_duration_seconds,
                             low_confidence_threshold,
+                            enable_watering_cooldown,
                             minimum_minutes_between_waterings,
                             default_fallback_duration_seconds,
                             updated_at)
@@ -550,6 +551,7 @@ public class SensorDataService
                             @high_moisture_block,
                             @max_duration_seconds,
                             @low_confidence_threshold,
+                            @enable_watering_cooldown,
                             @minimum_watering_interval,
                             @fallback_duration,
                             NOW())
@@ -566,6 +568,7 @@ public class SensorDataService
                             high_moisture_block_percent = EXCLUDED.high_moisture_block_percent,
                             max_duration_seconds = EXCLUDED.max_duration_seconds,
                             low_confidence_threshold = EXCLUDED.low_confidence_threshold,
+                            enable_watering_cooldown = EXCLUDED.enable_watering_cooldown,
                             minimum_minutes_between_waterings = EXCLUDED.minimum_minutes_between_waterings,
                             default_fallback_duration_seconds = EXCLUDED.default_fallback_duration_seconds,
                             updated_at = NOW()";
@@ -577,7 +580,7 @@ public class SensorDataService
 
             await LogSystemMessageAsync(
                 "INFO",
-                $"AI settings updated: Enabled={normalized.EnableAiDecisionMaking}, Provider={normalized.Provider}, Model={normalized.Model}, Cooldown={normalized.MinimumMinutesBetweenAiCalls}m");
+                $"AI settings updated: Enabled={normalized.EnableAiDecisionMaking}, Provider={normalized.Provider}, Model={normalized.Model}, AI cooldown={normalized.MinimumMinutesBetweenAiCalls}m, Watering cooldown enabled={normalized.EnableWateringCooldown}");
 
             return true;
         }
@@ -1079,6 +1082,7 @@ public class SensorDataService
                     high_moisture_block_percent double precision DEFAULT 60 NOT NULL,
                     max_duration_seconds integer DEFAULT 120 NOT NULL,
                     low_confidence_threshold double precision DEFAULT 0.65 NOT NULL,
+                    enable_watering_cooldown boolean DEFAULT true NOT NULL,
                     minimum_minutes_between_waterings integer DEFAULT 120 NOT NULL,
                     default_fallback_duration_seconds integer DEFAULT 10 NOT NULL,
                     updated_at timestamp without time zone DEFAULT now() NOT NULL,
@@ -1087,7 +1091,8 @@ public class SensorDataService
 
                 ALTER TABLE ai_irrigation_settings
                     ADD COLUMN IF NOT EXISTS provider character varying(20) DEFAULT 'Ollama' NOT NULL,
-                    ADD COLUMN IF NOT EXISTS ollama_base_url character varying(200) DEFAULT 'http://localhost:11434' NOT NULL;
+                    ADD COLUMN IF NOT EXISTS ollama_base_url character varying(200) DEFAULT 'http://localhost:11434' NOT NULL,
+                    ADD COLUMN IF NOT EXISTS enable_watering_cooldown boolean DEFAULT true NOT NULL;
 
                 UPDATE ai_irrigation_settings
                 SET provider = 'Ollama',
@@ -1126,6 +1131,7 @@ public class SensorDataService
             HighMoistureBlockPercent = Math.Clamp(source.HighMoistureBlockPercent, 0, 100),
             MaxDurationSeconds = Math.Clamp(source.MaxDurationSeconds, 1, 3600),
             LowConfidenceThreshold = Math.Clamp(source.LowConfidenceThreshold, 0, 1),
+            EnableWateringCooldown = source.EnableWateringCooldown,
             MinimumMinutesBetweenWaterings = Math.Clamp(source.MinimumMinutesBetweenWaterings, 0, 1440),
             DefaultFallbackDurationSeconds = Math.Clamp(source.DefaultFallbackDurationSeconds, 1, 3600)
         };
@@ -1218,6 +1224,7 @@ public class SensorDataService
                         high_moisture_block_percent,
                         max_duration_seconds,
                         low_confidence_threshold,
+                        enable_watering_cooldown,
                         minimum_minutes_between_waterings,
                         default_fallback_duration_seconds,
                         updated_at)
@@ -1235,6 +1242,7 @@ public class SensorDataService
                         @high_moisture_block,
                         @max_duration_seconds,
                         @low_confidence_threshold,
+                        @enable_watering_cooldown,
                         @minimum_watering_interval,
                         @fallback_duration,
                         NOW())
@@ -1259,6 +1267,7 @@ public class SensorDataService
         cmd.Parameters.AddWithValue("high_moisture_block", settings.HighMoistureBlockPercent);
         cmd.Parameters.AddWithValue("max_duration_seconds", settings.MaxDurationSeconds);
         cmd.Parameters.AddWithValue("low_confidence_threshold", settings.LowConfidenceThreshold);
+        cmd.Parameters.AddWithValue("enable_watering_cooldown", settings.EnableWateringCooldown);
         cmd.Parameters.AddWithValue("minimum_watering_interval", settings.MinimumMinutesBetweenWaterings);
         cmd.Parameters.AddWithValue("fallback_duration", settings.DefaultFallbackDurationSeconds);
     }
@@ -1279,8 +1288,9 @@ public class SensorDataService
             HighMoistureBlockPercent = Convert.ToSingle(reader.GetDouble(9)),
             MaxDurationSeconds = reader.GetInt32(10),
             LowConfidenceThreshold = reader.GetDouble(11),
-            MinimumMinutesBetweenWaterings = reader.GetInt32(12),
-            DefaultFallbackDurationSeconds = reader.GetInt32(13)
+            EnableWateringCooldown = reader.GetBoolean(12),
+            MinimumMinutesBetweenWaterings = reader.GetInt32(13),
+            DefaultFallbackDurationSeconds = reader.GetInt32(14)
         });
     }
 
@@ -1378,7 +1388,7 @@ public class SensorDataService
             
             if (await reader.ReadAsync())
             {
-                return new WeatherIntegrationSettings
+                return NormalizeWeatherSettings(new WeatherIntegrationSettings
                 {
                     EnableWeatherIntegration = reader.GetBoolean(0),
                     Latitude = reader.GetDouble(1),
@@ -1387,7 +1397,7 @@ public class SensorDataService
                     RainLookaheadHours = reader.GetInt32(4),
                     ExpectedRainMmThreshold = Convert.ToSingle(reader.GetDouble(5)),
                     ConfirmedWeatherPauseHours = reader.GetInt32(6)
-                };
+                });
             }
         }
         catch (Exception ex)
@@ -1401,6 +1411,7 @@ public class SensorDataService
     {
         try
         {
+            settings = NormalizeWeatherSettings(settings);
             await EnsureWeatherTablesAsync();
             await using var conn = new NpgsqlConnection(ConnectionString);
             await conn.OpenAsync();
@@ -1533,5 +1544,23 @@ public class SensorDataService
         }
 
         return blocks;
+    }
+
+    private static WeatherIntegrationSettings NormalizeWeatherSettings(WeatherIntegrationSettings settings)
+    {
+        return new WeatherIntegrationSettings
+        {
+            EnableWeatherIntegration = settings.EnableWeatherIntegration,
+            Latitude = double.IsFinite(settings.Latitude) && settings.Latitude >= -90 && settings.Latitude <= 90
+                ? settings.Latitude
+                : 42.5048,
+            Longitude = double.IsFinite(settings.Longitude) && settings.Longitude >= -180 && settings.Longitude <= 180
+                ? settings.Longitude
+                : 27.4626,
+            RainProbabilityThresholdPercent = Math.Clamp(settings.RainProbabilityThresholdPercent, 0, 100),
+            RainLookaheadHours = Math.Clamp(settings.RainLookaheadHours, 1, 48),
+            ExpectedRainMmThreshold = Math.Clamp(settings.ExpectedRainMmThreshold, 0, 100),
+            ConfirmedWeatherPauseHours = Math.Clamp(settings.ConfirmedWeatherPauseHours, 1, 72)
+        };
     }
 }
