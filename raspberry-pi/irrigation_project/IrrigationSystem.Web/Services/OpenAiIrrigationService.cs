@@ -21,19 +21,22 @@ public class OpenAiIrrigationService : IAiIrrigationService
     private readonly IOptions<AiIrrigationOptions> Options;
     private readonly OpenAiApiKeyProvider ApiKeyProvider;
     private readonly ILogger<OpenAiIrrigationService> Logger;
+    private readonly WeatherForecastService Weather;
 
     public OpenAiIrrigationService(
         HttpClient httpClient,
         SensorDataService dataService,
         IOptions<AiIrrigationOptions> options,
         OpenAiApiKeyProvider apiKeyProvider,
-        ILogger<OpenAiIrrigationService> logger)
+        ILogger<OpenAiIrrigationService> logger,
+        WeatherForecastService weather)
     {
         HttpClient = httpClient;
         DataService = dataService;
         Options = options;
         ApiKeyProvider = apiKeyProvider;
         Logger = logger;
+        Weather = weather;
     }
 
     public async Task<AiIrrigationDecision> AnalyzeAsync(
@@ -202,6 +205,17 @@ public class OpenAiIrrigationService : IAiIrrigationService
             Math.Max(1, settings.PatternMemoryCount));
 
         cancellationToken.ThrowIfCancellationRequested();
+        
+        var weatherAdvice = await Weather.GetAdviceAsync();
+        var weatherForecast = new {
+            enabled = weatherAdvice.IsWeatherDataAvailable,
+            location = "Burgas, Bulgaria",
+            rainLikelySoon = weatherAdvice.RainLikelySoon,
+            maxRainProbabilityPercent = weatherAdvice.MaxRainProbabilityPercent,
+            expectedRainMm = weatherAdvice.ExpectedRainMm,
+            lookaheadHours = weatherAdvice.LookaheadHours,
+            advice = weatherAdvice.AdviceText
+        };
 
         var context = new
         {
@@ -241,6 +255,7 @@ public class OpenAiIrrigationService : IAiIrrigationService
                 irrigationEvent.MoistureBefore,
                 irrigationEvent.MoistureAfter
             }),
+            weatherForecast = weatherForecast,
             currentRules = new
             {
                 ZoneName = zone?.Name,
@@ -272,7 +287,9 @@ public class OpenAiIrrigationService : IAiIrrigationService
                 "Return only the requested JSON object.",
                 "Prefer OFF when data is unclear.",
                 "Do not recommend watering if moisture is already high.",
-                "Do not recommend a duration above 120 seconds."
+                "Do not recommend a duration above 120 seconds.",
+                "Prefer not watering when rain is likely soon.",
+                "Mention weather in the reason when it affects the decision."
             }
         };
 

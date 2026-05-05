@@ -10,6 +10,11 @@ builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
 builder.Services.AddRadzenComponents();
 builder.Services.AddControllers();
+builder.Services.AddHttpClient<WeatherForecastService>(client =>
+{
+    client.BaseAddress = new Uri("https://api.open-meteo.com/v1/");
+    client.Timeout = TimeSpan.FromSeconds(15);
+});
 builder.Services.AddHostedService<MqttWorkerService>();
 builder.Services.Configure<AiIrrigationOptions>(
     builder.Configuration.GetSection(AiIrrigationOptions.SectionName));

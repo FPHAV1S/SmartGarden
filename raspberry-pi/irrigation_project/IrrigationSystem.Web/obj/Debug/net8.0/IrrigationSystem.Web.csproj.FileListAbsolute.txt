@@ -155,7 +155,6 @@ C:\Users\dpenis\Documents\SmartGarden\raspberry-pi\irrigation_project\Irrigation
 C:\Users\dpenis\Documents\SmartGarden\raspberry-pi\irrigation_project\IrrigationSystem.Web\obj\Debug\net8.0\IrrigationSystem.Web.pdb
 C:\Users\dpenis\Documents\SmartGarden\raspberry-pi\irrigation_project\IrrigationSystem.Web\obj\Debug\net8.0\IrrigationSystem.Web.genruntimeconfig.cache
 C:\Users\dpenis\Documents\SmartGarden\raspberry-pi\irrigation_project\IrrigationSystem.Web\obj\Debug\net8.0\ref\IrrigationSystem.Web.dll
-C:\Users\dpenis\Documents\SmartGarden\raspberry-pi\irrigation_project\IrrigationSystem.Web\bin\Debug\net8.0\IrrigationSystem.Web.exe
 C:\Users\dpenis\Documents\SmartGarden\raspberry-pi\irrigation_project\IrrigationSystem.Web\.test-bin\Debug\net8.0\appsettings.Development.json
 C:\Users\dpenis\Documents\SmartGarden\raspberry-pi\irrigation_project\IrrigationSystem.Web\.test-bin\Debug\net8.0\appsettings.json
 C:\Users\dpenis\Documents\SmartGarden\raspberry-pi\irrigation_project\IrrigationSystem.Web\.test-bin\Debug\net8.0\bin\Debug\net8.0\appsettings.Development.json
@@ -175,3 +174,4 @@ C:\Users\dpenis\Documents\SmartGarden\raspberry-pi\irrigation_project\Irrigation
 C:\Users\dpenis\Documents\SmartGarden\raspberry-pi\irrigation_project\IrrigationSystem.Web\.test-bin\Debug\net8.0\Npgsql.dll
 C:\Users\dpenis\Documents\SmartGarden\raspberry-pi\irrigation_project\IrrigationSystem.Web\.test-bin\Debug\net8.0\Radzen.Blazor.dll
 C:\Users\dpenis\Documents\SmartGarden\raspberry-pi\irrigation_project\IrrigationSystem.Web\.test-bin\Debug\net8.0\System.Diagnostics.DiagnosticSource.dll
+C:\Users\dpenis\Documents\SmartGarden\raspberry-pi\irrigation_project\IrrigationSystem.Web\bin\Debug\net8.0\IrrigationSystem.Web.exe

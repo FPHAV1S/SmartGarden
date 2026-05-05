@@ -11,6 +11,7 @@ public class IrrigationDecisionService
     private readonly OpenAiApiKeyProvider ApiKeyProvider;
     private readonly AiApiHealthService AiApiHealth;
     private readonly ILogger<IrrigationDecisionService> Logger;
+    private readonly WeatherForecastService Weather;
     private readonly SemaphoreSlim AiAnalysisLock = new(1, 1);
 
     public IrrigationDecisionService(
@@ -19,7 +20,8 @@ public class IrrigationDecisionService
         IOptions<AiIrrigationOptions> options,
         OpenAiApiKeyProvider apiKeyProvider,
         AiApiHealthService aiApiHealth,
-        ILogger<IrrigationDecisionService> logger)
+        ILogger<IrrigationDecisionService> logger,
+        WeatherForecastService weather)
     {
         DataService = dataService;
         AiService = aiService;
@@ -27,6 +29,7 @@ public class IrrigationDecisionService
         ApiKeyProvider = apiKeyProvider;
         AiApiHealth = aiApiHealth;
         Logger = logger;
+        Weather = weather;
     }
 
     public async Task<IrrigationDecisionResult> EvaluateAsync(
@@ -43,6 +46,7 @@ public class IrrigationDecisionService
         var recentEvents = await DataService.GetRecentIrrigationEventsAsync(
             latestReading.ZoneId,
             Math.Max(1, settings.RecentWateringEvents));
+        var weatherAdvice = await Weather.GetAdviceAsync();
 
         var fallbackDecision = IrrigationSafetyPolicy.BuildRuleBasedDecision(
             latestReading,
@@ -139,7 +143,8 @@ public class IrrigationDecisionService
             aiDecision,
             settings,
             aiWasAttempted,
-            aiErrorMessage);
+            aiErrorMessage,
+            weatherAdvice);
 
         await DataService.InsertAiDecisionLogAsync(finalDecision);
         await TrySavePatternMemoryAsync(finalDecision, recentReadings, settings);

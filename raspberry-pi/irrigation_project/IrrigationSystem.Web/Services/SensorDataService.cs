@@ -9,8 +9,10 @@ public class SensorDataService
     private readonly ILogger<SensorDataService> Logger;
     private readonly SemaphoreSlim SensorSchemaLock = new(1, 1);
     private readonly SemaphoreSlim AiSchemaLock = new(1, 1);
+    private readonly SemaphoreSlim WeatherSchemaLock = new(1, 1);
     private bool SensorSchemaEnsured;
     private bool AiSchemaEnsured;
+    private bool WeatherSchemaEnsured;
 
     public SensorDataService(string connectionString, ILogger<SensorDataService> logger)
     {
@@ -314,6 +316,48 @@ public class SensorDataService
 
             await using var cmd = new NpgsqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("zone_id", zoneId);
+            cmd.Parameters.AddWithValue("count", count);
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
+            {
+                events.Add(new IrrigationEvent
+                {
+                    Id = reader.GetInt32(0),
+                    ZoneId = reader.GetInt32(1),
+                    StartedAt = reader.GetDateTime(2),
+                    EndedAt = reader.IsDBNull(3) ? null : reader.GetDateTime(3),
+                    DurationSec = reader.IsDBNull(4) ? null : reader.GetInt32(4),
+                    TriggerReason = reader.IsDBNull(5) ? null : reader.GetString(5),
+                    MoistureBefore = reader.IsDBNull(6) ? null : reader.GetFloat(6),
+                    MoistureAfter = reader.IsDBNull(7) ? null : reader.GetFloat(7)
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to get irrigation events");
+        }
+
+        return events;
+    }
+
+    public async Task<List<IrrigationEvent>> GetRecentIrrigationEventsAsync(int count)
+    {
+        var events = new List<IrrigationEvent>();
+
+        try
+        {
+            await using var conn = new NpgsqlConnection(ConnectionString);
+            await conn.OpenAsync();
+
+            var sql = @"SELECT id, zone_id, started_at, ended_at, duration_sec, trigger_reason, moisture_before, moisture_after
+                        FROM irrigation_events
+                        ORDER BY started_at DESC
+                        LIMIT @count";
+
+            await using var cmd = new NpgsqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("count", count);
 
             await using var reader = await cmd.ExecuteReaderAsync();
@@ -1266,4 +1310,228 @@ public class SensorDataService
         };
     }
 
+    private async Task EnsureWeatherTablesAsync()
+    {
+        if (WeatherSchemaEnsured) return;
+
+        await WeatherSchemaLock.WaitAsync();
+        try
+        {
+            if (WeatherSchemaEnsured) return;
+
+            await using var conn = new NpgsqlConnection(ConnectionString);
+            await conn.OpenAsync();
+
+            var sql = @"
+                CREATE TABLE IF NOT EXISTS weather_settings (
+                    id integer PRIMARY KEY DEFAULT 1,
+                    enable_weather_integration boolean DEFAULT true NOT NULL,
+                    latitude double precision DEFAULT 42.5048 NOT NULL,
+                    longitude double precision DEFAULT 27.4626 NOT NULL,
+                    rain_probability_threshold_percent integer DEFAULT 60 NOT NULL,
+                    rain_lookahead_hours integer DEFAULT 6 NOT NULL,
+                    expected_rain_mm_threshold double precision DEFAULT 1.0 NOT NULL,
+                    confirmed_weather_pause_hours integer DEFAULT 6 NOT NULL,
+                    updated_at timestamp without time zone DEFAULT now() NOT NULL,
+                    CONSTRAINT weather_settings_singleton CHECK (id = 1)
+                );
+
+                INSERT INTO weather_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
+
+                CREATE TABLE IF NOT EXISTS watering_blocks (
+                    id SERIAL PRIMARY KEY,
+                    reason text NOT NULL,
+                    source text NOT NULL,
+                    active_until timestamp without time zone NOT NULL,
+                    created_at timestamp without time zone DEFAULT now() NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_watering_blocks_active_until ON watering_blocks(active_until);
+            ";
+
+            await using var cmd = new NpgsqlCommand(sql, conn);
+            await cmd.ExecuteNonQueryAsync();
+
+            WeatherSchemaEnsured = true;
+        }
+        finally
+        {
+            WeatherSchemaLock.Release();
+        }
+    }
+
+    public async Task<WeatherIntegrationSettings> GetWeatherSettingsAsync()
+    {
+        try
+        {
+            await EnsureWeatherTablesAsync();
+            await using var conn = new NpgsqlConnection(ConnectionString);
+            await conn.OpenAsync();
+            
+            var sql = @"SELECT enable_weather_integration, latitude, longitude, 
+                        rain_probability_threshold_percent, rain_lookahead_hours, 
+                        expected_rain_mm_threshold, confirmed_weather_pause_hours 
+                        FROM weather_settings WHERE id = 1";
+            
+            await using var cmd = new NpgsqlCommand(sql, conn);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            
+            if (await reader.ReadAsync())
+            {
+                return new WeatherIntegrationSettings
+                {
+                    EnableWeatherIntegration = reader.GetBoolean(0),
+                    Latitude = reader.GetDouble(1),
+                    Longitude = reader.GetDouble(2),
+                    RainProbabilityThresholdPercent = reader.GetInt32(3),
+                    RainLookaheadHours = reader.GetInt32(4),
+                    ExpectedRainMmThreshold = Convert.ToSingle(reader.GetDouble(5)),
+                    ConfirmedWeatherPauseHours = reader.GetInt32(6)
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to get weather settings");
+        }
+        return new WeatherIntegrationSettings();
+    }
+
+    public async Task<bool> UpdateWeatherSettingsAsync(WeatherIntegrationSettings settings)
+    {
+        try
+        {
+            await EnsureWeatherTablesAsync();
+            await using var conn = new NpgsqlConnection(ConnectionString);
+            await conn.OpenAsync();
+
+            var sql = @"UPDATE weather_settings SET
+                            enable_weather_integration = @enable,
+                            latitude = @lat,
+                            longitude = @lon,
+                            rain_probability_threshold_percent = @prob,
+                            rain_lookahead_hours = @hours,
+                            expected_rain_mm_threshold = @mm,
+                            confirmed_weather_pause_hours = @pause,
+                            updated_at = NOW()
+                        WHERE id = 1";
+
+            await using var cmd = new NpgsqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("enable", settings.EnableWeatherIntegration);
+            cmd.Parameters.AddWithValue("lat", settings.Latitude);
+            cmd.Parameters.AddWithValue("lon", settings.Longitude);
+            cmd.Parameters.AddWithValue("prob", settings.RainProbabilityThresholdPercent);
+            cmd.Parameters.AddWithValue("hours", settings.RainLookaheadHours);
+            cmd.Parameters.AddWithValue("mm", settings.ExpectedRainMmThreshold);
+            cmd.Parameters.AddWithValue("pause", settings.ConfirmedWeatherPauseHours);
+
+            await cmd.ExecuteNonQueryAsync();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to update weather settings");
+            return false;
+        }
+    }
+
+    public async Task CreateWateringBlockAsync(string reason, string source, DateTime activeUntil)
+    {
+        try
+        {
+            await EnsureWeatherTablesAsync();
+            await using var conn = new NpgsqlConnection(ConnectionString);
+            await conn.OpenAsync();
+
+            var sql = @"INSERT INTO watering_blocks (reason, source, active_until) 
+                        VALUES (@reason, @source, @active_until)";
+            
+            await using var cmd = new NpgsqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("reason", reason);
+            cmd.Parameters.AddWithValue("source", source);
+            cmd.Parameters.AddWithValue("active_until", activeUntil);
+
+            await cmd.ExecuteNonQueryAsync();
+            await LogSystemMessageAsync("INFO", $"Watering blocked until {activeUntil:MM/dd HH:mm} via {source}. Reason: {reason}");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to create watering block");
+        }
+    }
+
+    public async Task<ActiveWateringBlock?> GetActiveWateringBlockAsync()
+    {
+        try
+        {
+            await EnsureWeatherTablesAsync();
+            await using var conn = new NpgsqlConnection(ConnectionString);
+            await conn.OpenAsync();
+
+            var sql = @"SELECT id, reason, source, active_until, created_at 
+                        FROM watering_blocks 
+                        WHERE active_until > NOW() 
+                        ORDER BY active_until DESC 
+                        LIMIT 1";
+            
+            await using var cmd = new NpgsqlCommand(sql, conn);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            
+            if (await reader.ReadAsync())
+            {
+                return new ActiveWateringBlock
+                {
+                    Id = reader.GetInt32(0),
+                    Reason = reader.GetString(1),
+                    Source = reader.GetString(2),
+                    ActiveUntil = reader.GetDateTime(3),
+                    CreatedAt = reader.GetDateTime(4)
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to get active watering block");
+        }
+        return null;
+    }
+
+    public async Task<List<ActiveWateringBlock>> GetRecentWateringBlocksAsync(int count = 10)
+    {
+        var blocks = new List<ActiveWateringBlock>();
+
+        try
+        {
+            await EnsureWeatherTablesAsync();
+            await using var conn = new NpgsqlConnection(ConnectionString);
+            await conn.OpenAsync();
+
+            var sql = @"SELECT id, reason, source, active_until, created_at 
+                        FROM watering_blocks 
+                        ORDER BY created_at DESC 
+                        LIMIT @count";
+
+            await using var cmd = new NpgsqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("count", count);
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                blocks.Add(new ActiveWateringBlock
+                {
+                    Id = reader.GetInt32(0),
+                    Reason = reader.GetString(1),
+                    Source = reader.GetString(2),
+                    ActiveUntil = reader.GetDateTime(3),
+                    CreatedAt = reader.GetDateTime(4)
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to get recent watering blocks");
+        }
+
+        return blocks;
+    }
 }

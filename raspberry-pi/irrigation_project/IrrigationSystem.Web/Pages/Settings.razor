@@ -9,6 +9,7 @@
 @inject AiApiHealthService AiApiHealth
 @inject OpenAiApiKeyProvider ApiKeyProvider
 @inject IOptions<AiIrrigationOptions> AiDefaults
+@inject WeatherForecastService Weather
 @implements IDisposable
 
 <PageTitle>Settings - Irrigation System</PageTitle>
@@ -289,6 +290,82 @@
     </div>
 
     <div class="settings-section">
+        <h4>Weather Integration</h4>
+        @if (WeatherConfig == null)
+        {
+            <p>Loading weather settings...</p>
+        }
+        else
+        {
+            <div class="settings-grid mt-2">
+                <div class="setting-item">
+                    <label class="toggle-label">
+                        <input type="checkbox" @bind="WeatherConfig.EnableWeatherIntegration" class="toggle-input" />
+                        <span class="toggle-slider-sm"></span>
+                        <span class="toggle-text">Enable Open-Meteo Integration</span>
+                    </label>
+                    <small>Fetch forecasts to prevent watering when rain is expected</small>
+                </div>
+                
+                <div class="setting-item">
+                    <label>Latitude</label>
+                    <input type="number" step="0.0001" @bind="WeatherConfig.Latitude" class="form-input" />
+                </div>
+                
+                <div class="setting-item">
+                    <label>Longitude</label>
+                    <input type="number" step="0.0001" @bind="WeatherConfig.Longitude" class="form-input" />
+                </div>
+                
+                <div class="setting-item">
+                    <label>Rain Probability Threshold (%)</label>
+                    <input type="number" min="0" max="100" @bind="WeatherConfig.RainProbabilityThresholdPercent" class="form-input" />
+                </div>
+                
+                <div class="setting-item">
+                    <label>Rain Lookahead (hours)</label>
+                    <input type="number" min="1" max="48" @bind="WeatherConfig.RainLookaheadHours" class="form-input" />
+                </div>
+                
+                <div class="setting-item">
+                    <label>Expected Rain Threshold (mm)</label>
+                    <input type="number" step="0.1" @bind="WeatherConfig.ExpectedRainMmThreshold" class="form-input" />
+                </div>
+                
+                <div class="setting-item">
+                    <label>Confirmed Pause Duration (hours)</label>
+                    <input type="number" min="1" max="72" @bind="WeatherConfig.ConfirmedWeatherPauseHours" class="form-input" />
+                </div>
+            </div>
+
+            <div class="settings-actions">
+                <button class="btn-primary" @onclick="SaveWeatherSettings" disabled="@IsSavingWeatherSettings">
+                    @(IsSavingWeatherSettings ? "Saving..." : "Save Weather Settings")
+                </button>
+                <button class="btn-secondary" @onclick="TestWeatherApi">Test Weather API</button>
+            </div>
+
+            @if (WeatherSettingsSaved)
+            {
+                <div class="success-message">Weather settings saved.</div>
+            }
+
+            @if (LatestWeatherAdvice != null)
+            {
+                <div class="weather-info-panel">
+                    <p><strong>Latest weather advice:</strong> @LatestWeatherAdvice.AdviceText</p>
+                    <p>
+                        Rain probability: @LatestWeatherAdvice.MaxRainProbabilityPercent% &nbsp;|&nbsp;
+                        Expected rain: @LatestWeatherAdvice.ExpectedRainMm.ToString("F1") mm &nbsp;|&nbsp;
+                        Lookahead: @LatestWeatherAdvice.LookaheadHours hours
+                    </p>
+                    <p>Last updated: @LatestWeatherAdvice.LastUpdated.ToString("g")</p>
+                </div>
+            }
+        }
+    </div>
+
+    <div class="settings-section">
         <h4>Database Management</h4>
         <p>Clean up old sensor readings to save storage space</p>
         
@@ -396,6 +473,7 @@
 @code {
     private SystemSettings? SystemConfig;
     private AiIrrigationOptions? AiConfig;
+    private WeatherIntegrationSettings? WeatherConfig;
     private AiIrrigationDecisionLog? LatestAiDecision;
     private AiApiCheckResult? LatestAiApiCheck;
     private List<SystemLog> SystemLogs = new();
@@ -409,6 +487,9 @@
     private bool IsTestingAiApi = false;
     private bool AiSettingsSaved = false;
     private string? AiSettingsError;
+    private bool IsSavingWeatherSettings = false;
+    private bool WeatherSettingsSaved = false;
+    private WeatherWateringAdvice? LatestWeatherAdvice;
 
     private bool IsDemoMode = false;
 
@@ -421,6 +502,7 @@
     {
         await LoadSettings();
         await LoadAiSettings();
+        await LoadWeatherSettings();
         await LoadLogs();
 
         IsDemoMode = DemoService.IsDemoMode;
@@ -445,6 +527,12 @@
         AiConfig = await DataService.GetAiIrrigationOptionsAsync(AiDefaults.Value);
         LatestAiDecision = await DataService.GetLatestAiDecisionAsync();
         LatestAiApiCheck = AiApiHealth.GetLastResult();
+    }
+
+    private async Task LoadWeatherSettings()
+    {
+        WeatherConfig = await DataService.GetWeatherSettingsAsync();
+        LatestWeatherAdvice = await Weather.GetAdviceAsync();
     }
 
     private bool IsAiApiKeyMissing =>
@@ -538,6 +626,31 @@
         {
             IsSavingAiSettings = false;
         }
+    }
+
+    private async Task SaveWeatherSettings()
+    {
+        if (WeatherConfig == null) return;
+        IsSavingWeatherSettings = true;
+        try 
+        {
+            await DataService.UpdateWeatherSettingsAsync(WeatherConfig);
+            WeatherSettingsSaved = true;
+            await Task.Delay(2500);
+            WeatherSettingsSaved = false;
+        } 
+        finally 
+        {
+            IsSavingWeatherSettings = false;
+        }
+    }
+
+    private async Task TestWeatherApi()
+    {
+        var advice = await Weather.GetAdviceAsync(forceRefresh: true);
+        LatestWeatherAdvice = advice;
+        await DataService.LogSystemMessageAsync("INFO", $"Weather API Test: {advice.AdviceText}");
+        await LoadLogs();
     }
 
     private async Task TestAiApi()

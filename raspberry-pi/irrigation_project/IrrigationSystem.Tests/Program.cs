@@ -623,7 +623,8 @@ internal static class Tests
                 Options.Create(new AiIrrigationOptions()),
                 new OpenAiApiKeyProvider(new ConfigurationBuilder().Build()),
                 new TestLogger<AiApiHealthService>()),
-            new TestLogger<IrrigationDecisionService>());
+            new TestLogger<IrrigationDecisionService>(),
+            new WeatherForecastService(new HttpClient(), dataService, new TestLogger<WeatherForecastService>()));
         var decisionQueue = new SensorReadingDecisionQueue(
             dataService,
             decisionService,

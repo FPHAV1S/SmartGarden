@@ -106,6 +106,7 @@ public static class IrrigationSafetyPolicy
         AiIrrigationOptions options,
         bool aiWasAttempted,
         string? aiErrorMessage = null,
+        WeatherWateringAdvice? weatherAdvice = null,
         DateTime? now = null)
     {
         settings ??= new SystemSettings();
@@ -126,6 +127,12 @@ public static class IrrigationSafetyPolicy
             notes.Add(aiErrorMessage);
         }
 
+        if (weatherAdvice != null && weatherAdvice.ShouldBlockAutomaticWatering)
+        {
+            notes.Add($"Safety blocked watering because weather forecasts rain ({weatherAdvice.MaxRainProbabilityPercent}%, {weatherAdvice.ExpectedRainMm:F1}mm).");
+            reason = weatherAdvice.AdviceText;
+            hardBlock = true;
+        }
         if (zone == null)
         {
             notes.Add("Safety blocked watering because the zone was not found.");

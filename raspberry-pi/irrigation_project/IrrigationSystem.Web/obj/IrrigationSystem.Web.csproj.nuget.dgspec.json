@@ -10,7 +10,7 @@
         "projectUniqueName": "C:\\Users\\dpenis\\Documents\\SmartGarden\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\IrrigationSystem.Web.csproj",
         "projectName": "IrrigationSystem.Web",
         "projectPath": "C:\\Users\\dpenis\\Documents\\SmartGarden\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\IrrigationSystem.Web.csproj",
-        "packagesPath": "C:\\Users\\CodexSandboxOffline\\.nuget\\packages\\",
+        "packagesPath": "C:\\Users\\dpenis\\.nuget\\packages\\",
         "outputPath": "C:\\Users\\dpenis\\Documents\\SmartGarden\\raspberry-pi\\irrigation_project\\IrrigationSystem.Web\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
@@ -75,6 +75,10 @@
           "downloadDependencies": [
             {
               "name": "Microsoft.AspNetCore.App.Ref",
+              "version": "[8.0.24, 8.0.24]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Host.win-x64",
               "version": "[8.0.24, 8.0.24]"
             },
             {

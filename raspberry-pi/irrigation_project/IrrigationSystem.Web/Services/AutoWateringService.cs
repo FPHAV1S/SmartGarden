@@ -8,18 +8,21 @@ public class AutoWateringService : BackgroundService
     private readonly SensorDataService DataService;
     private readonly IValveCommandService ValveCommands;
     private readonly IrrigationDecisionService DecisionService;
+    private readonly WeatherForecastService Weather;
     private readonly int CheckIntervalSeconds = 300;
 
     public AutoWateringService(
         ILogger<AutoWateringService> logger,
         SensorDataService dataService,
         IValveCommandService valveCommands,
-        IrrigationDecisionService decisionService)
+        IrrigationDecisionService decisionService,
+        WeatherForecastService weather)
     {
         Logger = logger;
         DataService = dataService;
         ValveCommands = valveCommands;
         DecisionService = decisionService;
+        Weather = weather;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -66,6 +69,21 @@ public class AutoWateringService : BackgroundService
         if (settings.NightModeEnabled && !IsNightMode(settings))
         {
             Logger.LogInformation("Night mode enabled but not in watering hours - skipping");
+            return;
+        }
+
+        var activeBlock = await DataService.GetActiveWateringBlockAsync();
+        if (activeBlock != null)
+        {
+            Logger.LogInformation("Auto-watering skipped due to active confirmed pause until {Time}. Reason: {Reason}", activeBlock.ActiveUntil, activeBlock.Reason);
+            return;
+        }
+
+        var weatherAdvice = await Weather.GetAdviceAsync();
+        if (weatherAdvice.ShouldBlockAutomaticWatering)
+        {
+            Logger.LogInformation("Weather safety blocked automatic watering because rain is likely in the next {Hours} hours: {Prob}% probability, {Mm:F1}mm expected.", 
+                weatherAdvice.LookaheadHours, weatherAdvice.MaxRainProbabilityPercent, weatherAdvice.ExpectedRainMm);
             return;
         }
 
