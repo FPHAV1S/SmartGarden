@@ -35,6 +35,7 @@ public class WeatherForecastService
     {
         if (!forceRefresh && CachedAdvice != null && DateTimeOffset.UtcNow < CacheExpiry)
         {
+            CachedAdvice.LastUpdated = DateTime.UtcNow;
             return CachedAdvice;
         }
 
@@ -43,6 +44,7 @@ public class WeatherForecastService
         {
             if (!forceRefresh && CachedAdvice != null && DateTimeOffset.UtcNow < CacheExpiry)
             {
+                CachedAdvice.LastUpdated = DateTime.UtcNow;
                 return CachedAdvice;
             }
 
