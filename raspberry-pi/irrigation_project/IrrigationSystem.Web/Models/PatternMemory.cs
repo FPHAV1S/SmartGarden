@@ -3,7 +3,7 @@ namespace IrrigationSystem.Web.Models;
 public class PatternMemory
 {
     public int Id { get; set; }
-    public DateTime CreatedAt { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public string Summary { get; set; } = string.Empty;
     public float? SuggestedThreshold { get; set; }
     public float? AverageMoisture { get; set; }

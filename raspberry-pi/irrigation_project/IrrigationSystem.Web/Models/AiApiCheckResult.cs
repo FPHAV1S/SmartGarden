@@ -2,7 +2,7 @@ namespace IrrigationSystem.Web.Models;
 
 public class AiApiCheckResult
 {
-    public DateTime CheckedAt { get; set; } = DateTime.Now;
+    public DateTime CheckedAt { get; set; } = DateTime.UtcNow;
     public bool IsConfigured { get; set; }
     public bool IsSuccess { get; set; }
     public string Model { get; set; } = string.Empty;

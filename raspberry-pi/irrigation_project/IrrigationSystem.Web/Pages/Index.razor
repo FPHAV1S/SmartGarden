@@ -81,7 +81,7 @@
             <div class="weather-card @(WeatherAdvice.RainLikelySoon ? "weather-warning" : "weather-ok")">
                 <div class="weather-header">
                     <h4>Weather Forecast (Next @WeatherAdvice.LookaheadHours hrs)</h4>
-                    <span>@WeatherAdvice.LastUpdated.ToString("HH:mm")</span>
+                    <span>@FormatLocalTime(WeatherAdvice.LastUpdated, "HH:mm")</span>
                 </div>
                 <div class="weather-info">
                     <div class="info-row">
@@ -91,6 +91,10 @@
                     <div class="info-row">
                         <span>Expected Rain:</span>
                         <span>@(WeatherAdvice.IsWeatherDataAvailable ? $"{WeatherAdvice.ExpectedRainMm.ToString("F1", CultureInfo.InvariantCulture)} mm" : "Unavailable")</span>
+                    </div>
+                    <div class="info-row">
+                        <span>Forecast Temp:</span>
+                        <span>@(WeatherAdvice.IsWeatherDataAvailable ? FormatTemperature(WeatherAdvice.CurrentTemperatureC) : "Unavailable")</span>
                     </div>
                     <p class="weather-advice">@WeatherAdvice.AdviceText</p>
                 </div>
@@ -103,7 +107,7 @@
                 <div class="weather-actions">
                     @if (ActiveBlock != null)
                     {
-                        <span class="pause-active">Watering paused until @ActiveBlock.ActiveUntil.ToString("HH:mm")</span>
+                        <span class="pause-active">Watering paused until @FormatLocalTime(ActiveBlock.ActiveUntil, "HH:mm")</span>
                     }
                     else
                     {
@@ -142,8 +146,12 @@
                                 <span class="label">Pressure:</span>
                                 <span class="value">@(reading.Pressure?.ToString("F1") ?? "N/A") hPa</span>
                             </div>
+                            <div class="sensor-item">
+                                <span class="label">ESP:</span>
+                                <span class="value">@(string.IsNullOrWhiteSpace(reading.Device) ? "Unknown" : reading.Device)</span>
+                            </div>
                             <div class="last-update">
-                                Updated: @reading.RecordedAt.ToString("HH:mm:ss")
+                                Updated: @FormatLocalTime(reading.RecordedAt, "HH:mm:ss")
                             </div>
                         </div>
 
@@ -217,6 +225,20 @@
         return $"width: {value.ToString("0.##", CultureInfo.InvariantCulture)}%;";
     }
 
+    private static string FormatTemperature(float? temperature)
+    {
+        return temperature.HasValue
+            ? $"{temperature.Value.ToString("F1", CultureInfo.InvariantCulture)} C"
+            : "Unavailable";
+    }
+
+    private static string FormatLocalTime(DateTime utcTime, string format)
+    {
+        return DateTime.SpecifyKind(utcTime, DateTimeKind.Utc)
+            .ToLocalTime()
+            .ToString(format);
+    }
+
     private async Task RefreshData()
     {
         await LoadData();
@@ -225,17 +247,17 @@
     private async Task ConfirmPause()
     {
         var settings = await DataService.GetWeatherSettingsAsync();
-        var until = DateTime.Now.AddHours(settings.ConfirmedWeatherPauseHours);
+        var until = DateTime.UtcNow.AddHours(settings.ConfirmedWeatherPauseHours);
         await DataService.CreateWateringBlockAsync("Confirmed weather pause", "Dashboard", until);
         ActiveBlock = await DataService.GetActiveWateringBlockAsync();
-        DashboardNotice = $"Confirmed weather pause is active until {until:HH:mm}.";
+        DashboardNotice = $"Confirmed weather pause is active until {FormatLocalTime(until, "HH:mm")}.";
     }
 
     private string? BuildDashboardNotice()
     {
         if (ActiveBlock != null)
         {
-            return $"Active weather pause is blocking automatic watering until {ActiveBlock.ActiveUntil:HH:mm}. Reason: {ActiveBlock.Reason}.";
+            return $"Active weather pause is blocking automatic watering until {FormatLocalTime(ActiveBlock.ActiveUntil, "HH:mm")}. Reason: {ActiveBlock.Reason}.";
         }
 
         if (AiConfig?.EnableWateringCooldown != true || AiConfig.MinimumMinutesBetweenWaterings <= 0)
@@ -257,7 +279,7 @@
 
             if (recentEvent != null)
             {
-                var minutesSince = (DateTime.Now - recentEvent.Timestamp).TotalMinutes;
+                var minutesSince = (DateTime.UtcNow - recentEvent.Timestamp).TotalMinutes;
                 if (minutesSince >= 0 && minutesSince < cooldownMinutes)
                 {
                     var remaining = Math.Max(0, cooldownMinutes - minutesSince);

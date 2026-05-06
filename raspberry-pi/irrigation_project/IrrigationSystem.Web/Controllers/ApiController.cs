@@ -68,9 +68,24 @@ public class ApiController : ControllerBase
                 statusCode: StatusCodes.Status503ServiceUnavailable);
         }
 
-        if (!zones.Any(zone => zone.Id == request.ZoneId))
+        var zone = zones.FirstOrDefault(zone => zone.Id == request.ZoneId);
+        if (zone == null)
         {
             return BadRequest(new { message = $"Zone {request.ZoneId} does not exist" });
+        }
+
+        var deviceName = NormalizeDeviceName(request.Device);
+        if (deviceName?.Length > 80)
+        {
+            return BadRequest(new { message = "device must be 80 characters or fewer" });
+        }
+
+        if (!SensorDeviceMatchesZone(zone, deviceName))
+        {
+            return BadRequest(new
+            {
+                message = $"Zone {request.ZoneId} expects sensor device '{zone.SensorDeviceName}', but received '{(string.IsNullOrWhiteSpace(deviceName) ? "unknown device" : deviceName)}'"
+            });
         }
 
         SensorReading reading;
@@ -81,12 +96,13 @@ public class ApiController : ControllerBase
                 moisture.Value,
                 request.Temperature.Value,
                 request.Humidity.Value,
-                request.Pressure);
+                request.Pressure,
+                deviceName);
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to store sensor reading from {Device} for zone {ZoneId}",
-                string.IsNullOrWhiteSpace(request.Device) ? "unknown device" : request.Device,
+                string.IsNullOrWhiteSpace(deviceName) ? "unknown device" : deviceName,
                 request.ZoneId);
 
             return Problem(
@@ -97,11 +113,11 @@ public class ApiController : ControllerBase
 
         var decisionQueued = DecisionQueue.TryQueue(
             reading,
-            $"sensor-api:{(string.IsNullOrWhiteSpace(request.Device) ? "unknown" : request.Device)}");
+            $"sensor-api:{(string.IsNullOrWhiteSpace(deviceName) ? "unknown" : deviceName)}");
 
         Logger.LogInformation(
             "Received sensor reading from {Device} for zone {ZoneId}: moisture={Moisture}, temperature={Temperature}, humidity={Humidity}, pressure={Pressure}, decisionQueued={DecisionQueued}",
-            string.IsNullOrWhiteSpace(request.Device) ? "unknown device" : request.Device,
+            string.IsNullOrWhiteSpace(deviceName) ? "unknown device" : deviceName,
             request.ZoneId,
             moisture.Value,
             request.Temperature.Value,
@@ -114,12 +130,26 @@ public class ApiController : ControllerBase
             success = true,
             readingId = reading.Id,
             zoneId = request.ZoneId,
+            device = deviceName,
             moisture = moisture.Value,
             temperature = request.Temperature.Value,
             humidity = request.Humidity.Value,
             pressure = request.Pressure,
             decisionQueued
         });
+    }
+
+    private static string? NormalizeDeviceName(string? device)
+    {
+        return string.IsNullOrWhiteSpace(device)
+            ? null
+            : device.Trim();
+    }
+
+    private static bool SensorDeviceMatchesZone(Zone zone, string? deviceName)
+    {
+        return string.IsNullOrWhiteSpace(zone.SensorDeviceName) ||
+            string.Equals(zone.SensorDeviceName.Trim(), deviceName, StringComparison.OrdinalIgnoreCase);
     }
 
     [HttpGet("ai/latest-decision")]

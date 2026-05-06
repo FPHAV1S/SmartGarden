@@ -48,7 +48,7 @@ public class AiApiHealthService
         if (result == null ||
             result.IsSuccess ||
             !result.RetryAfter.HasValue ||
-            result.RetryAfter.Value <= DateTime.Now)
+            result.RetryAfter.Value <= DateTime.UtcNow)
         {
             return null;
         }
@@ -68,13 +68,14 @@ public class AiApiHealthService
         var model = string.IsNullOrWhiteSpace(settings.Model) ? "gpt-4.1-nano" : settings.Model.Trim();
         var keyLookup = ApiKeyProvider.GetApiKey(settings.ApiKeyEnvironmentVariable);
         var retryAfter = exception.IsQuotaOrRateLimited
-            ? DateTime.Now.Add(QuotaOrRateLimitPause)
+            ? DateTime.UtcNow.Add(QuotaOrRateLimitPause)
             : (DateTime?)null;
 
+        var retryAfterText = FormatLocalTime(retryAfter);
         var message = exception.IsQuotaExceeded
-            ? $"OpenAI API quota is exhausted for this account/project. AI decisions are paused until {retryAfter:HH:mm}; rule fallback continues."
+            ? $"OpenAI API quota is exhausted for this account/project. AI decisions are paused until {retryAfterText}; rule fallback continues."
             : exception.IsQuotaOrRateLimited
-                ? $"OpenAI API returned 429 Too Many Requests. AI decisions are paused until {retryAfter:HH:mm}; rule fallback continues."
+                ? $"OpenAI API returned 429 Too Many Requests. AI decisions are paused until {retryAfterText}; rule fallback continues."
                 : exception.Message;
 
         return await StoreAndLogAsync(new AiApiCheckResult
@@ -95,10 +96,11 @@ public class AiApiHealthService
     {
         var model = GetConfiguredModel(settings);
         var baseUrl = GetOllamaBaseUrl(settings);
-        var retryAfter = DateTime.Now.Add(OllamaFailurePause);
+        var retryAfter = DateTime.UtcNow.Add(OllamaFailurePause);
+        var retryAfterText = FormatLocalTime(retryAfter);
         var message = exception is TimeoutException
-            ? $"Ollama analysis timed out at {baseUrl}. AI decisions are paused until {retryAfter:HH:mm}; rule fallback continues."
-            : $"Ollama analysis failed at {baseUrl}: {exception.Message}. AI decisions are paused until {retryAfter:HH:mm}; rule fallback continues.";
+            ? $"Ollama analysis timed out at {baseUrl}. AI decisions are paused until {retryAfterText}; rule fallback continues."
+            : $"Ollama analysis failed at {baseUrl}: {exception.Message}. AI decisions are paused until {retryAfterText}; rule fallback continues.";
 
         return await StoreAndLogAsync(new AiApiCheckResult
         {
@@ -186,10 +188,11 @@ public class AiApiHealthService
             var statusCode = (int)response.StatusCode;
             var apiError = ExtractApiError(responseBody);
             var retryAfter = statusCode == 429
-                ? DateTime.Now.Add(QuotaOrRateLimitPause)
+                ? DateTime.UtcNow.Add(QuotaOrRateLimitPause)
                 : (DateTime?)null;
+            var retryAfterText = FormatLocalTime(retryAfter);
             var message = statusCode == 429 && apiError.Contains("quota", StringComparison.OrdinalIgnoreCase)
-                ? $"OpenAI API quota is exhausted for this account/project. AI decisions are paused until {retryAfter:HH:mm}; rule fallback continues."
+                ? $"OpenAI API quota is exhausted for this account/project. AI decisions are paused until {retryAfterText}; rule fallback continues."
                 : $"OpenAI API check failed with {statusCode} {response.ReasonPhrase}: {apiError}";
 
             return await StoreAndLogAsync(new AiApiCheckResult
@@ -250,7 +253,8 @@ public class AiApiHealthService
             {
                 if (!OllamaModelExists(responseBody, model))
                 {
-                    var retryAfter = DateTime.Now.Add(OllamaFailurePause);
+                    var retryAfter = DateTime.UtcNow.Add(OllamaFailurePause);
+                    var retryAfterText = FormatLocalTime(retryAfter);
                     return await StoreAndLogAsync(new AiApiCheckResult
                     {
                         IsConfigured = true,
@@ -259,7 +263,7 @@ public class AiApiHealthService
                         KeySource = baseUrl,
                         StatusCode = (int)response.StatusCode,
                         RetryAfter = retryAfter,
-                        Message = $"Ollama is reachable at {baseUrl}, but model {model} is not installed. Run 'ollama pull {model}'. AI decisions are paused until {retryAfter:HH:mm}; rule fallback continues."
+                        Message = $"Ollama is reachable at {baseUrl}, but model {model} is not installed. Run 'ollama pull {model}'. AI decisions are paused until {retryAfterText}; rule fallback continues."
                     });
                 }
 
@@ -274,7 +278,8 @@ public class AiApiHealthService
                 });
             }
 
-            var failedRetryAfter = DateTime.Now.Add(OllamaFailurePause);
+            var failedRetryAfter = DateTime.UtcNow.Add(OllamaFailurePause);
+            var failedRetryAfterText = FormatLocalTime(failedRetryAfter);
             return await StoreAndLogAsync(new AiApiCheckResult
             {
                 IsConfigured = true,
@@ -283,12 +288,13 @@ public class AiApiHealthService
                 KeySource = baseUrl,
                 StatusCode = (int)response.StatusCode,
                 RetryAfter = failedRetryAfter,
-                Message = $"Ollama check failed with {(int)response.StatusCode} {response.ReasonPhrase}: {ExtractOllamaError(responseBody)}. AI decisions are paused until {failedRetryAfter:HH:mm}; rule fallback continues."
+                Message = $"Ollama check failed with {(int)response.StatusCode} {response.ReasonPhrase}: {ExtractOllamaError(responseBody)}. AI decisions are paused until {failedRetryAfterText}; rule fallback continues."
             });
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            var retryAfter = DateTime.Now.Add(OllamaFailurePause);
+            var retryAfter = DateTime.UtcNow.Add(OllamaFailurePause);
+            var retryAfterText = FormatLocalTime(retryAfter);
             return await StoreAndLogAsync(new AiApiCheckResult
             {
                 IsConfigured = true,
@@ -296,13 +302,14 @@ public class AiApiHealthService
                 Model = model,
                 KeySource = baseUrl,
                 RetryAfter = retryAfter,
-                Message = $"Ollama check timed out after {OllamaCheckTimeout.TotalSeconds:0} seconds at {baseUrl}. AI decisions are paused until {retryAfter:HH:mm}; rule fallback continues."
+                Message = $"Ollama check timed out after {OllamaCheckTimeout.TotalSeconds:0} seconds at {baseUrl}. AI decisions are paused until {retryAfterText}; rule fallback continues."
             });
         }
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Ollama health check failed");
-            var retryAfter = DateTime.Now.Add(OllamaFailurePause);
+            var retryAfter = DateTime.UtcNow.Add(OllamaFailurePause);
+            var retryAfterText = FormatLocalTime(retryAfter);
             return await StoreAndLogAsync(new AiApiCheckResult
             {
                 IsConfigured = true,
@@ -310,14 +317,14 @@ public class AiApiHealthService
                 Model = model,
                 KeySource = baseUrl,
                 RetryAfter = retryAfter,
-                Message = $"Ollama check failed at {baseUrl}: {ex.Message}. AI decisions are paused until {retryAfter:HH:mm}; rule fallback continues."
+                Message = $"Ollama check failed at {baseUrl}: {ex.Message}. AI decisions are paused until {retryAfterText}; rule fallback continues."
             });
         }
     }
 
     private async Task<AiApiCheckResult> StoreAndLogAsync(AiApiCheckResult result)
     {
-        result.CheckedAt = DateTime.Now;
+        result.CheckedAt = DateTime.UtcNow;
         LastResult = result;
 
         await DataService.LogSystemMessageAsync(
@@ -456,5 +463,12 @@ public class AiApiHealthService
         }
 
         return "No structured error message returned.";
+    }
+
+    private static string FormatLocalTime(DateTime? utcTime)
+    {
+        return utcTime.HasValue
+            ? DateTime.SpecifyKind(utcTime.Value, DateTimeKind.Utc).ToLocalTime().ToString("HH:mm")
+            : string.Empty;
     }
 }

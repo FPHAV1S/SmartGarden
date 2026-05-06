@@ -52,7 +52,7 @@ public class WeatherForecastService
                 IsIntegrationEnabled = settings.EnableWeatherIntegration,
                 IsWeatherDataAvailable = false,
                 LookaheadHours = settings.RainLookaheadHours,
-                LastUpdated = DateTime.Now,
+                LastUpdated = DateTime.UtcNow,
                 AdviceText = "Weather integration is disabled or unavailable.",
                 ShouldBlockAutomaticWatering = false
             };
@@ -71,7 +71,7 @@ public class WeatherForecastService
                 {
                     ["latitude"] = settings.Latitude.ToString(System.Globalization.CultureInfo.InvariantCulture),
                     ["longitude"] = settings.Longitude.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                    ["hourly"] = "precipitation_probability,precipitation,rain,showers,weather_code",
+                    ["hourly"] = "temperature_2m,precipitation_probability,precipitation,rain,showers,weather_code",
                     ["forecast_hours"] = Math.Max(settings.RainLookaheadHours, 24).ToString(CultureInfo.InvariantCulture),
                     ["timezone"] = "auto"
                 };
@@ -118,6 +118,11 @@ public class WeatherForecastService
 
                 var maxRainProbability = lookaheadForecasts.Max(item => item.PrecipitationProbability);
                 var expectedRainMm = lookaheadForecasts.Sum(GetExpectedRainMm);
+                var temperatureValues = lookaheadForecasts
+                    .Select(item => item.TemperatureC)
+                    .Where(value => value.HasValue)
+                    .Select(value => value!.Value)
+                    .ToList();
                 var rainLikelySoon = maxRainProbability >= settings.RainProbabilityThresholdPercent || expectedRainMm >= settings.ExpectedRainMmThreshold;
 
                 advice.IsIntegrationEnabled = settings.EnableWeatherIntegration;
@@ -125,9 +130,22 @@ public class WeatherForecastService
                 advice.RainLikelySoon = rainLikelySoon;
                 advice.MaxRainProbabilityPercent = Convert.ToInt32(Math.Round(maxRainProbability));
                 advice.ExpectedRainMm = Convert.ToSingle(expectedRainMm);
+                advice.HasTemperatureData = temperatureValues.Count > 0;
+                advice.CurrentTemperatureC = lookaheadForecasts.FirstOrDefault(item => item.TemperatureC.HasValue)?.TemperatureC is double currentTemp
+                    ? Convert.ToSingle(currentTemp)
+                    : null;
+                advice.AverageTemperatureC = temperatureValues.Count > 0
+                    ? Convert.ToSingle(temperatureValues.Average())
+                    : null;
+                advice.MinTemperatureC = temperatureValues.Count > 0
+                    ? Convert.ToSingle(temperatureValues.Min())
+                    : null;
+                advice.MaxTemperatureC = temperatureValues.Count > 0
+                    ? Convert.ToSingle(temperatureValues.Max())
+                    : null;
                 advice.LookaheadHours = settings.RainLookaheadHours;
                 advice.ShouldBlockAutomaticWatering = rainLikelySoon;
-                advice.LastUpdated = DateTime.Now;
+                advice.LastUpdated = DateTime.UtcNow;
                 advice.AdviceText = rainLikelySoon
                     ? $"Rain is likely soon, prefer not watering. Forecast shows {advice.MaxRainProbabilityPercent}% probability and {FormatRainMm(advice.ExpectedRainMm)} expected within {settings.RainLookaheadHours} hours."
                     : $"No rain is likely soon. Forecast shows {advice.MaxRainProbabilityPercent}% probability and {FormatRainMm(advice.ExpectedRainMm)} expected over the next {settings.RainLookaheadHours} hours.";
@@ -166,6 +184,7 @@ public class WeatherForecastService
             forecasts.Add(new WeatherHourForecast
             {
                 Time = time,
+                TemperatureC = GetNullableValueOrDefault(hourly.Temperature2m, index),
                 PrecipitationProbability = GetValueOrDefault(hourly.PrecipitationProbability, index),
                 Precipitation = GetValueOrDefault(hourly.Precipitation, index),
                 Rain = GetValueOrDefault(hourly.Rain, index),
@@ -214,6 +233,11 @@ public class WeatherForecastService
     private static double GetValueOrDefault(IReadOnlyList<double> values, int index)
     {
         return index >= 0 && index < values.Count ? values[index] : 0;
+    }
+
+    private static double? GetNullableValueOrDefault(IReadOnlyList<double> values, int index)
+    {
+        return index >= 0 && index < values.Count ? values[index] : null;
     }
 
     private static int GetValueOrDefault(IReadOnlyList<int> values, int index)

@@ -47,8 +47,9 @@ public static class IrrigationSafetyPolicy
             };
         }
 
-        var currentTime = now ?? DateTime.Now;
-        if (settings.NightModeEnabled && !IsWithinNightModeWindow(settings, currentTime))
+        var currentTime = now ?? DateTime.UtcNow;
+        var scheduleTime = now?.ToLocalTime() ?? DateTime.Now;
+        if (settings.NightModeEnabled && !IsWithinNightModeWindow(settings, scheduleTime))
         {
             return new RuleBasedIrrigationDecision
             {
@@ -110,7 +111,8 @@ public static class IrrigationSafetyPolicy
         DateTime? now = null)
     {
         settings ??= new SystemSettings();
-        var currentTime = now ?? DateTime.Now;
+        var currentTime = now ?? DateTime.UtcNow;
+        var scheduleTime = now?.ToLocalTime() ?? DateTime.Now;
         var notes = new List<string>();
         var useFallback = aiDecision == null;
         var hardBlock = false;
@@ -151,7 +153,7 @@ public static class IrrigationSafetyPolicy
             useFallback = true;
             hardBlock = true;
         }
-        else if (settings.NightModeEnabled && !IsWithinNightModeWindow(settings, currentTime))
+        else if (settings.NightModeEnabled && !IsWithinNightModeWindow(settings, scheduleTime))
         {
             notes.Add("Safety blocked watering because night mode is outside watering hours.");
             useFallback = true;
@@ -208,6 +210,13 @@ public static class IrrigationSafetyPolicy
             finalShouldWater = false;
             duration = 0;
             notes.Add($"Safety blocked repeated watering because the zone watered {minutesSinceWatering:F0} minutes ago; cooldown is {cooldownMinutes:F0} minutes.");
+        }
+
+        if (finalShouldWater && duration <= 0)
+        {
+            finalShouldWater = false;
+            duration = 0;
+            notes.Add("Safety blocked watering because the recommended duration was 0 seconds.");
         }
 
         if (!finalShouldWater)

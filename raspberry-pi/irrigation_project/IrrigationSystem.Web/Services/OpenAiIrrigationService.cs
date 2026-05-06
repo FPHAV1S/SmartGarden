@@ -217,6 +217,11 @@ public class OpenAiIrrigationService : IAiIrrigationService
             rainLikelySoon = weatherAdvice.RainLikelySoon,
             maxRainProbabilityPercent = weatherAdvice.MaxRainProbabilityPercent,
             expectedRainMm = weatherAdvice.ExpectedRainMm,
+            hasTemperatureData = weatherAdvice.HasTemperatureData,
+            currentTemperatureC = weatherAdvice.CurrentTemperatureC,
+            averageTemperatureC = weatherAdvice.AverageTemperatureC,
+            minTemperatureC = weatherAdvice.MinTemperatureC,
+            maxTemperatureC = weatherAdvice.MaxTemperatureC,
             lookaheadHours = weatherAdvice.LookaheadHours,
             rainProbabilityThresholdPercent = weatherSettings.RainProbabilityThresholdPercent,
             expectedRainMmThreshold = weatherSettings.ExpectedRainMmThreshold,
@@ -226,7 +231,7 @@ public class OpenAiIrrigationService : IAiIrrigationService
         var context = new
         {
             project = "Garden Brain / Smart Irrigation",
-            currentDateTime = DateTimeOffset.Now.ToString("O"),
+            currentDateTime = DateTimeOffset.UtcNow.ToString("O"),
             latestReading = new
             {
                 latestReading.Id,

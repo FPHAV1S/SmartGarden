@@ -187,6 +187,12 @@ echo "Ensuring sensor pressure column..."
 sudo -u postgres psql -v ON_ERROR_STOP=1 -d "$DB_NAME" -c \
     "ALTER TABLE public.sensor_readings ADD COLUMN IF NOT EXISTS pressure double precision;"
 
+echo "Ensuring ESP device mapping columns..."
+sudo -u postgres psql -v ON_ERROR_STOP=1 -d "$DB_NAME" -c \
+    "ALTER TABLE public.zones ADD COLUMN IF NOT EXISTS sensor_device_name character varying(80);"
+sudo -u postgres psql -v ON_ERROR_STOP=1 -d "$DB_NAME" -c \
+    "ALTER TABLE public.sensor_readings ADD COLUMN IF NOT EXISTS device character varying(80);"
+
 # Seed required defaults
 echo "Seeding default settings and login..."
 sudo -u postgres psql -v ON_ERROR_STOP=1 -d "$DB_NAME" <<'SQL'

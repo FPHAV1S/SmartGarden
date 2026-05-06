@@ -10,10 +10,18 @@
     <div class="filters">
         <label>
             Zone:
-            <select @bind="SelectedZoneId" @bind:after="LoadHistory">
-                <option value="1">Zone 1</option>
-                <option value="2">Zone 2</option>
-                <option value="3">Zone 3</option>
+            <select @bind="SelectedZoneId" @bind:after="LoadHistory" disabled="@(Zones.Count == 0)">
+                @if (Zones.Count == 0)
+                {
+                    <option value="0">No zones configured</option>
+                }
+                else
+                {
+                    @foreach (var zone in Zones)
+                    {
+                        <option value="@zone.Id">@GetZoneOptionLabel(zone)</option>
+                    }
+                }
             </select>
         </label>
 
@@ -41,12 +49,16 @@
             </select>
         </label>
 
-        <button class="btn-refresh" @onclick="LoadHistory">Refresh</button>
+        <button class="btn-refresh" @onclick="RefreshHistory">Refresh</button>
     </div>
 
     @if (IsLoading)
     {
         <p>Loading data...</p>
+    }
+    else if (Zones.Count == 0)
+    {
+        <p>No zones configured yet.</p>
     }
     else if (HistoryData.Count == 0)
     {
@@ -226,17 +238,19 @@
                         <th>Temperature (°C)</th>
                         <th>Humidity (%)</th>
                         <th>Pressure (hPa)</th>
+                        <th>ESP</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach (var data in HistoryData.OrderByDescending(d => d.RecordedAt))
                     {
                         <tr>
-                            <td>@data.RecordedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                            <td>@FormatLocalTime(data.RecordedAt, "yyyy-MM-dd HH:mm")</td>
                             <td>@(data.Moisture?.ToString("F1") ?? "N/A")</td>
                             <td>@(data.Temperature?.ToString("F1") ?? "N/A")</td>
                             <td>@(data.Humidity?.ToString("F1") ?? "N/A")</td>
                             <td>@(data.Pressure?.ToString("F1") ?? "N/A")</td>
+                            <td>@(string.IsNullOrWhiteSpace(data.Device) ? "Unknown" : data.Device)</td>
                         </tr>
                     }
                 </tbody>
@@ -252,24 +266,54 @@
     private List<MetricChartPoint> TemperatureChartData = new();
     private List<MetricChartPoint> HumidityChartData = new();
     private List<MetricChartPoint> PressureChartData = new();
-    private int SelectedZoneId = 1;
+    private List<Zone> Zones = new();
+    private int SelectedZoneId = 0;
     private int TimeRangeHours = 24;
     private int ChartBucketMinutes = 10;
     private bool IsLoading = true;
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadZones();
         await LoadHistory();
+    }
+
+    private async Task LoadZones()
+    {
+        Zones = await DataService.GetZonesAsync();
+
+        if (Zones.Count > 0 && !Zones.Any(zone => zone.Id == SelectedZoneId))
+        {
+            SelectedZoneId = Zones[0].Id;
+        }
+        else if (Zones.Count == 0)
+        {
+            SelectedZoneId = 0;
+        }
     }
 
     private async Task LoadHistory()
     {
         IsLoading = true;
 
-        HistoryData = await DataService.GetZoneHistoryAsync(SelectedZoneId, TimeRangeHours);
+        if (SelectedZoneId <= 0)
+        {
+            HistoryData = new List<SensorReading>();
+        }
+        else
+        {
+            HistoryData = await DataService.GetZoneHistoryAsync(SelectedZoneId, TimeRangeHours);
+        }
+
         ApplyChartAveraging();
 
         IsLoading = false;
+    }
+
+    private async Task RefreshHistory()
+    {
+        await LoadZones();
+        await LoadHistory();
     }
 
     private void ApplyChartAveraging()
@@ -319,7 +363,7 @@
         return readings
             .Select(reading => new
             {
-                reading.RecordedAt,
+                RecordedAt = ToLocalTime(reading.RecordedAt),
                 Value = valueSelector(reading)
             })
             .Where(point => point.Value.HasValue)
@@ -350,6 +394,23 @@
     {
         var average = AverageNullable(values);
         return average.HasValue ? $"{average.Value:F1} {unit}" : "N/A";
+    }
+
+    private static DateTime ToLocalTime(DateTime utcTime)
+    {
+        return DateTime.SpecifyKind(utcTime, DateTimeKind.Utc).ToLocalTime();
+    }
+
+    private static string FormatLocalTime(DateTime utcTime, string format)
+    {
+        return ToLocalTime(utcTime).ToString(format);
+    }
+
+    private static string GetZoneOptionLabel(Zone zone)
+    {
+        return string.IsNullOrWhiteSpace(zone.Name)
+            ? $"Zone {zone.Id}"
+            : $"{zone.Name} (Zone {zone.Id})";
     }
 
     private sealed record MetricChartPoint(DateTime RecordedAt, float Value);

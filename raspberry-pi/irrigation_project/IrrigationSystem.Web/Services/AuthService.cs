@@ -66,14 +66,15 @@ public class AuthService
             await using var conn = new NpgsqlConnection(ConnectionString);
             await conn.OpenAsync();
 
+            var cutoff = UtcTimestampAgo(TimeSpan.FromMinutes(BlockDurationMinutes));
             var sql = @"SELECT COUNT(*) FROM login_attempts 
                         WHERE ip_address = @ip 
                         AND success = false 
-                        AND attempted_at > NOW() - INTERVAL '@minutes minutes'";
+                        AND attempted_at > @cutoff";
 
-            var cmdText = sql.Replace("@minutes", BlockDurationMinutes.ToString());
-            await using var cmd = new NpgsqlCommand(cmdText, conn);
+            await using var cmd = new NpgsqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("ip", ipAddress);
+            cmd.Parameters.AddWithValue("cutoff", NpgsqlTypes.NpgsqlDbType.Timestamp, cutoff);
 
             var count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
             return count >= MaxFailedAttempts;
@@ -92,13 +93,14 @@ public class AuthService
             await using var conn = new NpgsqlConnection(ConnectionString);
             await conn.OpenAsync();
 
-            var sql = @"INSERT INTO login_attempts (ip_address, username, success) 
-                        VALUES (@ip, @username, @success)";
+            var sql = @"INSERT INTO login_attempts (ip_address, username, success, attempted_at) 
+                        VALUES (@ip, @username, @success, @attempted_at)";
 
             await using var cmd = new NpgsqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("ip", ipAddress);
             cmd.Parameters.AddWithValue("username", username);
             cmd.Parameters.AddWithValue("success", success);
+            cmd.Parameters.AddWithValue("attempted_at", NpgsqlTypes.NpgsqlDbType.Timestamp, UtcTimestampNow());
 
             await cmd.ExecuteNonQueryAsync();
         }
@@ -135,14 +137,15 @@ public class AuthService
             await using var conn = new NpgsqlConnection(ConnectionString);
             await conn.OpenAsync();
 
+            var cutoff = UtcTimestampAgo(TimeSpan.FromMinutes(BlockDurationMinutes));
             var sql = @"SELECT COUNT(*) FROM login_attempts 
                         WHERE ip_address = @ip 
                         AND success = false 
-                        AND attempted_at > NOW() - INTERVAL '@minutes minutes'";
+                        AND attempted_at > @cutoff";
 
-            var cmdText = sql.Replace("@minutes", BlockDurationMinutes.ToString());
-            await using var cmd = new NpgsqlCommand(cmdText, conn);
+            await using var cmd = new NpgsqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("ip", ipAddress);
+            cmd.Parameters.AddWithValue("cutoff", NpgsqlTypes.NpgsqlDbType.Timestamp, cutoff);
 
             var failedCount = Convert.ToInt32(await cmd.ExecuteScalarAsync());
             return Math.Max(0, MaxFailedAttempts - failedCount);
@@ -156,5 +159,15 @@ public class AuthService
     public string HashPassword(string password)
     {
         return BCrypt.Net.BCrypt.HashPassword(password);
+    }
+
+    private static DateTime UtcTimestampNow()
+    {
+        return DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+    }
+
+    private static DateTime UtcTimestampAgo(TimeSpan retention)
+    {
+        return DateTime.SpecifyKind(DateTime.UtcNow.Subtract(retention), DateTimeKind.Unspecified);
     }
 }

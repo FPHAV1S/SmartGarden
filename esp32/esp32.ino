@@ -9,7 +9,8 @@
 
 const char* ssid = "GardenBrain";
 const char* password = "GardenBrain123";
-const char* wifiHostname = "GardenBrainESP32-C3";
+const char* espDeviceName = "esp32-zone-1";
+const char* wifiHostname = espDeviceName;
 
 // Windows laptop hotspot defaults to the 192.168.137.0/24 network.
 IPAddress localIp(192, 168, 137, 100);
@@ -26,7 +27,20 @@ const char* mqttServer = "192.168.137.1";
 const int mqttPort = 1883;
 const char* valveCommandTopic = "irrigation/zone/+/valve";
 
-const int zoneId = 1;
+const int sensorZoneId = 1;
+
+struct ZoneValveMapping {
+  int zoneId;
+  int valveNumber;
+};
+
+// Add or change rows here when this ESP controls valves for different zones.
+// Commands for zones not listed here are ignored by this ESP.
+const ZoneValveMapping zoneValveMap[] = {
+  { 1, 1 },
+  { 2, 2 }
+};
+
 const unsigned long sendIntervalMs = 5000;
 const uint16_t httpConnectTimeoutMs = 5000;
 const uint16_t httpRequestTimeoutMs = 15000;
@@ -89,7 +103,10 @@ void setup() {
   delay(2000);
 
   Serial.println();
-  Serial.println("GardenBrain ESP32-C3");
+  Serial.print("GardenBrain ESP32-C3 device: ");
+  Serial.println(espDeviceName);
+  Serial.print("Sensor zone: ");
+  Serial.println(sensorZoneId);
   Serial.println("Soil Moisture + BME280 + XY-MOS + MQTT valve commands");
   Serial.println("BME280 I2C pins: SDA GPIO8, SCL GPIO9");
   Serial.println("Serial is alive at 115200 baud.");
@@ -543,7 +560,7 @@ void connectToMqtt() {
     return;
   }
 
-  String clientId = "GardenBrain-esp32-c3-" + String((uint32_t)ESP.getEfuseMac(), HEX);
+  String clientId = String("GardenBrain-") + espDeviceName + "-" + String((uint32_t)ESP.getEfuseMac(), HEX);
 
   Serial.print("Connecting to MQTT broker ");
   Serial.print(mqttServer);
@@ -669,8 +686,17 @@ int valveNumberFromTopic(const char* topic) {
   int end = topicText.length() - suffix.length();
   int commandZoneId = topicText.substring(start, end).toInt();
 
-  // Zone 1 controls MOSFET 1 and Zone 2 controls MOSFET 2 on this ESP32.
-  return commandZoneId;
+  return localValveForZone(commandZoneId);
+}
+
+int localValveForZone(int commandZoneId) {
+  for (size_t i = 0; i < sizeof(zoneValveMap) / sizeof(zoneValveMap[0]); i++) {
+    if (zoneValveMap[i].zoneId == commandZoneId) {
+      return zoneValveMap[i].valveNumber;
+    }
+  }
+
+  return -1;
 }
 
 bool isOpenCommand(String command) {
@@ -901,8 +927,8 @@ void sendReading() {
 
 String buildPayload() {
   String json = "{";
-  json += "\"device\":\"esp32-c3\",";
-  json += "\"zoneId\":" + String(zoneId) + ",";
+  json += "\"device\":\"" + String(espDeviceName) + "\",";
+  json += "\"zoneId\":" + String(sensorZoneId) + ",";
   json += "\"readingCount\":" + String(readingCount) + ",";
   json += "\"temperature\":" + String(temperature, 2) + ",";
   json += "\"humidity\":" + String(humidity, 2) + ",";
@@ -924,7 +950,9 @@ void handleRoot() {
   String html = "<!DOCTYPE html><html><head>";
   html += "<meta charset='utf-8'>";
   html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
-  html += "<title>GardenBrain ESP32-C3</title>";
+  html += "<title>";
+  html += espDeviceName;
+  html += "</title>";
 
   html += "<style>";
   html += "body{font-family:Arial;background:#1a1a1a;color:white;max-width:850px;margin:30px auto;padding:20px;}";
@@ -960,7 +988,9 @@ void handleRoot() {
   html += "</script>";
 
   html += "</head><body>";
-  html += "<h1>GardenBrain ESP32-C3</h1>";
+  html += "<h1>";
+  html += espDeviceName;
+  html += "</h1>";
 
   html += "<div class='card'>";
   html += "<p>Status: <span class='value'>";
@@ -971,6 +1001,9 @@ void handleRoot() {
   html += "</p>";
   html += "<p>ESP32 IP: ";
   html += WiFi.localIP().toString();
+  html += "</p>";
+  html += "<p>Sensor Zone: ";
+  html += String(sensorZoneId);
   html += "</p>";
   html += "<p>API target: ";
   html += apiUrl;
@@ -1037,7 +1070,8 @@ void handleRoot() {
 
 void handleData() {
   String json = "{";
-  json += "\"device\":\"esp32-c3\",";
+  json += "\"device\":\"" + String(espDeviceName) + "\",";
+  json += "\"sensorZoneId\":" + String(sensorZoneId) + ",";
   json += "\"status\":\"" + String(WiFi.status() == WL_CONNECTED ? "online" : "offline") + "\",";
   json += "\"ip\":\"" + WiFi.localIP().toString() + "\",";
   json += "\"ssid\":\"" + String(WiFi.SSID()) + "\",";
@@ -1073,7 +1107,7 @@ void handleValve() {
 
   int valveNumber = server.hasArg("valve")
     ? server.arg("valve").toInt()
-    : server.arg("zone").toInt();
+    : localValveForZone(server.arg("zone").toInt());
 
   String stateArg = server.arg("state");
   stateArg.toLowerCase();

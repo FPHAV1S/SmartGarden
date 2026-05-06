@@ -9,7 +9,7 @@ public class RuleBasedIrrigationDecision
 
 public class IrrigationDecisionResult
 {
-    public DateTime Timestamp { get; set; } = DateTime.Now;
+    public DateTime Timestamp { get; set; } = DateTime.UtcNow;
     public int SensorReadingId { get; set; }
     public int ZoneId { get; set; }
     public float? MoisturePercent { get; set; }

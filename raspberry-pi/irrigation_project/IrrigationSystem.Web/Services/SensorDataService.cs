@@ -7,9 +7,11 @@ public class SensorDataService
 {
     private readonly string ConnectionString;
     private readonly ILogger<SensorDataService> Logger;
+    private readonly SemaphoreSlim ZoneSchemaLock = new(1, 1);
     private readonly SemaphoreSlim SensorSchemaLock = new(1, 1);
     private readonly SemaphoreSlim AiSchemaLock = new(1, 1);
     private readonly SemaphoreSlim WeatherSchemaLock = new(1, 1);
+    private bool ZoneSchemaEnsured;
     private bool SensorSchemaEnsured;
     private bool AiSchemaEnsured;
     private bool WeatherSchemaEnsured;
@@ -33,7 +35,7 @@ public class SensorDataService
 
             var sql = @"
                 SELECT DISTINCT ON (zone_id)
-                    id, zone_id, moisture, temperature, humidity, pressure, recorded_at
+                    id, zone_id, moisture, temperature, humidity, pressure, recorded_at, device
                 FROM sensor_readings
                 ORDER BY zone_id, recorded_at DESC";
 
@@ -50,7 +52,8 @@ public class SensorDataService
                     Temperature = ReadNullableFloat(reader, 3),
                     Humidity = ReadNullableFloat(reader, 4),
                     Pressure = ReadNullableFloat(reader, 5),
-                    RecordedAt = reader.GetDateTime(6)
+                    RecordedAt = reader.GetDateTime(6),
+                    Device = reader.IsDBNull(7) ? null : reader.GetString(7)
                 });
             }
         }
@@ -73,15 +76,18 @@ public class SensorDataService
             await using var conn = new NpgsqlConnection(ConnectionString);
             await conn.OpenAsync();
 
-            var sql = $@"
-                SELECT id, zone_id, moisture, temperature, humidity, pressure, recorded_at
+            var safeHours = Math.Clamp(hours, 1, 168);
+            var cutoff = UtcTimestampAgo(TimeSpan.FromHours(safeHours));
+            var sql = @"
+                SELECT id, zone_id, moisture, temperature, humidity, pressure, recorded_at, device
                 FROM sensor_readings
                 WHERE zone_id = @zone_id 
-                AND recorded_at >= NOW() - INTERVAL '{hours} hours'
+                AND recorded_at >= @cutoff
                 ORDER BY recorded_at ASC";
 
             await using var cmd = new NpgsqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("zone_id", zoneId);
+            cmd.Parameters.AddWithValue("cutoff", NpgsqlTypes.NpgsqlDbType.Timestamp, cutoff);
 
             await using var reader = await cmd.ExecuteReaderAsync();
 
@@ -95,7 +101,8 @@ public class SensorDataService
                     Temperature = ReadNullableFloat(reader, 3),
                     Humidity = ReadNullableFloat(reader, 4),
                     Pressure = ReadNullableFloat(reader, 5),
-                    RecordedAt = reader.GetDateTime(6)
+                    RecordedAt = reader.GetDateTime(6),
+                    Device = reader.IsDBNull(7) ? null : reader.GetString(7)
                 });
             }
         }
@@ -113,10 +120,12 @@ public class SensorDataService
 
         try
         {
+            await EnsureZoneSchemaAsync();
+
             await using var conn = new NpgsqlConnection(ConnectionString);
             await conn.OpenAsync();
 
-            var sql = "SELECT id, name, plant_type, moisture_threshold, is_active FROM zones ORDER BY id";
+            var sql = "SELECT id, name, plant_type, moisture_threshold, is_active, sensor_device_name FROM zones ORDER BY id";
 
             await using var cmd = new NpgsqlCommand(sql, conn);
             await using var reader = await cmd.ExecuteReaderAsync();
@@ -129,7 +138,8 @@ public class SensorDataService
                     Name = reader.GetString(1),
                     PlantType = reader.IsDBNull(2) ? null : reader.GetString(2),
                     MoistureThreshold = reader.GetFloat(3),
-                    IsActive = reader.GetBoolean(4)
+                    IsActive = reader.GetBoolean(4),
+                    SensorDeviceName = reader.IsDBNull(5) ? null : reader.GetString(5)
                 });
             }
         }
@@ -161,16 +171,13 @@ public class SensorDataService
             await conn.OpenAsync();
 
             var sql = @"
-                INSERT INTO zones (name, plant_type, moisture_threshold, is_active)
-                VALUES
-                    ('Zone 1', 'Tomatoes', 30.0, true),
-                    ('Zone 2', 'Herbs', 35.0, true),
-                    ('Zone 3', 'Lettuce', 40.0, true)";
+                INSERT INTO zones (name, plant_type, moisture_threshold, is_active, sensor_device_name)
+                VALUES ('Zone 1', NULL, 30.0, true, 'esp32-zone-1')";
 
             await using var cmd = new NpgsqlCommand(sql, conn);
             await cmd.ExecuteNonQueryAsync();
 
-            Logger.LogInformation("Created default irrigation zones");
+            Logger.LogInformation("Created default irrigation zone");
         }
         catch (Exception ex)
         {
@@ -180,6 +187,100 @@ public class SensorDataService
         return await GetZonesAsync();
     }
 
+    public async Task<Zone?> CreateZoneAsync(
+        string name,
+        string? plantType,
+        float moistureThreshold,
+        bool isActive,
+        string? sensorDeviceName = null)
+    {
+        try
+        {
+            await EnsureZoneSchemaAsync();
+
+            await using var conn = new NpgsqlConnection(ConnectionString);
+            await conn.OpenAsync();
+
+            var sql = @"
+                INSERT INTO zones (name, plant_type, moisture_threshold, is_active, sensor_device_name)
+                VALUES (@name, @plant_type, @moisture_threshold, @is_active, @sensor_device_name)
+                RETURNING id, name, plant_type, moisture_threshold, is_active, sensor_device_name";
+
+            await using var cmd = new NpgsqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("name", name);
+            cmd.Parameters.AddWithValue("plant_type", (object?)plantType ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("moisture_threshold", moistureThreshold);
+            cmd.Parameters.AddWithValue("is_active", isActive);
+            cmd.Parameters.AddWithValue("sensor_device_name", (object?)sensorDeviceName ?? DBNull.Value);
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+            if (await reader.ReadAsync())
+            {
+                var zone = new Zone
+                {
+                    Id = reader.GetInt32(0),
+                    Name = reader.GetString(1),
+                    PlantType = reader.IsDBNull(2) ? null : reader.GetString(2),
+                    MoistureThreshold = reader.GetFloat(3),
+                    IsActive = reader.GetBoolean(4),
+                    SensorDeviceName = reader.IsDBNull(5) ? null : reader.GetString(5)
+                };
+
+                Logger.LogInformation("Created zone {ZoneId}", zone.Id);
+                return zone;
+            }
+
+            Logger.LogWarning("Zone insert did not return a row");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to create zone");
+        }
+
+        return null;
+    }
+
+    public async Task<bool> DeleteZoneAsync(int zoneId)
+    {
+        try
+        {
+            await EnsureAiTablesAsync();
+
+            await using var conn = new NpgsqlConnection(ConnectionString);
+            await conn.OpenAsync();
+            await using var transaction = await conn.BeginTransactionAsync();
+
+            var sql = @"
+                DELETE FROM ai_irrigation_decision_logs WHERE zone_id = @id;
+                DELETE FROM irrigation_events WHERE zone_id = @id;
+                DELETE FROM sensor_readings WHERE zone_id = @id;
+                DELETE FROM zones WHERE id = @id";
+
+            await using var cmd = new NpgsqlCommand(sql, conn, transaction);
+            cmd.Parameters.AddWithValue("id", zoneId);
+            var affectedRows = await cmd.ExecuteNonQueryAsync();
+
+            await transaction.CommitAsync();
+
+            var deleted = affectedRows > 0;
+            if (deleted)
+            {
+                Logger.LogInformation("Deleted zone {ZoneId}", zoneId);
+            }
+            else
+            {
+                Logger.LogWarning("Zone {ZoneId} was not deleted because it does not exist", zoneId);
+            }
+
+            return deleted;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to delete zone {ZoneId}", zoneId);
+            return false;
+        }
+    }
+
     public async Task<int> StartIrrigationEventAsync(int zoneId, string triggerReason, float? moistureBefore)
     {
         try
@@ -187,14 +288,15 @@ public class SensorDataService
             await using var conn = new NpgsqlConnection(ConnectionString);
             await conn.OpenAsync();
 
-            var sql = @"INSERT INTO irrigation_events (zone_id, trigger_reason, moisture_before) 
-                        VALUES (@zone_id, @trigger_reason, @moisture_before) 
+            var sql = @"INSERT INTO irrigation_events (zone_id, trigger_reason, moisture_before, started_at) 
+                        VALUES (@zone_id, @trigger_reason, @moisture_before, @started_at) 
                         RETURNING id";
 
             await using var cmd = new NpgsqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("zone_id", zoneId);
             cmd.Parameters.AddWithValue("trigger_reason", triggerReason);
             cmd.Parameters.AddWithValue("moisture_before", (object?)moistureBefore ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("started_at", NpgsqlTypes.NpgsqlDbType.Timestamp, UtcTimestampNow());
 
             var result = await cmd.ExecuteScalarAsync();
             return Convert.ToInt32(result);
@@ -214,13 +316,14 @@ public class SensorDataService
             await conn.OpenAsync();
 
             var sql = @"UPDATE irrigation_events 
-                        SET ended_at = NOW(), 
+                        SET ended_at = @ended_at, 
                             duration_sec = @duration_sec, 
                             moisture_after = @moisture_after 
                         WHERE id = @id";
 
             await using var cmd = new NpgsqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("id", eventId);
+            cmd.Parameters.AddWithValue("ended_at", NpgsqlTypes.NpgsqlDbType.Timestamp, UtcTimestampNow());
             cmd.Parameters.AddWithValue("duration_sec", durationSec);
             cmd.Parameters.AddWithValue("moisture_after", (object?)moistureAfter ?? DBNull.Value);
 
@@ -231,10 +334,18 @@ public class SensorDataService
             Logger.LogError(ex, "Failed to end irrigation event");
         }
     }
-    public async Task<bool> UpdateZoneAsync(int zoneId, string name, string? plantType, float moistureThreshold, bool isActive)
+    public async Task<bool> UpdateZoneAsync(
+        int zoneId,
+        string name,
+        string? plantType,
+        float moistureThreshold,
+        bool isActive,
+        string? sensorDeviceName = null)
     {
         try
         {
+            await EnsureZoneSchemaAsync();
+
             await using var conn = new NpgsqlConnection(ConnectionString);
             await conn.OpenAsync();
 
@@ -242,7 +353,8 @@ public class SensorDataService
                         SET name = @name, 
                             plant_type = @plant_type, 
                             moisture_threshold = @moisture_threshold, 
-                            is_active = @is_active 
+                            is_active = @is_active,
+                            sensor_device_name = @sensor_device_name
                         WHERE id = @id";
 
             await using var cmd = new NpgsqlCommand(sql, conn);
@@ -251,6 +363,7 @@ public class SensorDataService
             cmd.Parameters.AddWithValue("plant_type", (object?)plantType ?? DBNull.Value);
             cmd.Parameters.AddWithValue("moisture_threshold", moistureThreshold);
             cmd.Parameters.AddWithValue("is_active", isActive);
+            cmd.Parameters.AddWithValue("sensor_device_name", (object?)sensorDeviceName ?? DBNull.Value);
 
             await cmd.ExecuteNonQueryAsync();
             Logger.LogInformation("Updated zone {ZoneId}", zoneId);
@@ -392,11 +505,12 @@ public class SensorDataService
             await using var conn = new NpgsqlConnection(ConnectionString);
             await conn.OpenAsync();
 
-            var sql = @"INSERT INTO system_logs (level, message) VALUES (@level, @message)";
+            var sql = @"INSERT INTO system_logs (level, message, logged_at) VALUES (@level, @message, @logged_at)";
 
             await using var cmd = new NpgsqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("level", level);
             cmd.Parameters.AddWithValue("message", message);
+            cmd.Parameters.AddWithValue("logged_at", NpgsqlTypes.NpgsqlDbType.Timestamp, UtcTimestampNow());
 
             await cmd.ExecuteNonQueryAsync();
         }
@@ -750,7 +864,7 @@ public class SensorDataService
 
             var aiDecision = result.AiDecision;
             await using var cmd = new NpgsqlCommand(sql, conn);
-            cmd.Parameters.AddWithValue("timestamp", result.Timestamp);
+            cmd.Parameters.AddWithValue("timestamp", NpgsqlTypes.NpgsqlDbType.Timestamp, ToPostgresTimestamp(result.Timestamp));
             cmd.Parameters.AddWithValue("sensor_reading_id", result.SensorReadingId > 0 ? (object)result.SensorReadingId : DBNull.Value);
             cmd.Parameters.AddWithValue("zone_id", result.ZoneId);
             cmd.Parameters.AddWithValue("moisture_percent", (object?)result.MoisturePercent ?? DBNull.Value);
@@ -791,10 +905,11 @@ public class SensorDataService
             await using var conn = new NpgsqlConnection(ConnectionString);
             await conn.OpenAsync();
 
-            var sql = @"INSERT INTO pattern_memory (summary, suggested_threshold, average_moisture, notes)
-                        VALUES (@summary, @suggested_threshold, @average_moisture, @notes)";
+            var sql = @"INSERT INTO pattern_memory (created_at, summary, suggested_threshold, average_moisture, notes)
+                        VALUES (@created_at, @summary, @suggested_threshold, @average_moisture, @notes)";
 
             await using var cmd = new NpgsqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("created_at", NpgsqlTypes.NpgsqlDbType.Timestamp, UtcTimestampNow());
             cmd.Parameters.AddWithValue("summary", summary);
             cmd.Parameters.AddWithValue("suggested_threshold", (object?)suggestedThreshold ?? DBNull.Value);
             cmd.Parameters.AddWithValue("average_moisture", (object?)averageMoisture ?? DBNull.Value);
@@ -825,7 +940,7 @@ public class SensorDataService
             await using var conn = new NpgsqlConnection(ConnectionString);
             await conn.OpenAsync();
 
-            var cutoff = DateTime.SpecifyKind(DateTime.Now.Subtract(retention), DateTimeKind.Unspecified);
+            var cutoff = UtcTimestampAgo(retention);
             var sql = @"DELETE FROM sensor_readings
                         WHERE recorded_at < @cutoff";
 
@@ -833,7 +948,7 @@ public class SensorDataService
             cmd.Parameters.AddWithValue("cutoff", NpgsqlTypes.NpgsqlDbType.Timestamp, cutoff);
             var deleted = await cmd.ExecuteNonQueryAsync();
 
-            await LogSystemMessageAsync("INFO", $"Database cleanup: {deleted} sensor readings older than {cutoff:yyyy-MM-dd HH:mm:ss} deleted");
+            await LogSystemMessageAsync("INFO", $"Database cleanup: {deleted} sensor readings older than {FormatLocalTimestamp(cutoff, "yyyy-MM-dd HH:mm:ss")} deleted");
             
             return deleted;
         }
@@ -924,7 +1039,8 @@ public class SensorDataService
         float moisture,
         float temperature,
         float humidity,
-        float? pressure = null)
+        float? pressure = null,
+        string? device = null)
     {
         try
         {
@@ -934,8 +1050,8 @@ public class SensorDataService
             await connection.OpenAsync();
 
             var sql = @"
-                INSERT INTO sensor_readings (zone_id, moisture, temperature, humidity, pressure, recorded_at)
-                VALUES (@zone_id, @moisture, @temperature, @humidity, @pressure, NOW())
+                INSERT INTO sensor_readings (zone_id, moisture, temperature, humidity, pressure, recorded_at, device)
+                VALUES (@zone_id, @moisture, @temperature, @humidity, @pressure, @recorded_at, @device)
                 RETURNING id, recorded_at";
 
             using var command = new NpgsqlCommand(sql, connection);
@@ -944,6 +1060,8 @@ public class SensorDataService
             command.Parameters.AddWithValue("temperature", temperature);
             command.Parameters.AddWithValue("humidity", humidity);
             command.Parameters.AddWithValue("pressure", (object?)pressure ?? DBNull.Value);
+            command.Parameters.AddWithValue("recorded_at", NpgsqlTypes.NpgsqlDbType.Timestamp, UtcTimestampNow());
+            command.Parameters.AddWithValue("device", (object?)device ?? DBNull.Value);
 
             await using var reader = await command.ExecuteReaderAsync();
             if (await reader.ReadAsync())
@@ -956,7 +1074,8 @@ public class SensorDataService
                     Temperature = temperature,
                     Humidity = humidity,
                     Pressure = pressure,
-                    RecordedAt = reader.GetDateTime(1)
+                    RecordedAt = reader.GetDateTime(1),
+                    Device = device
                 };
             }
 
@@ -966,6 +1085,39 @@ public class SensorDataService
         {
             Logger.LogError(ex, "Error inserting sensor reading for zone {ZoneId}", zoneId);
             throw;
+        }
+    }
+
+    private async Task EnsureZoneSchemaAsync()
+    {
+        if (ZoneSchemaEnsured)
+        {
+            return;
+        }
+
+        await ZoneSchemaLock.WaitAsync();
+        try
+        {
+            if (ZoneSchemaEnsured)
+            {
+                return;
+            }
+
+            await using var conn = new NpgsqlConnection(ConnectionString);
+            await conn.OpenAsync();
+
+            var sql = @"
+                ALTER TABLE IF EXISTS zones
+                ADD COLUMN IF NOT EXISTS sensor_device_name character varying(80)";
+
+            await using var cmd = new NpgsqlCommand(sql, conn);
+            await cmd.ExecuteNonQueryAsync();
+
+            ZoneSchemaEnsured = true;
+        }
+        finally
+        {
+            ZoneSchemaLock.Release();
         }
     }
 
@@ -989,7 +1141,10 @@ public class SensorDataService
 
             var sql = @"
                 ALTER TABLE IF EXISTS sensor_readings
-                ADD COLUMN IF NOT EXISTS pressure double precision";
+                ADD COLUMN IF NOT EXISTS pressure double precision;
+
+                ALTER TABLE IF EXISTS sensor_readings
+                ADD COLUMN IF NOT EXISTS device character varying(80)";
 
             await using var cmd = new NpgsqlCommand(sql, conn);
             await cmd.ExecuteNonQueryAsync();
@@ -1454,16 +1609,17 @@ public class SensorDataService
             await using var conn = new NpgsqlConnection(ConnectionString);
             await conn.OpenAsync();
 
-            var sql = @"INSERT INTO watering_blocks (reason, source, active_until) 
-                        VALUES (@reason, @source, @active_until)";
+            var sql = @"INSERT INTO watering_blocks (reason, source, active_until, created_at) 
+                        VALUES (@reason, @source, @active_until, @created_at)";
             
             await using var cmd = new NpgsqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("reason", reason);
             cmd.Parameters.AddWithValue("source", source);
-            cmd.Parameters.AddWithValue("active_until", activeUntil);
+            cmd.Parameters.AddWithValue("active_until", NpgsqlTypes.NpgsqlDbType.Timestamp, ToPostgresTimestamp(activeUntil));
+            cmd.Parameters.AddWithValue("created_at", NpgsqlTypes.NpgsqlDbType.Timestamp, UtcTimestampNow());
 
             await cmd.ExecuteNonQueryAsync();
-            await LogSystemMessageAsync("INFO", $"Watering blocked until {activeUntil:MM/dd HH:mm} via {source}. Reason: {reason}");
+            await LogSystemMessageAsync("INFO", $"Watering blocked until {FormatLocalTimestamp(activeUntil, "MM/dd HH:mm")} via {source}. Reason: {reason}");
         }
         catch (Exception ex)
         {
@@ -1481,11 +1637,12 @@ public class SensorDataService
 
             var sql = @"SELECT id, reason, source, active_until, created_at 
                         FROM watering_blocks 
-                        WHERE active_until > NOW() 
+                        WHERE active_until > @now 
                         ORDER BY active_until DESC 
                         LIMIT 1";
             
             await using var cmd = new NpgsqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("now", NpgsqlTypes.NpgsqlDbType.Timestamp, UtcTimestampNow());
             await using var reader = await cmd.ExecuteReaderAsync();
             
             if (await reader.ReadAsync())
@@ -1562,5 +1719,27 @@ public class SensorDataService
             ExpectedRainMmThreshold = Math.Clamp(settings.ExpectedRainMmThreshold, 0, 100),
             ConfirmedWeatherPauseHours = Math.Clamp(settings.ConfirmedWeatherPauseHours, 1, 72)
         };
+    }
+
+    private static DateTime UtcTimestampNow()
+    {
+        return DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+    }
+
+    private static DateTime UtcTimestampAgo(TimeSpan retention)
+    {
+        return DateTime.SpecifyKind(DateTime.UtcNow.Subtract(retention), DateTimeKind.Unspecified);
+    }
+
+    private static DateTime ToPostgresTimestamp(DateTime value)
+    {
+        return DateTime.SpecifyKind(value, DateTimeKind.Unspecified);
+    }
+
+    private static string FormatLocalTimestamp(DateTime utcTime, string format)
+    {
+        return DateTime.SpecifyKind(utcTime, DateTimeKind.Utc)
+            .ToLocalTime()
+            .ToString(format);
     }
 }

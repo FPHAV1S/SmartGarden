@@ -18,11 +18,13 @@ var tests = new TestCase[]
     new("Invalid AI JSON falls back to rules", Tests.InvalidAiJsonFallsBackToRules),
     new("High moisture safety blocks watering", Tests.HighMoistureSafetyBlocksWatering),
     new("AI duration is clamped to max safety limit", Tests.AiDurationIsClampedToMaxSafetyLimit),
+    new("Zero-duration watering decisions are forced off", Tests.ZeroDurationWateringDecisionsAreForcedOff),
     new("Low AI confidence falls back to rules", Tests.LowAiConfidenceFallsBackToRules),
     new("Watering cooldown blocks repeated automatic watering when enabled", Tests.WateringCooldownBlocksRepeatedAutomaticWateringWhenEnabled),
     new("Watering cooldown can be disabled", Tests.WateringCooldownCanBeDisabled),
     new("API failure falls back to rules", Tests.ApiFailureFallsBackToRules),
     new("Open-Meteo hourly JSON maps to weather model", Tests.OpenMeteoHourlyJsonMapsToWeatherModel),
+    new("Weather forecast exposes temperature for verification", Tests.WeatherForecastExposesTemperatureForVerification),
     new("Weather forecast safety blocks automatic watering", Tests.WeatherForecastSafetyBlocksAutomaticWatering),
     new("Database schema contains required tables", Tests.DatabaseSchemaContainsRequiredTables),
     new("Web appsettings uses the expected local database", Tests.WebAppSettingsUseExpectedDatabase),
@@ -30,7 +32,10 @@ var tests = new TestCase[]
     new("Setup and docs use postgres as the default web user", Tests.SetupAndDocsUsePostgresWebLogin),
     new("Dashboard moisture bar uses CSS-safe percentages", Tests.DashboardMoistureBarUsesCssSafePercentages),
     new("History chart averages dense readings", Tests.HistoryChartAveragesDenseReadings),
+    new("Zone management uses configured zones and supports creation", Tests.ZoneManagementUsesConfiguredZonesAndSupportsCreation),
     new("Database cleanup supports one-second retention", Tests.DatabaseCleanupSupportsOneSecondRetention),
+    new("History and login cutoffs are parameterized", Tests.HistoryAndLoginCutoffsAreParameterized),
+    new("Generated build outputs are ignored", Tests.GeneratedBuildOutputsAreIgnored),
     new("Settings page exposes AI management", Tests.SettingsPageExposesAiManagement),
     new("ESP32 sketch posts to the web sensor API", Tests.Esp32SketchPostsToWebSensorApi),
     new("ESP32 sketch subscribes to web valve commands", Tests.Esp32SketchSubscribesToWebValveCommands),
@@ -200,6 +205,19 @@ internal static class Tests
         return Task.CompletedTask;
     }
 
+    public static Task ZeroDurationWateringDecisionsAreForcedOff()
+    {
+        var aiDecision = CreateAiDecision(shouldWater: true, durationSeconds: 0, confidence: 0.95);
+        var result = ApplySafety(aiDecision, moisture: 20);
+
+        Assert.False(result.FinalShouldWaterAfterSafety, "Safety should not allow an ON decision with zero duration.");
+        Assert.Equal("OFF", result.RecommendedValveState, "Zero-duration watering should force the valve off.");
+        Assert.Equal(0, result.RecommendedDurationSeconds, "Zero-duration watering should keep duration at zero.");
+        Assert.Contains("recommended duration was 0 seconds", result.SafetyNotes);
+
+        return Task.CompletedTask;
+    }
+
     public static Task LowAiConfidenceFallsBackToRules()
     {
         var aiDecision = CreateAiDecision(shouldWater: false, durationSeconds: 0, confidence: 0.2);
@@ -220,7 +238,7 @@ internal static class Tests
             {
                 Id = 25,
                 ZoneId = 1,
-                StartedAt = DateTime.Now.AddMinutes(-10),
+                StartedAt = DateTime.UtcNow.AddMinutes(-10),
                 DurationSec = 10,
                 TriggerReason = "Auto"
             }
@@ -244,7 +262,7 @@ internal static class Tests
             {
                 Id = 26,
                 ZoneId = 1,
-                StartedAt = DateTime.Now.AddMinutes(-10),
+                StartedAt = DateTime.UtcNow.AddMinutes(-10),
                 DurationSec = 10,
                 TriggerReason = "Auto"
             }
@@ -282,6 +300,7 @@ internal static class Tests
           "timezone": "Europe/Sofia",
           "hourly": {
             "time": ["2026-05-05T12:00"],
+            "temperature_2m": [24.6],
             "precipitation_probability": [82],
             "precipitation": [3.4],
             "rain": [2.1],
@@ -296,8 +315,47 @@ internal static class Tests
         Assert.Equal("Europe/Sofia", forecast?.Timezone, "Timezone should map from Open-Meteo JSON.");
         Assert.Equal(1, forecast?.Hourly.PrecipitationProbability.Count ?? 0, "Precipitation probability should map from snake_case JSON.");
         Assert.Equal(82d, forecast!.Hourly.PrecipitationProbability[0], "Rain probability should be preserved.");
+        Assert.Equal(24.6d, forecast.Hourly.Temperature2m[0], "Hourly forecast temperature should map from temperature_2m JSON.");
         Assert.Equal(3.4d, forecast.Hourly.Precipitation[0], "Expected precipitation should be preserved.");
         Assert.Equal(61, forecast.Hourly.WeatherCode[0], "Weather code should be preserved.");
+
+        return Task.CompletedTask;
+    }
+
+    public static Task WeatherForecastExposesTemperatureForVerification()
+    {
+        var weatherService = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Services",
+            "WeatherForecastService.cs"));
+        var weatherModels = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Models",
+            "WeatherModels.cs"));
+        var settingsPage = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Pages",
+            "Settings.razor"));
+        var dashboardPage = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Pages",
+            "Index.razor"));
+
+        Assert.Contains("temperature_2m,precipitation_probability", weatherService);
+        Assert.Contains("Temperature2m", weatherModels);
+        Assert.Contains("CurrentTemperatureC", weatherModels);
+        Assert.Contains("AverageTemperatureC", weatherModels);
+        Assert.Contains("Forecast temperature now:", settingsPage);
+        Assert.Contains("Range: @FormatTemperatureRange", settingsPage);
+        Assert.Contains("Forecast Temp:", dashboardPage);
 
         return Task.CompletedTask;
     }
@@ -350,6 +408,8 @@ internal static class Tests
         Assert.Contains("FOREIGN KEY (zone_id) REFERENCES public.zones(id)", schema);
         Assert.Contains("users_username_key UNIQUE (username)", schema);
         Assert.Contains("pressure double precision", schema);
+        Assert.Contains("sensor_device_name character varying(80)", schema);
+        Assert.Contains("device character varying(80)", schema);
         Assert.Contains("OPENAI_API_KEY", File.ReadAllText(FindRepoFile("README.md")));
 
         return Task.CompletedTask;
@@ -473,6 +533,66 @@ internal static class Tests
         return Task.CompletedTask;
     }
 
+    public static Task ZoneManagementUsesConfiguredZonesAndSupportsCreation()
+    {
+        var historyPage = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Pages",
+            "History.razor"));
+        var settingsPage = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Pages",
+            "Settings.razor"));
+        var zonesPage = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Pages",
+            "Zones.razor"));
+        var dataService = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Services",
+            "SensorDataService.cs"));
+
+        Assert.Contains("Zones = await DataService.GetZonesAsync()", historyPage);
+        Assert.Contains("@foreach (var zone in Zones)", historyPage);
+        Assert.Contains("disabled=\"@(Zones.Count == 0)\"", historyPage);
+        Assert.Contains("RefreshHistory", historyPage);
+        Assert.False(historyPage.Contains("<option value=\"2\">Zone 2</option>"), "History zone filter should come from configured zones.");
+        Assert.False(historyPage.Contains("<option value=\"3\">Zone 3</option>"), "History zone filter should come from configured zones.");
+
+        Assert.Contains("TotalZones = (await DataService.GetZonesAsync()).Count", settingsPage);
+        Assert.False(settingsPage.Contains("<span class=\"info-value\">3</span>"), "System information should not hardcode three zones.");
+
+        Assert.Contains("Add Zone", zonesPage);
+        Assert.Contains("Sensor ESP Name", zonesPage);
+        Assert.Contains("@bind=\"zone.SensorDeviceName\"", zonesPage);
+        Assert.Contains("@bind=\"NewZone.SensorDeviceName\"", zonesPage);
+        Assert.Contains("CreateZoneAsync", zonesPage);
+        Assert.Contains("DeleteZone", zonesPage);
+        Assert.Contains("Delete this zone and its history?", zonesPage);
+        Assert.Contains("Zone name is required.", zonesPage);
+        Assert.Contains("ResetNewZone", zonesPage);
+
+        Assert.Contains("CreateZoneAsync", dataService);
+        Assert.Contains("DeleteZoneAsync", dataService);
+        Assert.Contains("DELETE FROM sensor_readings WHERE zone_id = @id", dataService);
+        Assert.Contains("DELETE FROM zones WHERE id = @id", dataService);
+        Assert.Contains("sensor_device_name", dataService);
+        Assert.Contains("RETURNING id, name, plant_type, moisture_threshold, is_active, sensor_device_name", dataService);
+        Assert.Contains("VALUES ('Zone 1', NULL, 30.0, true, 'esp32-zone-1')", dataService);
+        Assert.False(dataService.Contains("('Zone 2'"), "Default seeding should create only one starter zone.");
+        Assert.False(dataService.Contains("('Zone 3'"), "Default seeding should create only one starter zone.");
+
+        return Task.CompletedTask;
+    }
+
     public static Task DatabaseCleanupSupportsOneSecondRetention()
     {
         var settingsPage = File.ReadAllText(FindRepoFile(
@@ -497,6 +617,42 @@ internal static class Tests
         Assert.Contains("NpgsqlDbType.Timestamp", dataService);
         Assert.Contains("recorded_at < @cutoff", dataService);
         Assert.False(dataService.Contains("INTERVAL '{daysToKeep} days'"), "Database cleanup should use a parameterized cutoff timestamp.");
+
+        return Task.CompletedTask;
+    }
+
+    public static Task HistoryAndLoginCutoffsAreParameterized()
+    {
+        var dataService = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Services",
+            "SensorDataService.cs"));
+        var authService = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Services",
+            "AuthService.cs"));
+
+        Assert.Contains("Math.Clamp(hours, 1, 168)", dataService);
+        Assert.Contains("recorded_at >= @cutoff", dataService);
+        Assert.False(dataService.Contains("INTERVAL '{hours} hours'"), "History lookup should use a parameterized cutoff timestamp.");
+        Assert.Contains("attempted_at > @cutoff", authService);
+        Assert.False(authService.Contains("INTERVAL '@minutes minutes'"), "Login throttling should use a parameterized cutoff timestamp.");
+        Assert.False(authService.Contains("Replace(\"@minutes\""), "Login throttling should not build interval SQL by replacement.");
+
+        return Task.CompletedTask;
+    }
+
+    public static Task GeneratedBuildOutputsAreIgnored()
+    {
+        var gitignore = File.ReadAllText(FindRepoFile(".gitignore"));
+
+        Assert.Contains("**/bin/", gitignore);
+        Assert.Contains("**/obj/", gitignore);
+        Assert.Contains("**/.test-bin/", gitignore);
 
         return Task.CompletedTask;
     }
@@ -590,8 +746,11 @@ internal static class Tests
 
         Assert.Contains("const char* ssid = \"GardenBrain\";", sketch);
         Assert.Contains("const char* password = \"GardenBrain123\";", sketch);
+        Assert.Contains("const char* espDeviceName = \"esp32-zone-1\";", sketch);
+        Assert.Contains("const int sensorZoneId = 1;", sketch);
         Assert.Contains("IPAddress localIp(192, 168, 137, 100);", sketch);
         Assert.Contains("http://192.168.137.1:5000/api/sensor-readings", sketch);
+        Assert.Contains("\\\"device\\\":\\\"\" + String(espDeviceName)", sketch);
         Assert.Contains("\\\"zoneId\\\"", sketch);
         Assert.Contains("\\\"temperature\\\"", sketch);
         Assert.Contains("\\\"humidity\\\"", sketch);
@@ -610,6 +769,9 @@ internal static class Tests
 
         Assert.Contains("#include <PubSubClient.h>", sketch);
         Assert.Contains("irrigation/zone/+/valve", sketch);
+        Assert.Contains("ZoneValveMapping", sketch);
+        Assert.Contains("zoneValveMap", sketch);
+        Assert.Contains("localValveForZone(commandZoneId)", sketch);
         Assert.Contains("\\\"action\\\":\\\"open\\\"", sketch);
         Assert.Contains("openValveForDuration", sketch);
         Assert.Contains("setValve(1, false)", sketch);
@@ -647,6 +809,10 @@ internal static class Tests
 
         Assert.Contains("IValveCommandService", mqttService);
         Assert.Contains("SensorReadingDecisionQueue", apiController);
+        Assert.Contains("SensorDeviceMatchesZone", apiController);
+        Assert.Contains("device must be 80 characters or fewer", apiController);
+        Assert.Contains("expects sensor device", apiController);
+        Assert.Contains("device = deviceName", apiController);
         Assert.Contains("DecisionQueue.TryQueue", apiController);
         Assert.Contains("IValveCommandService", decisionQueue);
         Assert.Contains("TryApplyWateringDecisionAsync", decisionQueue);
@@ -767,7 +933,7 @@ internal static class Tests
             Moisture = moisture,
             Temperature = 24,
             Humidity = 60,
-            RecordedAt = DateTime.Now
+            RecordedAt = DateTime.UtcNow
         };
         var zone = new Zone
         {

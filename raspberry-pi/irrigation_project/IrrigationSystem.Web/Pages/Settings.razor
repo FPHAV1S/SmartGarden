@@ -289,10 +289,10 @@
             @if (LatestAiApiCheck != null)
             {
                 <div class="@(LatestAiApiCheck.IsSuccess ? "success-message" : "warning-message")">
-                    @LatestAiApiCheck.CheckedAt.ToString("HH:mm:ss") - @LatestAiApiCheck.Message
-                    @if (LatestAiApiCheck.RetryAfter.HasValue && LatestAiApiCheck.RetryAfter.Value > DateTime.Now)
+                    @FormatLocalTime(LatestAiApiCheck.CheckedAt, "HH:mm:ss") - @LatestAiApiCheck.Message
+                    @if (LatestAiApiCheck.RetryAfter.HasValue && LatestAiApiCheck.RetryAfter.Value > DateTime.UtcNow)
                     {
-                        <span> Next automatic retry after @LatestAiApiCheck.RetryAfter.Value.ToString("HH:mm").</span>
+                        <span> Next automatic retry after @FormatLocalTime(LatestAiApiCheck.RetryAfter.Value, "HH:mm").</span>
                     }
                 </div>
             }
@@ -374,7 +374,12 @@
                         Expected rain: @LatestWeatherAdvice.ExpectedRainMm.ToString("F1", CultureInfo.InvariantCulture) mm &nbsp;|&nbsp;
                         Lookahead: @LatestWeatherAdvice.LookaheadHours hours
                     </p>
-                    <p>Last updated: @LatestWeatherAdvice.LastUpdated.ToString("g")</p>
+                    <p>
+                        Forecast temperature now: @FormatTemperature(LatestWeatherAdvice.CurrentTemperatureC) &nbsp;|&nbsp;
+                        Average: @FormatTemperature(LatestWeatherAdvice.AverageTemperatureC) &nbsp;|&nbsp;
+                        Range: @FormatTemperatureRange(LatestWeatherAdvice.MinTemperatureC, LatestWeatherAdvice.MaxTemperatureC)
+                    </p>
+                    <p>Last updated: @FormatLocalTime(LatestWeatherAdvice.LastUpdated, "g")</p>
                 </div>
             }
         }
@@ -430,7 +435,7 @@
                 @foreach (var log in SystemLogs)
                 {
                     <div class="log-entry @log.Level.ToLower()">
-                        <span class="log-time">@log.LoggedAt.ToString("MM/dd HH:mm:ss")</span>
+                        <span class="log-time">@FormatLocalTime(log.LoggedAt, "MM/dd HH:mm:ss")</span>
                         <span class="log-level">[@log.Level]</span>
                         <span class="log-message">@log.Message</span>
                     </div>
@@ -467,7 +472,7 @@
         <div class="info-grid">
             <div class="info-item">
                 <span class="info-label">Total Zones:</span>
-                <span class="info-value">3</span>
+                <span class="info-value">@TotalZones</span>
             </div>
             <div class="info-item">
                 <span class="info-label">Database:</span>
@@ -508,6 +513,7 @@
     private WeatherWateringAdvice? LatestWeatherAdvice;
 
     private bool IsDemoMode = false;
+    private int TotalZones = 0;
 
     private int CleanupRetentionSeconds = 30 * 24 * 60 * 60;
     private int DeletedRecords = 0;
@@ -519,6 +525,7 @@
         await LoadSettings();
         await LoadAiSettings();
         await LoadWeatherSettings();
+        await LoadZones();
         await LoadLogs();
 
         IsDemoMode = DemoService.IsDemoMode;
@@ -536,6 +543,11 @@
         {
             SystemConfig = new SystemSettings();
         }
+    }
+
+    private async Task LoadZones()
+    {
+        TotalZones = (await DataService.GetZonesAsync()).Count;
     }
 
     private async Task LoadAiSettings()
@@ -590,7 +602,14 @@
         }
 
         var mode = LatestAiDecision.AiWasAttempted ? "AI" : "Fallback";
-        return $"{mode} {LatestAiDecision.Timestamp:MM/dd HH:mm}";
+        return $"{mode} {FormatLocalTime(LatestAiDecision.Timestamp, "MM/dd HH:mm")}";
+    }
+
+    private static string FormatLocalTime(DateTime utcTime, string format)
+    {
+        return DateTime.SpecifyKind(utcTime, DateTimeKind.Utc)
+            .ToLocalTime()
+            .ToString(format);
     }
 
     private async Task SaveAiSettings()
@@ -697,6 +716,20 @@
         settings.RainLookaheadHours = Math.Clamp(settings.RainLookaheadHours, 1, 48);
         settings.ExpectedRainMmThreshold = Math.Clamp(settings.ExpectedRainMmThreshold, 0, 100);
         settings.ConfirmedWeatherPauseHours = Math.Clamp(settings.ConfirmedWeatherPauseHours, 1, 72);
+    }
+
+    private static string FormatTemperature(float? temperature)
+    {
+        return temperature.HasValue
+            ? $"{temperature.Value.ToString("F1", CultureInfo.InvariantCulture)} C"
+            : "Unavailable";
+    }
+
+    private static string FormatTemperatureRange(float? minTemperature, float? maxTemperature)
+    {
+        return minTemperature.HasValue && maxTemperature.HasValue
+            ? $"{FormatTemperature(minTemperature)} to {FormatTemperature(maxTemperature)}"
+            : "Unavailable";
     }
 
     private async Task TestAiApi()

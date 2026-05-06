@@ -74,7 +74,7 @@ public class IrrigationDecisionService
         }
         else if (activeApiPause != null)
         {
-            aiErrorMessage = $"{activeApiPause.Message} Next automatic AI retry after {activeApiPause.RetryAfter:HH:mm}.";
+            aiErrorMessage = $"{activeApiPause.Message} Next automatic AI retry after {FormatLocalTime(activeApiPause.RetryAfter)}.";
         }
         else if (await IsAiCallCoolingDownAsync(settings))
         {
@@ -174,7 +174,14 @@ public class IrrigationDecisionService
             return false;
         }
 
-        return DateTime.Now - latestAttempt.Timestamp < TimeSpan.FromMinutes(settings.MinimumMinutesBetweenAiCalls);
+        return DateTime.UtcNow - latestAttempt.Timestamp < TimeSpan.FromMinutes(settings.MinimumMinutesBetweenAiCalls);
+    }
+
+    private static string FormatLocalTime(DateTime? utcTime)
+    {
+        return utcTime.HasValue
+            ? DateTime.SpecifyKind(utcTime.Value, DateTimeKind.Utc).ToLocalTime().ToString("HH:mm")
+            : "unknown";
     }
 
     private async Task TrySavePatternMemoryAsync(

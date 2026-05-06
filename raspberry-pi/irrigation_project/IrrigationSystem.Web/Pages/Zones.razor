@@ -13,56 +13,165 @@
     }
     else
     {
-        <div class="zones-list">
-            @foreach (var zone in ZonesList)
-            {
-                <div class="zone-edit-card">
-                    <div class="zone-edit-header">
-                        <h4>Zone @zone.Id</h4>
-                        <div class="zone-status">
-                            <label class="toggle-switch">
-                                <input type="checkbox" @bind="zone.IsActive" @bind:after="() => SaveZone(zone)" />
-                                <span class="toggle-slider"></span>
-                            </label>
-                            <span class="status-text">@(zone.IsActive ? "Active" : "Inactive")</span>
-                        </div>
-                    </div>
-
-                    <div class="zone-edit-form">
-                        <div class="form-group">
-                            <label>Zone Name</label>
-                            <input type="text" @bind="zone.Name" @bind:after="() => SaveZone(zone)" class="form-input" />
-                        </div>
-
-                        <div class="form-group">
-                            <label>Plant Type</label>
-                            <input type="text" @bind="zone.PlantType" @bind:after="() => SaveZone(zone)" class="form-input" placeholder="e.g., Tomatoes, Basil" />
-                        </div>
-
-                        <div class="form-group">
-                            <label>Moisture Threshold (%)</label>
-                            <div class="threshold-control">
-                                <input type="range" min="10" max="80" step="1" @bind="zone.MoistureThreshold" @bind:after="() => SaveZone(zone)" class="threshold-slider" />
-                                <span class="threshold-value">@zone.MoistureThreshold.ToString("F0")%</span>
+        @if (ZonesList.Count == 0)
+        {
+            <p class="empty-zones">No zones configured yet.</p>
+        }
+        else
+        {
+            <div class="zones-list">
+                @foreach (var zone in ZonesList)
+                {
+                    <div class="zone-edit-card">
+                        <div class="zone-edit-header">
+                            <h4>Zone @zone.Id</h4>
+                            <div class="zone-card-actions" style="display: flex; flex-direction: column; align-items: flex-end; gap: 18px; min-width: 150px;">
+                                <div class="zone-delete-row">
+                                    <button type="button" class="btn-danger-small" @onclick="() => ShowDeleteConfirmation(zone.Id)" disabled="@(DeletingZoneId == zone.Id)">
+                                        Delete
+                                    </button>
+                                </div>
+                                <div class="zone-status">
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" @bind="zone.IsActive" @bind:after="() => SaveZone(zone)" />
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                    <span class="status-text">@(zone.IsActive ? "Active" : "Inactive")</span>
+                                </div>
                             </div>
-                            <small>Water when moisture drops below this level</small>
                         </div>
+
+                        <div class="zone-edit-form">
+                            <div class="form-group">
+                                <label>Zone Name</label>
+                                <input type="text" @bind="zone.Name" @bind:after="() => SaveZone(zone)" class="form-input" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Plant Type</label>
+                                <input type="text" @bind="zone.PlantType" @bind:after="() => SaveZone(zone)" class="form-input" placeholder="e.g., Tomatoes, Basil" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Sensor ESP Name</label>
+                                <input type="text" @bind="zone.SensorDeviceName" @bind:after="() => SaveZone(zone)" class="form-input" placeholder="e.g., esp32-zone-1" />
+                                <small>Only this ESP name may post readings for this zone. Leave blank to accept any ESP.</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Moisture Threshold (%)</label>
+                                <div class="threshold-control">
+                                    <input type="range" min="10" max="80" step="1" @bind="zone.MoistureThreshold" @bind:after="() => SaveZone(zone)" class="threshold-slider" />
+                                    <span class="threshold-value">@zone.MoistureThreshold.ToString("F0")%</span>
+                                </div>
+                                <small>Water when moisture drops below this level</small>
+                            </div>
+                        </div>
+
+                        @if (SavedZoneId == zone.Id)
+                        {
+                            <div class="save-indicator">Saved</div>
+                        }
+
+                        @if (DeleteConfirmZoneId == zone.Id)
+                        {
+                            <div class="delete-confirmation">
+                                <span>Delete this zone and its history?</span>
+                                <div class="delete-confirmation-actions">
+                                    <button type="button" class="btn-danger-small" @onclick="() => DeleteZone(zone.Id)" disabled="@(DeletingZoneId == zone.Id)">
+                                        @(DeletingZoneId == zone.Id ? "Deleting..." : "Delete")
+                                    </button>
+                                    <button type="button" class="btn-link-small" @onclick="CancelDelete" disabled="@(DeletingZoneId == zone.Id)">
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+
+        <div class="zone-create-spacer" style="height: 112px;" aria-hidden="true"></div>
+
+        <section class="zone-create-section">
+            <div class="zone-create-divider"></div>
+
+            <div class="zone-create-panel">
+                <div class="zone-create-header">
+                    <h4>Add Zone</h4>
+                    <label class="zone-status zone-create-status">
+                        <span class="status-text">@(NewZone.IsActive ? "Active" : "Inactive")</span>
+                        <span class="toggle-switch">
+                            <input type="checkbox" @bind="NewZone.IsActive" />
+                            <span class="toggle-slider"></span>
+                        </span>
+                    </label>
+                </div>
+
+                <div class="zone-create-form">
+                    <div class="form-group">
+                        <label>Zone Name</label>
+                        <input type="text" @bind="NewZone.Name" class="form-input" maxlength="50" />
                     </div>
 
-                    @if (SavedZoneId == zone.Id)
-                    {
-                        <div class="save-indicator">✓ Saved</div>
-                    }
+                    <div class="form-group">
+                        <label>Plant Type</label>
+                        <input type="text" @bind="NewZone.PlantType" class="form-input" maxlength="50" placeholder="e.g., Tomatoes, Basil" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Sensor ESP Name</label>
+                        <input type="text" @bind="NewZone.SensorDeviceName" class="form-input" maxlength="80" placeholder="e.g., esp32-zone-2" />
+                        <small>Must match the device name configured in the ESP32 sketch.</small>
+                    </div>
+
+                    <div class="form-group zone-create-threshold">
+                        <label>Moisture Threshold (%)</label>
+                        <div class="threshold-control">
+                            <input type="range" min="10" max="80" step="1" @bind="NewZone.MoistureThreshold" class="threshold-slider" />
+                            <span class="threshold-value">@NewZone.MoistureThreshold.ToString("F0")%</span>
+                        </div>
+                        <small>Water when moisture drops below this level</small>
+                    </div>
                 </div>
-            }
-        </div>
+
+                <div class="zone-create-actions">
+                    <button type="button" class="btn-primary zone-create-button" @onclick="AddZone" disabled="@IsAddingZone">
+                        @(IsAddingZone ? "Adding..." : "Add Zone")
+                    </button>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(AddZoneError))
+                {
+                    <div class="warning-message">@AddZoneError</div>
+                }
+
+                @if (AddZoneSaved)
+                {
+                    <div class="success-message">Zone added.</div>
+                }
+            </div>
+        </section>
+
+        @if (!string.IsNullOrWhiteSpace(DeleteZoneError))
+        {
+            <div class="warning-message">@DeleteZoneError</div>
+        }
     }
 </div>
 
 @code {
     private List<Zone> ZonesList = new();
+    private Zone NewZone = new();
     private bool IsLoading = true;
+    private bool IsAddingZone = false;
+    private bool AddZoneSaved = false;
     private int SavedZoneId = 0;
+    private int DeleteConfirmZoneId = 0;
+    private int DeletingZoneId = 0;
+    private string? AddZoneError;
+    private string? DeleteZoneError;
 
     protected override async Task OnInitializedAsync()
     {
@@ -73,12 +182,19 @@
     {
         IsLoading = true;
         ZonesList = await DataService.GetZonesAsync();
+        ResetNewZone();
         IsLoading = false;
     }
 
     private async Task SaveZone(Zone zone)
     {
-        var success = await DataService.UpdateZoneAsync(zone.Id, zone.Name, zone.PlantType, zone.MoistureThreshold, zone.IsActive);
+        var success = await DataService.UpdateZoneAsync(
+            zone.Id,
+            zone.Name,
+            NormalizeOptionalText(zone.PlantType),
+            zone.MoistureThreshold,
+            zone.IsActive,
+            NormalizeOptionalText(zone.SensorDeviceName));
         
         if (success)
         {
@@ -86,5 +202,108 @@
             await Task.Delay(2000);
             SavedZoneId = 0;
         }
+    }
+
+    private async Task AddZone()
+    {
+        AddZoneError = null;
+        AddZoneSaved = false;
+
+        var name = (NewZone.Name ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            AddZoneError = "Zone name is required.";
+            return;
+        }
+
+        IsAddingZone = true;
+
+        try
+        {
+            var createdZone = await DataService.CreateZoneAsync(
+                name,
+                NormalizeOptionalText(NewZone.PlantType),
+                Math.Clamp(NewZone.MoistureThreshold, 10, 80),
+                NewZone.IsActive,
+                NormalizeOptionalText(NewZone.SensorDeviceName));
+
+            if (createdZone == null)
+            {
+                AddZoneError = "Zone could not be added. Check the database connection and logs.";
+                return;
+            }
+
+            ZonesList.Add(createdZone);
+            ResetNewZone();
+            SavedZoneId = createdZone.Id;
+            DeleteConfirmZoneId = 0;
+            DeleteZoneError = null;
+            AddZoneSaved = true;
+            await Task.Delay(2000);
+            AddZoneSaved = false;
+            SavedZoneId = 0;
+        }
+        finally
+        {
+            IsAddingZone = false;
+        }
+    }
+
+    private void ShowDeleteConfirmation(int zoneId)
+    {
+        DeleteZoneError = null;
+        DeleteConfirmZoneId = zoneId;
+    }
+
+    private void CancelDelete()
+    {
+        DeleteConfirmZoneId = 0;
+    }
+
+    private async Task DeleteZone(int zoneId)
+    {
+        DeletingZoneId = zoneId;
+        DeleteZoneError = null;
+
+        try
+        {
+            var deleted = await DataService.DeleteZoneAsync(zoneId);
+            if (!deleted)
+            {
+                DeleteZoneError = "Zone could not be deleted. Check the database connection and logs.";
+                return;
+            }
+
+            ZonesList.RemoveAll(zone => zone.Id == zoneId);
+            DeleteConfirmZoneId = 0;
+            SavedZoneId = 0;
+            ResetNewZone();
+        }
+        finally
+        {
+            DeletingZoneId = 0;
+        }
+    }
+
+    private void ResetNewZone()
+    {
+        var nextZoneNumber = ZonesList.Count == 0
+            ? 1
+            : ZonesList.Max(zone => zone.Id) + 1;
+
+        NewZone = new Zone
+        {
+            Name = $"Zone {nextZoneNumber}",
+            SensorDeviceName = $"esp32-zone-{nextZoneNumber}",
+            MoistureThreshold = 30,
+            IsActive = true
+        };
+    }
+
+    private static string? NormalizeOptionalText(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? null
+            : value.Trim();
     }
 }

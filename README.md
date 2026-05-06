@@ -345,6 +345,20 @@ After upload, the ESP32:
 - subscribes to MQTT topic `irrigation/zone/+/valve` so dashboard and
   auto-watering commands can drive the valve pins.
 
+Each ESP32 should have a unique `espDeviceName` in `esp32/esp32.ino`, for
+example `esp32-zone-1` or `esp32-greenhouse`. The Zones page has a matching
+Sensor ESP Name field. When that field is filled in, `/api/sensor-readings`
+only accepts readings for that zone from the matching ESP name.
+
+When adding another ESP32, change these sketch values before flashing it:
+
+- `espDeviceName`, which must match the zone's Sensor ESP Name;
+- `localIp`, so two boards do not use the same static IP;
+- `sensorZoneId`, which is the zone that board's soil sensor reports for;
+- `zoneValveMap`, which maps dashboard zone IDs to this board's local valve
+  numbers. MQTT valve commands for zones not listed in `zoneValveMap` are
+  ignored by that ESP.
+
 ## API Endpoints
 
 Main endpoints exposed by `IrrigationSystem.Web`:
@@ -363,7 +377,7 @@ Example sensor payload:
 
 ```json
 {
-  "device": "esp32-c3",
+  "device": "esp32-zone-1",
   "zoneId": 1,
   "readingCount": 42,
   "temperature": 24.5,
@@ -472,8 +486,9 @@ The schema includes:
 - `users`
 - `login_attempts`
 
-Default zones are created by the application when Demo Mode starts or when the
-first valid sensor reading is posted.
+One default zone is created by the application when Demo Mode starts or when
+the first valid sensor reading is posted. Additional zones can be added from
+the web app's Zones page.
 
 For a manual schema load:
 

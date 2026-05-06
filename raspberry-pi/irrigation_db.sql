@@ -111,6 +111,7 @@ CREATE TABLE public.sensor_readings (
     temperature double precision,
     humidity double precision,
     pressure double precision,
+    device character varying(80),
     recorded_at timestamp without time zone DEFAULT now()
 );
 
@@ -260,6 +261,7 @@ CREATE TABLE public.zones (
     id integer NOT NULL,
     name character varying(50) NOT NULL,
     plant_type character varying(50),
+    sensor_device_name character varying(80),
     moisture_threshold double precision DEFAULT 30.0 NOT NULL,
     is_active boolean DEFAULT true,
     created_at timestamp without time zone DEFAULT now()
