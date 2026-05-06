@@ -307,11 +307,12 @@ You can post a reading directly:
 ```bash
 curl -X POST http://localhost:5000/api/sensor-readings \
   -H "Content-Type: application/json" \
-  -d '{"device":"manual-test","zoneId":1,"temperature":24.5,"humidity":60,"pressure":1012.8,"soilMoisture":45}'
+  -d '{"device":"esp32-zone-1","zoneId":1,"temperature":24.5,"humidity":60,"pressure":1012.8,"soilMoisture":45}'
 ```
 
 The API accepts either `soilMoisture` or `moisture`. `pressure` is optional
-for older clients, but the ESP32 sketch now sends it from the BME280.
+for older clients, but the ESP32 sketch now sends it from the BME280. If a
+zone has Sensor ESP Name filled in, the `device` value must match that name.
 
 ### Option 3: ESP32-C3 Sketch
 
@@ -423,9 +424,11 @@ Payload examples:
 {"action":"close"}
 ```
 
-The ESP32 maps `irrigation/zone/1/valve` to MOSFET 1 and
-`irrigation/zone/2/valve` to MOSFET 2. Open commands with a positive
+The checked-in ESP32 `zoneValveMap` maps `irrigation/zone/1/valve` to MOSFET 1
+and `irrigation/zone/2/valve` to MOSFET 2. Open commands with a positive
 `duration` auto-close the valve on the ESP32 even if the web app disconnects.
+For additional ESP32 boards, change `zoneValveMap` so each board only reacts to
+the zones wired to its local valves.
 
 The web app hosted MQTT sensor subscriber listens to:
 
@@ -609,9 +612,9 @@ network.
 
 ### ESP32-C3 serial monitor is blank
 
-The sketch prints `GardenBrain ESP32-C3` and `Serial is alive at 115200 baud`
-about two seconds after reset. If the Arduino Serial Monitor stays completely
-blank:
+The sketch prints `GardenBrain ESP32-C3 device: <espDeviceName>` and
+`Serial is alive at 115200 baud` about two seconds after reset. If the Arduino
+Serial Monitor stays completely blank:
 
 - set the monitor baud rate to `115200`;
 - in Arduino IDE, select an ESP32-C3 board and set `USB CDC On Boot` to
