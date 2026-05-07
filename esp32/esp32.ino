@@ -5,18 +5,24 @@
 #include <PubSubClient.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
+#include <esp_wifi.h>
 #include <math.h>
 
-const char* ssid = "GardenBrain";
+const char* ssid = "GardenLaptop";
 const char* password = "GardenBrain123";
 const char* espDeviceName = "esp32-zone-1";
 const char* wifiHostname = espDeviceName;
-const char* firmwareBuild = "phone-hotspot-dhcp-laptop-10-163-174-210-2026-05-07";
+const char* firmwareBuild = "laptop-hotspot-static-radio-auth-debug-2026-05-07";
 
-// Laptop IP on the phone hotspot network from ipconfig.
-// Phone hotspot gateway: 10.163.174.88, subnet mask: 255.255.255.0.
-// Update this if the laptop gets a different Wi-Fi IPv4 after reconnecting.
-const char* laptopServerIp = "10.163.174.210";
+// ESP connects to the Windows laptop Mobile Hotspot.
+// The laptop can still use the phone hotspot as its upstream internet connection.
+IPAddress localIp(192, 168, 137, 100);
+IPAddress gateway(192, 168, 137, 1);
+IPAddress subnet(255, 255, 255, 0);
+IPAddress primaryDns(192, 168, 137, 1);
+IPAddress secondaryDns(8, 8, 8, 8);
+
+const char* laptopServerIp = "192.168.137.1";
 const int apiPort = 5000;
 const char* apiPath = "/api/sensor-readings";
 
@@ -67,6 +73,11 @@ Adafruit_BME280 bme;
 WiFiClient mqttWifiClient;
 PubSubClient mqttClient(mqttWifiClient);
 
+uint8_t targetBssid[6] = { 0, 0, 0, 0, 0, 0 };
+int32_t targetChannel = 0;
+int32_t targetRssi = -1000;
+bool targetNetworkFound = false;
+
 int readingCount = 0;
 unsigned long lastSend = 0;
 unsigned long lastWifiReconnectAttempt = 0;
@@ -95,6 +106,11 @@ unsigned long valve2AutoOffAt = 0;
 
 void handleWifiEvent(WiFiEvent_t event, WiFiEventInfo_t info);
 const char* wifiDisconnectReasonText(uint8_t reason);
+void configureWifiRadio();
+void scanForWifiNetwork();
+String bssidText(const uint8_t* bssid);
+String targetBssidText();
+const char* wifiAuthText(int auth);
 String sensorApiUrl();
 
 void setup() {
@@ -123,6 +139,11 @@ void setup() {
 
   setValve(1, false);
   setValve(2, false);
+
+  WiFi.mode(WIFI_STA);
+  configureWifiRadio();
+  WiFi.disconnect(true, true);
+  delay(500);
 
   WiFi.persistent(false);
   WiFi.onEvent(handleWifiEvent);
@@ -286,7 +307,8 @@ void connectToWifi() {
   Serial.print("Connecting to ");
   Serial.print(ssid);
   Serial.println("...");
-  Serial.println("Skipping WiFi scan and connecting directly with phone-hotspot DHCP.");
+  scanForWifiNetwork();
+  Serial.println("Connecting to the laptop hotspot with static IP after scan diagnostics.");
 
   if (tryWifiConnection()) {
     return;
@@ -299,10 +321,10 @@ void connectToWifi() {
   Serial.print(" (");
   Serial.print(wifiStatusText(WiFi.status()));
   Serial.println(")");
-  Serial.println("Make sure the phone hotspot is enabled and the SSID/password are correct.");
-  Serial.println("Keep the laptop connected to the same phone hotspot as the ESP32-C3.");
+  Serial.println("Make sure Windows Mobile Hotspot is enabled with SSID/password matching this sketch.");
+  Serial.println("The laptop can be connected to the phone hotspot as its upstream internet source.");
   Serial.println("Reason auth expired/auth fail means the ESP is failing before IP setup; re-check hotspot password/security.");
-  Serial.println("Phone-hotspot mode uses DHCP for the ESP32-C3. The laptop API target is configured separately.");
+  Serial.println("Laptop-hotspot mode uses ESP static IP 192.168.137.100 and laptop target 192.168.137.1.");
 }
 
 void resetWifiStation() {
@@ -319,6 +341,7 @@ void resetWifiStation() {
   WiFi.mode(WIFI_STA);
   delay(300);
 
+  configureWifiRadio();
   WiFi.setHostname(wifiHostname);
   WiFi.setSleep(false);
 }
@@ -326,19 +349,23 @@ void resetWifiStation() {
 bool tryWifiConnection() {
   resetWifiStation();
 
-  Serial.println("Using DHCP from the phone hotspot.");
-  WiFi.config(
-    IPAddress(0, 0, 0, 0),
-    IPAddress(0, 0, 0, 0),
-    IPAddress(0, 0, 0, 0),
-    IPAddress(0, 0, 0, 0),
-    IPAddress(0, 0, 0, 0)
-  );
+  Serial.println("Using static IP 192.168.137.100.");
+  if (!WiFi.config(localIp, gateway, subnet, primaryDns, secondaryDns)) {
+    Serial.println("Static IP configuration failed.");
+  }
 
   int beginStatus;
 
-  Serial.println("Connecting with normal SSID/password join.");
-  beginStatus = WiFi.begin(ssid, password);
+  if (targetNetworkFound && targetChannel > 0) {
+    Serial.print("Connecting to scanned AP on channel ");
+    Serial.print(targetChannel);
+    Serial.print(" BSSID ");
+    Serial.println(targetBssidText());
+    beginStatus = WiFi.begin(ssid, password, targetChannel, targetBssid);
+  } else {
+    Serial.println("Connecting with normal SSID/password join.");
+    beginStatus = WiFi.begin(ssid, password);
+  }
 
   Serial.print("WiFi.begin returned ");
   Serial.print(beginStatus);
@@ -426,6 +453,129 @@ const char* wifiDisconnectReasonText(uint8_t reason) {
       return "assoc fail";
     case 204:
       return "handshake timeout";
+    default:
+      return "unknown";
+  }
+}
+
+void configureWifiRadio() {
+  WiFi.setSleep(false);
+  WiFi.setMinSecurity(WIFI_AUTH_WPA2_PSK);
+  esp_wifi_set_ps(WIFI_PS_NONE);
+  esp_wifi_set_protocol(WIFI_IF_STA, WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N);
+  esp_wifi_set_max_tx_power(60);  // 15 dBm, gentler than max power for nearby hotspots.
+}
+
+void scanForWifiNetwork() {
+  Serial.println("Scanning for WiFi networks...");
+
+  targetNetworkFound = false;
+  targetChannel = 0;
+  targetRssi = -1000;
+
+  int networkCount = WiFi.scanNetworks(false, true);
+
+  if (networkCount < 0) {
+    Serial.print("WiFi scan failed with code ");
+    Serial.println(networkCount);
+    return;
+  }
+
+  int matches = 0;
+
+  for (int i = 0; i < networkCount; i++) {
+    if (WiFi.SSID(i) != ssid) {
+      continue;
+    }
+
+    matches++;
+
+    if (!targetNetworkFound || WiFi.RSSI(i) > targetRssi) {
+      targetNetworkFound = true;
+      targetChannel = WiFi.channel(i);
+      targetRssi = WiFi.RSSI(i);
+
+      uint8_t* bssid = WiFi.BSSID(i);
+      if (bssid != nullptr) {
+        for (int j = 0; j < 6; j++) {
+          targetBssid[j] = bssid[j];
+        }
+      }
+    }
+
+    Serial.print("Found ");
+    Serial.print(ssid);
+    Serial.print(" | channel ");
+    Serial.print(WiFi.channel(i));
+    Serial.print(" | BSSID ");
+    Serial.print(bssidText(WiFi.BSSID(i)));
+    Serial.print(" | RSSI ");
+    Serial.print(WiFi.RSSI(i));
+    Serial.print(" dBm | auth ");
+    Serial.print(WiFi.encryptionType(i));
+    Serial.print(" (");
+    Serial.print(wifiAuthText(WiFi.encryptionType(i)));
+    Serial.println(")");
+  }
+
+  if (matches == 0) {
+    Serial.print(ssid);
+    Serial.println(" was not found by the ESP32-C3 scan.");
+    Serial.println("Check that Windows Mobile Hotspot is on and set to 2.4 GHz if that option exists.");
+  } else if (matches > 1) {
+    Serial.print("Warning: found ");
+    Serial.print(matches);
+    Serial.print(" networks named ");
+    Serial.print(ssid);
+    Serial.println(". Rename the laptop hotspot if the ESP may be choosing the wrong one.");
+  }
+
+  WiFi.scanDelete();
+}
+
+String targetBssidText() {
+  return bssidText(targetBssid);
+}
+
+String bssidText(const uint8_t* bssid) {
+  if (bssid == nullptr) {
+    return "unknown";
+  }
+
+  char text[18];
+  snprintf(
+    text,
+    sizeof(text),
+    "%02X:%02X:%02X:%02X:%02X:%02X",
+    bssid[0],
+    bssid[1],
+    bssid[2],
+    bssid[3],
+    bssid[4],
+    bssid[5]
+  );
+
+  return String(text);
+}
+
+const char* wifiAuthText(int auth) {
+  switch (auth) {
+    case 0:
+      return "open";
+    case 1:
+      return "WEP";
+    case 2:
+      return "WPA PSK";
+    case 3:
+      return "WPA2 PSK";
+    case 4:
+      return "WPA/WPA2 PSK";
+    case 5:
+      return "WPA2 Enterprise";
+    case 6:
+      return "WPA3 PSK";
+    case 7:
+      return "WPA2/WPA3 PSK";
     default:
       return "unknown";
   }
