@@ -323,26 +323,28 @@ The checked-in sketch expects:
 ```text
 Wi-Fi SSID: GardenBrain
 Wi-Fi password: GardenBrain123
-ESP32 static IP: 192.168.137.100
-Windows laptop/API IP: 192.168.137.1
-API URL: http://192.168.137.1:5000/api/sensor-readings
+ESP32 IP: assigned by the phone hotspot with DHCP
+Laptop/API IP: 10.163.174.210
+Phone hotspot gateway: 10.163.174.88
+API URL: http://10.163.174.210:5000/api/sensor-readings
 ```
 
-Configure the Windows Mobile Hotspot separately so that it provides the
-`GardenBrain` network on 2.4 GHz. Windows Internet Connection Sharing normally
-uses `192.168.137.1` for the laptop side of the hotspot. If the web app or MQTT
-broker runs on a different host, update `apiUrl` and `mqttServer` in the sketch.
+Configure the phone hotspot separately so that it provides the `GardenBrain`
+network on 2.4 GHz, then connect the laptop to that same hotspot. If `ipconfig`
+shows a different Wi-Fi IPv4 for the laptop after reconnecting, update
+`laptopServerIp` in the sketch before flashing. If the web app or MQTT broker
+runs on a different host, set `laptopServerIp` to that host's hotspot-network IP.
 
 After upload, the ESP32:
 
-- posts a JSON reading every 5 seconds;
+- posts a JSON reading every 2 seconds;
 - receives a quick API acknowledgement after the reading is stored while
   AI/watering decisions continue in the web app background queue;
-- exposes a status page at `http://192.168.137.100/`;
-- exposes latest JSON data at `http://192.168.137.100/data`;
-- can send a reading immediately from `http://192.168.137.100/send-now`;
+- exposes a status page at the ESP32 IP printed in Serial Monitor;
+- exposes latest JSON data at `http://<esp32-ip>/data`;
+- can send a reading immediately from `http://<esp32-ip>/send-now`;
 - can open or close valves locally from
-  `http://192.168.137.100/valve?valve=1&state=open&duration=10`;
+  `http://<esp32-ip>/valve?valve=1&state=open&duration=10`;
 - subscribes to MQTT topic `irrigation/zone/+/valve` so dashboard and
   auto-watering commands can drive the valve pins.
 
@@ -354,7 +356,6 @@ only accepts readings for that zone from the matching ESP name.
 When adding another ESP32, change these sketch values before flashing it:
 
 - `espDeviceName`, which must match the zone's Sensor ESP Name;
-- `localIp`, so two boards do not use the same static IP;
 - `sensorZoneId`, which is the zone that board's soil sensor reports for;
 - `zoneValveMap`, which maps dashboard zone IDs to this board's local valve
   numbers. MQTT valve commands for zones not listed in `zoneValveMap` are
@@ -386,7 +387,7 @@ Example sensor payload:
   "pressure": 1012.8,
   "soilMoisture": 45.0,
   "rssi": -55,
-  "ip": "192.168.137.100"
+  "ip": "10.163.174.x"
 }
 ```
 
@@ -597,16 +598,17 @@ sudo netfilter-persistent save
 
 Check that:
 
-- the Windows hotspot SSID is exactly `GardenBrain`;
+- the phone hotspot SSID is exactly `GardenBrain`;
 - the hotspot password is exactly `GardenBrain123`;
-- the laptop hotspot IP is `192.168.137.1`;
+- the laptop hotspot Wi-Fi IP is `10.163.174.210`;
 - the web app is running on port `5000`;
-- the ESP32 static IP `192.168.137.100` is not already in use.
+- the ESP32 got a DHCP address from the hotspot, printed as
+  `ESP32-C3 IP address` in Serial Monitor.
 
 If the serial monitor prints `HTTP status: -1`, the ESP32 HTTP client did not
 receive a normal HTTP response. In the checked-in sketch, the `Response:` line
 prints the underlying client error, such as `connection refused` or `read
-Timeout`. Confirm that `http://192.168.137.1:5000/api/zones` opens from the
+Timeout`. Confirm that `http://10.163.174.210:5000/api/zones` opens from the
 laptop and that Windows Firewall allows inbound TCP `5000` on the hotspot
 network.
 
@@ -648,6 +650,6 @@ device as production-ready.
 
 - `raspberry-pi/hash_passwords.py` prints BCrypt hashes for sample passwords.
   It does not update the database automatically.
-- `raspberry-pi/collector.py` polls `http://192.168.137.100/data` and appends JSON
-  lines to `sensor_data.json`. It may need small field-name updates if you use
-  it with the current ESP32 sketch output.
+- `raspberry-pi/collector.py` polls `ESP32_URL` and appends JSON lines to
+  `sensor_data.json`. Set `ESP32_URL` to `http://<esp32-ip>/data`, using the IP
+  printed in the ESP32 Serial Monitor.

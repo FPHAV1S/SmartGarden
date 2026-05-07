@@ -11,10 +11,12 @@ const char* ssid = "GardenBrain";
 const char* password = "GardenBrain123";
 const char* espDeviceName = "esp32-zone-1";
 const char* wifiHostname = espDeviceName;
-const char* firmwareBuild = "phone-hotspot-dhcp-laptop-api-2026-05-07";
+const char* firmwareBuild = "phone-hotspot-dhcp-laptop-10-163-174-210-2026-05-07";
 
-// Laptop IP on the phone hotspot network. Update this if ipconfig shows a different Wi-Fi IPv4.
-const char* laptopServerIp = "192.168.0.138";
+// Laptop IP on the phone hotspot network from ipconfig.
+// Phone hotspot gateway: 10.163.174.88, subnet mask: 255.255.255.0.
+// Update this if the laptop gets a different Wi-Fi IPv4 after reconnecting.
+const char* laptopServerIp = "10.163.174.210";
 const int apiPort = 5000;
 const char* apiPath = "/api/sensor-readings";
 

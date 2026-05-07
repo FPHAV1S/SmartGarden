@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
+import os
 import requests
 import time
 import json
 from datetime import datetime
 
-ESP32_URL = "http://192.168.137.100/data"
+ESP32_URL = os.getenv("ESP32_URL")
 
 def collect_data():
     try:
@@ -27,6 +28,11 @@ def collect_data():
 
 if __name__ == "__main__":
     print("Garden Brain Data Collector")
+    if not ESP32_URL:
+        print("Set ESP32_URL to the IP printed in the ESP32 Serial Monitor, for example:")
+        print("ESP32_URL=http://10.163.174.123/data python collector.py")
+        raise SystemExit(1)
+
     print("Collecting from:", ESP32_URL)
     
     while True:

@@ -839,8 +839,9 @@ internal static class Tests
         Assert.Contains("const char* password = \"GardenBrain123\";", sketch);
         Assert.Contains("const char* espDeviceName = \"esp32-zone-1\";", sketch);
         Assert.Contains("const int sensorZoneId = 1;", sketch);
-        Assert.Contains("IPAddress localIp(192, 168, 137, 100);", sketch);
-        Assert.Contains("http://192.168.137.1:5000/api/sensor-readings", sketch);
+        Assert.Contains("const char* laptopServerIp = \"10.163.174.210\";", sketch);
+        Assert.Contains("Using DHCP from the phone hotspot.", sketch);
+        Assert.Contains("sensorApiUrl()", sketch);
         Assert.Contains("\\\"device\\\":\\\"\" + String(espDeviceName)", sketch);
         Assert.Contains("\\\"zoneId\\\"", sketch);
         Assert.Contains("\\\"temperature\\\"", sketch);
