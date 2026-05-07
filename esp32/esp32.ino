@@ -11,19 +11,15 @@ const char* ssid = "GardenBrain";
 const char* password = "GardenBrain123";
 const char* espDeviceName = "esp32-zone-1";
 const char* wifiHostname = espDeviceName;
+const char* firmwareBuild = "phone-hotspot-dhcp-laptop-api-2026-05-07";
 
-// Windows laptop hotspot defaults to the 192.168.137.0/24 network.
-IPAddress localIp(192, 168, 137, 100);
-IPAddress gateway(192, 168, 137, 1);
-IPAddress subnet(255, 255, 255, 0);
-IPAddress primaryDns(192, 168, 137, 1);
-IPAddress secondaryDns(8, 8, 8, 8);
-
-// ASP.NET API endpoint
-const char* apiUrl = "http://192.168.137.1:5000/api/sensor-readings";
+// Laptop IP on the phone hotspot network. Update this if ipconfig shows a different Wi-Fi IPv4.
+const char* laptopServerIp = "192.168.0.138";
+const int apiPort = 5000;
+const char* apiPath = "/api/sensor-readings";
 
 // MQTT valve commands published by the ASP.NET app
-const char* mqttServer = "192.168.137.1";
+const char* mqttServer = laptopServerIp;
 const int mqttPort = 1883;
 const char* valveCommandTopic = "irrigation/zone/+/valve";
 
@@ -41,12 +37,14 @@ const ZoneValveMapping zoneValveMap[] = {
   { 2, 2 }
 };
 
-const unsigned long sendIntervalMs = 5000;
-const uint16_t httpConnectTimeoutMs = 5000;
-const uint16_t httpRequestTimeoutMs = 15000;
-const unsigned long mqttReconnectIntervalMs = 5000;
+const unsigned long sendIntervalMs = 2000;
+const uint16_t httpConnectTimeoutMs = 2000;
+const uint16_t httpRequestTimeoutMs = 6000;
+const unsigned long mqttReconnectIntervalMs = 2000;
 const unsigned long bmeRetryIntervalMs = 30000;
-const int wifiConnectAttempts = 60;
+const unsigned long wifiReconnectIntervalMs = 5000;
+const int wifiConnectAttempts = 20;
+const int wifiStatusLogEveryAttempts = 5;
 
 #define SOIL_PIN 0
 #define BME_SDA_PIN 8
@@ -67,13 +65,9 @@ Adafruit_BME280 bme;
 WiFiClient mqttWifiClient;
 PubSubClient mqttClient(mqttWifiClient);
 
-uint8_t targetBssid[6] = { 0, 0, 0, 0, 0, 0 };
-int32_t targetChannel = 0;
-int32_t targetRssi = -1000;
-bool targetNetworkFound = false;
-
 int readingCount = 0;
 unsigned long lastSend = 0;
+unsigned long lastWifiReconnectAttempt = 0;
 unsigned long lastMqttReconnectAttempt = 0;
 unsigned long lastBmeInitAttempt = 0;
 
@@ -97,6 +91,10 @@ bool valve2State = false;
 unsigned long valve1AutoOffAt = 0;
 unsigned long valve2AutoOffAt = 0;
 
+void handleWifiEvent(WiFiEvent_t event, WiFiEventInfo_t info);
+const char* wifiDisconnectReasonText(uint8_t reason);
+String sensorApiUrl();
+
 void setup() {
   Serial.begin(115200);
   Serial.setDebugOutput(true);
@@ -105,6 +103,8 @@ void setup() {
   Serial.println();
   Serial.print("GardenBrain ESP32-C3 device: ");
   Serial.println(espDeviceName);
+  Serial.print("Firmware build: ");
+  Serial.println(firmwareBuild);
   Serial.print("Sensor zone: ");
   Serial.println(sensorZoneId);
   Serial.println("Soil Moisture + BME280 + XY-MOS + MQTT valve commands");
@@ -123,6 +123,7 @@ void setup() {
   setValve(2, false);
 
   WiFi.persistent(false);
+  WiFi.onEvent(handleWifiEvent);
 
   connectToWifi();
 
@@ -153,8 +154,11 @@ void loop() {
   server.handleClient();
 
   if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("WiFi disconnected. Reconnecting...");
-    connectToWifi();
+    unsigned long now = millis();
+    if (now - lastWifiReconnectAttempt >= wifiReconnectIntervalMs) {
+      Serial.println("WiFi disconnected. Reconnecting...");
+      connectToWifi();
+    }
   }
 
   if (WiFi.status() == WL_CONNECTED) {
@@ -272,36 +276,18 @@ String bmeAddressText() {
 }
 
 void connectToWifi() {
+  lastWifiReconnectAttempt = millis();
+
   WiFi.setAutoReconnect(false);
   resetWifiStation();
-  scanForWifiNetwork();
 
   Serial.print("Connecting to ");
   Serial.print(ssid);
   Serial.println("...");
+  Serial.println("Skipping WiFi scan and connecting directly with phone-hotspot DHCP.");
 
-  if (tryWifiConnection(true, false)) {
+  if (tryWifiConnection()) {
     return;
-  }
-
-  Serial.println("Plain static IP attempt failed. Trying plain DHCP...");
-
-  if (tryWifiConnection(false, false)) {
-    return;
-  }
-
-  if (targetNetworkFound && targetChannel > 0) {
-    Serial.println("Plain attempts failed. Trying scanned AP channel/BSSID as a fallback...");
-
-    if (tryWifiConnection(true, true)) {
-      return;
-    }
-
-    Serial.println("Scanned AP static IP attempt failed. Trying scanned AP with DHCP...");
-
-    if (tryWifiConnection(false, true)) {
-      return;
-    }
   }
 
   Serial.print("Failed to connect to ");
@@ -311,13 +297,15 @@ void connectToWifi() {
   Serial.print(" (");
   Serial.print(wifiStatusText(WiFi.status()));
   Serial.println(")");
-  Serial.println("Make sure the Windows hotspot is using 2.4 GHz and the SSID/password are correct.");
-  Serial.println("If GardenBrain is not found in the scan, change Windows hotspot Network band to 2.4 GHz.");
+  Serial.println("Make sure the phone hotspot is enabled and the SSID/password are correct.");
+  Serial.println("Keep the laptop connected to the same phone hotspot as the ESP32-C3.");
+  Serial.println("Reason auth expired/auth fail means the ESP is failing before IP setup; re-check hotspot password/security.");
+  Serial.println("Phone-hotspot mode uses DHCP for the ESP32-C3. The laptop API target is configured separately.");
 }
 
 void resetWifiStation() {
   WiFi.setAutoReconnect(false);
-  WiFi.disconnect(true);
+  WiFi.disconnect(false);
 
   unsigned long startedAt = millis();
   while (WiFi.status() != WL_DISCONNECTED && millis() - startedAt < 2000) {
@@ -333,50 +321,35 @@ void resetWifiStation() {
   WiFi.setSleep(false);
 }
 
-bool tryWifiConnection(bool useStaticIp, bool lockToScannedAp) {
+bool tryWifiConnection() {
   resetWifiStation();
 
-  if (useStaticIp) {
-    Serial.println("Using static IP 192.168.137.100.");
-    if (!WiFi.config(localIp, gateway, subnet, primaryDns, secondaryDns)) {
-      Serial.println("Static IP configuration failed.");
-    }
-  } else {
-    Serial.println("Using DHCP.");
-    WiFi.config(
-      IPAddress(0, 0, 0, 0),
-      IPAddress(0, 0, 0, 0),
-      IPAddress(0, 0, 0, 0),
-      IPAddress(0, 0, 0, 0),
-      IPAddress(0, 0, 0, 0)
-    );
-  }
+  Serial.println("Using DHCP from the phone hotspot.");
+  WiFi.config(
+    IPAddress(0, 0, 0, 0),
+    IPAddress(0, 0, 0, 0),
+    IPAddress(0, 0, 0, 0),
+    IPAddress(0, 0, 0, 0),
+    IPAddress(0, 0, 0, 0)
+  );
 
   int beginStatus;
 
-  if (lockToScannedAp && targetNetworkFound && targetChannel > 0) {
-    Serial.print("Connecting to scanned AP on channel ");
-    Serial.print(targetChannel);
-    Serial.print(" BSSID ");
-    Serial.println(targetBssidText());
-    beginStatus = WiFi.begin(ssid, password, targetChannel, targetBssid);
-  } else {
-    Serial.println("Connecting with normal SSID/password join.");
-    beginStatus = WiFi.begin(ssid, password);
-  }
+  Serial.println("Connecting with normal SSID/password join.");
+  beginStatus = WiFi.begin(ssid, password);
 
   Serial.print("WiFi.begin returned ");
   Serial.print(beginStatus);
   Serial.print(" (");
   Serial.print(wifiStatusText(beginStatus));
-  Serial.println(")");
+  Serial.println("). This is the immediate state; the connection attempt continues below.");
 
   int attempts = 0;
   int lastStatus = -1;
 
   while (WiFi.status() != WL_CONNECTED && attempts < wifiConnectAttempts) {
     int status = WiFi.status();
-    if (status != lastStatus) {
+    if (status != lastStatus || attempts % wifiStatusLogEveryAttempts == 0) {
       Serial.println();
       Serial.print("WiFi status: ");
       Serial.print(status);
@@ -387,7 +360,6 @@ bool tryWifiConnection(bool useStaticIp, bool lockToScannedAp) {
     }
 
     delay(500);
-    Serial.print(".");
     attempts++;
   }
 
@@ -400,6 +372,8 @@ bool tryWifiConnection(bool useStaticIp, bool lockToScannedAp) {
     Serial.println(WiFi.localIP());
     Serial.print("Gateway: ");
     Serial.println(WiFi.gatewayIP());
+    Serial.print("Laptop API target: ");
+    Serial.println(sensorApiUrl());
     Serial.print("Signal strength: ");
     Serial.print(WiFi.RSSI());
     Serial.println(" dBm");
@@ -414,110 +388,49 @@ bool tryWifiConnection(bool useStaticIp, bool lockToScannedAp) {
   return false;
 }
 
-void scanForWifiNetwork() {
-  Serial.println("Scanning for WiFi networks...");
-
-  targetNetworkFound = false;
-  targetChannel = 0;
-  targetRssi = -1000;
-
-  int networkCount = WiFi.scanNetworks(false, true);
-
-  if (networkCount < 0) {
-    Serial.print("WiFi scan failed with code ");
-    Serial.println(networkCount);
+void handleWifiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
+  if (event != ARDUINO_EVENT_WIFI_STA_DISCONNECTED) {
     return;
   }
 
-  bool found = false;
-
-  for (int i = 0; i < networkCount; i++) {
-    if (WiFi.SSID(i) == ssid) {
-      found = true;
-      if (!targetNetworkFound || WiFi.RSSI(i) > targetRssi) {
-        targetNetworkFound = true;
-        targetChannel = WiFi.channel(i);
-        targetRssi = WiFi.RSSI(i);
-
-        uint8_t* bssid = WiFi.BSSID(i);
-        if (bssid != nullptr) {
-          for (int j = 0; j < 6; j++) {
-            targetBssid[j] = bssid[j];
-          }
-        }
-      }
-
-      Serial.print("Found ");
-      Serial.print(ssid);
-      Serial.print(" | channel ");
-      Serial.print(WiFi.channel(i));
-      Serial.print(" | BSSID ");
-      Serial.print(bssidText(WiFi.BSSID(i)));
-      Serial.print(" | RSSI ");
-      Serial.print(WiFi.RSSI(i));
-      Serial.print(" dBm | auth ");
-      Serial.print(WiFi.encryptionType(i));
-      Serial.print(" (");
-      Serial.print(wifiAuthText(WiFi.encryptionType(i)));
-      Serial.println(")");
-    }
-  }
-
-  if (!found) {
-    Serial.print(ssid);
-    Serial.println(" was not found by the ESP32-C3 scan.");
-    Serial.println("ESP32-C3 only supports 2.4 GHz WiFi. Set the Windows hotspot Network band to 2.4 GHz.");
-  }
-
-  WiFi.scanDelete();
+  Serial.print("WiFi disconnected reason: ");
+  Serial.print(info.wifi_sta_disconnected.reason);
+  Serial.print(" (");
+  Serial.print(wifiDisconnectReasonText(info.wifi_sta_disconnected.reason));
+  Serial.println(")");
 }
 
-String targetBssidText() {
-  return bssidText(targetBssid);
-}
-
-String bssidText(const uint8_t* bssid) {
-  if (bssid == nullptr) {
-    return "unknown";
-  }
-
-  char text[18];
-  snprintf(
-    text,
-    sizeof(text),
-    "%02X:%02X:%02X:%02X:%02X:%02X",
-    bssid[0],
-    bssid[1],
-    bssid[2],
-    bssid[3],
-    bssid[4],
-    bssid[5]
-  );
-
-  return String(text);
-}
-
-const char* wifiAuthText(int auth) {
-  switch (auth) {
-    case 0:
-      return "open";
-    case 1:
-      return "WEP";
+const char* wifiDisconnectReasonText(uint8_t reason) {
+  switch (reason) {
     case 2:
-      return "WPA PSK";
+      return "auth expired";
     case 3:
-      return "WPA2 PSK";
+      return "auth leave";
     case 4:
-      return "WPA/WPA2 PSK";
+      return "assoc expired";
     case 5:
-      return "WPA2 Enterprise";
-    case 6:
-      return "WPA3 PSK";
+      return "assoc too many";
     case 7:
-      return "WPA2/WPA3 PSK";
+      return "not authenticated";
+    case 8:
+      return "not associated";
+    case 15:
+      return "4-way handshake timeout";
+    case 201:
+      return "no AP found";
+    case 202:
+      return "auth fail";
+    case 203:
+      return "assoc fail";
+    case 204:
+      return "handshake timeout";
     default:
       return "unknown";
   }
+}
+
+String sensorApiUrl() {
+  return String("http://") + laptopServerIp + ":" + String(apiPort) + apiPath;
 }
 
 const char* wifiStatusText(int status) {
@@ -886,6 +799,7 @@ unsigned long secondsUntilAutoOff(int valveNumber) {
 
 void sendReading() {
   HTTPClient http;
+  String apiUrl = sensorApiUrl();
   String payload = buildPayload();
 
   Serial.print("POST ");
@@ -894,7 +808,7 @@ void sendReading() {
 
   if (!http.begin(apiUrl)) {
     lastHttpCode = -7;
-    lastResponse = "HTTP begin failed; check apiUrl";
+    lastResponse = "HTTP begin failed; check laptopServerIp/apiPort";
 
     Serial.print("HTTP status: ");
     Serial.println(lastHttpCode);
@@ -1006,7 +920,7 @@ void handleRoot() {
   html += String(sensorZoneId);
   html += "</p>";
   html += "<p>API target: ";
-  html += apiUrl;
+  html += sensorApiUrl();
   html += "</p>";
   html += "<p>MQTT broker: ";
   html += mqttServer;
