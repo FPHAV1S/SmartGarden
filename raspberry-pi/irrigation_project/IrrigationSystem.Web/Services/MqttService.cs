@@ -1,5 +1,4 @@
 using MQTTnet;
-using System.Text;
 using System.Text.Json;
 
 namespace IrrigationSystem.Web.Services;
@@ -65,20 +64,12 @@ public class MqttService : IValveCommandService
     {
         try
         {
-            if (!await EnsureConnectedAsync())
+            var sent = await PublishValveCommandAsync(zoneId, new { action = "open", duration = durationSeconds });
+            if (!sent)
             {
                 return false;
             }
 
-            var command = new { action = "open", duration = durationSeconds };
-            var payload = JsonSerializer.Serialize(command);
-
-            var message = new MqttApplicationMessageBuilder()
-                .WithTopic($"irrigation/zone/{zoneId}/valve")
-                .WithPayload(payload)
-                .Build();
-
-            await MqttClient.PublishAsync(message);
             Logger.LogInformation("Sent valve open command to zone {ZoneId} for {Duration}s", zoneId, durationSeconds);
             return true;
         }
@@ -93,20 +84,12 @@ public class MqttService : IValveCommandService
     {
         try
         {
-            if (!await EnsureConnectedAsync())
+            var sent = await PublishValveCommandAsync(zoneId, new { action = "close" });
+            if (!sent)
             {
                 return false;
             }
 
-            var command = new { action = "close" };
-            var payload = JsonSerializer.Serialize(command);
-
-            var message = new MqttApplicationMessageBuilder()
-                .WithTopic($"irrigation/zone/{zoneId}/valve")
-                .WithPayload(payload)
-                .Build();
-
-            await MqttClient.PublishAsync(message);
             Logger.LogInformation("Sent valve close command to zone {ZoneId}", zoneId);
             return true;
         }
@@ -115,5 +98,22 @@ public class MqttService : IValveCommandService
             Logger.LogError(ex, "Failed to send valve command");
             return false;
         }
+    }
+
+    private async Task<bool> PublishValveCommandAsync(int zoneId, object command)
+    {
+        if (!await EnsureConnectedAsync())
+        {
+            return false;
+        }
+
+        var payload = JsonSerializer.Serialize(command);
+        var message = new MqttApplicationMessageBuilder()
+            .WithTopic($"irrigation/zone/{zoneId}/valve")
+            .WithPayload(payload)
+            .Build();
+
+        await MqttClient.PublishAsync(message);
+        return true;
     }
 }

@@ -10,7 +10,10 @@ public class AutoWateringService : BackgroundService
     private readonly IValveCommandService ValveCommands;
     private readonly IrrigationDecisionService DecisionService;
     private readonly WeatherForecastService Weather;
-    private readonly int CheckIntervalSeconds = 300;
+    private static readonly TimeSpan StartupDelay = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan CheckInterval = TimeSpan.FromSeconds(300);
+    private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(60);
+    private static readonly TimeSpan SensorSettleDelay = TimeSpan.FromSeconds(5);
 
     public AutoWateringService(
         ILogger<AutoWateringService> logger,
@@ -28,18 +31,18 @@ public class AutoWateringService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        Logger.LogInformation("Auto-watering service started - checking every {Interval} seconds", CheckIntervalSeconds);
+        Logger.LogInformation("Auto-watering service started - checking every {Interval} seconds", CheckInterval.TotalSeconds);
 
         try
         {
-            await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
+            await Task.Delay(StartupDelay, stoppingToken);
 
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
                 {
                     await CheckAndWaterZonesAsync();
-                    await Task.Delay(TimeSpan.FromSeconds(CheckIntervalSeconds), stoppingToken);
+                    await Task.Delay(CheckInterval, stoppingToken);
                 }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
                 {
@@ -48,7 +51,7 @@ public class AutoWateringService : BackgroundService
                 catch (Exception ex)
                 {
                     Logger.LogError(ex, "Error in auto-watering service");
-                    await Task.Delay(TimeSpan.FromSeconds(60), stoppingToken);
+                    await Task.Delay(RetryDelay, stoppingToken);
                 }
             }
         }
@@ -143,7 +146,7 @@ public class AutoWateringService : BackgroundService
         }
     }
 
-    private bool IsNightMode(SystemSettings settings)
+    private static bool IsNightMode(SystemSettings settings)
     {
         var currentHour = DateTime.Now.Hour;
         
@@ -151,46 +154,43 @@ public class AutoWateringService : BackgroundService
         {
             return currentHour >= settings.NightModeStartHour && currentHour < settings.NightModeEndHour;
         }
-        else
-        {
-            return currentHour >= settings.NightModeStartHour || currentHour < settings.NightModeEndHour;
-        }
+
+        return currentHour >= settings.NightModeStartHour || currentHour < settings.NightModeEndHour;
     }
 
     private async Task WaterZoneAsync(int zoneId, float moistureBefore, int durationSeconds, string triggerReason)
     {
         var success = await ValveCommands.OpenValveAsync(zoneId, durationSeconds);
-        
-        if (success)
-        {
-            var eventId = await DataService.StartIrrigationEventAsync(zoneId, triggerReason, moistureBefore);
 
-            Logger.LogInformation("Zone {ZoneId}: Valve opened for {Duration}s", zoneId, durationSeconds);
-            
-            await DataService.LogSystemMessageAsync("INFO", 
-                $"Auto-watering started for Zone {zoneId} (moisture: {moistureBefore:F1}%)");
-
-            await Task.Delay(durationSeconds * 1000);
-            
-            await ValveCommands.CloseValveAsync(zoneId);
-            
-            await Task.Delay(5000);
-            
-            var newReadings = await DataService.GetLatestReadingsAsync();
-            var newReading = newReadings.FirstOrDefault(r => r.ZoneId == zoneId);
-            var moistureAfter = newReading?.Moisture;
-
-            if (eventId > 0)
-            {
-                await DataService.EndIrrigationEventAsync(eventId, durationSeconds, moistureAfter);
-            }
-            
-            Logger.LogInformation("Zone {ZoneId}: Watering complete - moisture before: {Before:F1}%, after: {After}", 
-                zoneId, moistureBefore, moistureAfter.HasValue ? $"{moistureAfter.Value:F1}%" : "N/A");
-        }
-        else
+        if (!success)
         {
             Logger.LogError("Zone {ZoneId}: Failed to open valve", zoneId);
+            return;
         }
+
+        var eventId = await DataService.StartIrrigationEventAsync(zoneId, triggerReason, moistureBefore);
+
+        Logger.LogInformation("Zone {ZoneId}: Valve opened for {Duration}s", zoneId, durationSeconds);
+
+        await DataService.LogSystemMessageAsync("INFO",
+            $"Auto-watering started for Zone {zoneId} (moisture: {moistureBefore:F1}%)");
+
+        await Task.Delay(TimeSpan.FromSeconds(durationSeconds));
+
+        await ValveCommands.CloseValveAsync(zoneId);
+
+        await Task.Delay(SensorSettleDelay);
+
+        var newReadings = await DataService.GetLatestReadingsAsync();
+        var newReading = newReadings.FirstOrDefault(r => r.ZoneId == zoneId);
+        var moistureAfter = newReading?.Moisture;
+
+        if (eventId > 0)
+        {
+            await DataService.EndIrrigationEventAsync(eventId, durationSeconds, moistureAfter);
+        }
+
+        Logger.LogInformation("Zone {ZoneId}: Watering complete - moisture before: {Before:F1}%, after: {After}",
+            zoneId, moistureBefore, moistureAfter.HasValue ? $"{moistureAfter.Value:F1}%" : "N/A");
     }
 }

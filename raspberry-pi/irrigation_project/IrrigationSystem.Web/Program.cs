@@ -4,7 +4,11 @@ using Radzen;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Components;
 
+const string LoginPath = "/loginpage";
+const string OpenAiClientName = "OpenAI";
+
 var builder = WebApplication.CreateBuilder(args);
+var openAiBaseUri = new Uri("https://api.openai.com/v1/");
 
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
@@ -19,14 +23,14 @@ builder.Services.AddSingleton<WeatherForecastService>();
 builder.Services.AddHostedService<MqttWorkerService>();
 builder.Services.Configure<AiIrrigationOptions>(
     builder.Configuration.GetSection(AiIrrigationOptions.SectionName));
-builder.Services.AddHttpClient("OpenAI", client =>
+builder.Services.AddHttpClient(OpenAiClientName, client =>
 {
-    client.BaseAddress = new Uri("https://api.openai.com/v1/");
+    client.BaseAddress = openAiBaseUri;
     client.Timeout = TimeSpan.FromSeconds(60);
 });
 builder.Services.AddHttpClient<IAiIrrigationService, OpenAiIrrigationService>(client =>
 {
-    client.BaseAddress = new Uri("https://api.openai.com/v1/");
+    client.BaseAddress = openAiBaseUri;
     client.Timeout = TimeSpan.FromSeconds(120);
 });
 
@@ -95,11 +99,9 @@ app.Use(async (context, next) =>
     var path = context.Request.Path.Value?.ToLower() ?? "";
     var isAuthenticated = context.User?.Identity?.IsAuthenticated ?? false;
 
-    if (!isAuthenticated && !path.StartsWith("/loginpage") && !path.Contains("_framework") &&
-        !path.Contains("_blazor") && !path.Contains("css") && !path.Contains("_content") &&
-        !path.StartsWith("/api"))
+    if (!isAuthenticated && !AllowsAnonymousAccess(path))
     {
-        context.Response.Redirect("/loginpage");
+        context.Response.Redirect(LoginPath);
         return;
     }
 
@@ -111,3 +113,13 @@ app.MapFallbackToPage("/_Host");
 app.MapControllers();
 
 app.Run();
+
+bool AllowsAnonymousAccess(string path)
+{
+    return path.StartsWith(LoginPath, StringComparison.Ordinal) ||
+        path.StartsWith("/api", StringComparison.Ordinal) ||
+        path.Contains("_framework", StringComparison.Ordinal) ||
+        path.Contains("_blazor", StringComparison.Ordinal) ||
+        path.Contains("css", StringComparison.Ordinal) ||
+        path.Contains("_content", StringComparison.Ordinal);
+}

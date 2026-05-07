@@ -44,17 +44,7 @@ public class SensorDataService
 
             while (await reader.ReadAsync())
             {
-                readings.Add(new SensorReading
-                {
-                    Id = reader.GetInt32(0),
-                    ZoneId = reader.GetInt32(1),
-                    Moisture = ReadNullableFloat(reader, 2),
-                    Temperature = ReadNullableFloat(reader, 3),
-                    Humidity = ReadNullableFloat(reader, 4),
-                    Pressure = ReadNullableFloat(reader, 5),
-                    RecordedAt = reader.GetDateTime(6),
-                    Device = reader.IsDBNull(7) ? null : reader.GetString(7)
-                });
+                readings.Add(ReadSensorReading(reader));
             }
         }
         catch (Exception ex)
@@ -93,17 +83,7 @@ public class SensorDataService
 
             while (await reader.ReadAsync())
             {
-                readings.Add(new SensorReading
-                {
-                    Id = reader.GetInt32(0),
-                    ZoneId = reader.GetInt32(1),
-                    Moisture = ReadNullableFloat(reader, 2),
-                    Temperature = ReadNullableFloat(reader, 3),
-                    Humidity = ReadNullableFloat(reader, 4),
-                    Pressure = ReadNullableFloat(reader, 5),
-                    RecordedAt = reader.GetDateTime(6),
-                    Device = reader.IsDBNull(7) ? null : reader.GetString(7)
-                });
+                readings.Add(ReadSensorReading(reader));
             }
         }
         catch (Exception ex)
@@ -132,15 +112,7 @@ public class SensorDataService
 
             while (await reader.ReadAsync())
             {
-                zones.Add(new Zone
-                {
-                    Id = reader.GetInt32(0),
-                    Name = reader.GetString(1),
-                    PlantType = reader.IsDBNull(2) ? null : reader.GetString(2),
-                    MoistureThreshold = reader.GetFloat(3),
-                    IsActive = reader.GetBoolean(4),
-                    SensorDeviceName = reader.IsDBNull(5) ? null : reader.GetString(5)
-                });
+                zones.Add(ReadZone(reader));
             }
         }
         catch (Exception ex)
@@ -216,15 +188,7 @@ public class SensorDataService
             await using var reader = await cmd.ExecuteReaderAsync();
             if (await reader.ReadAsync())
             {
-                var zone = new Zone
-                {
-                    Id = reader.GetInt32(0),
-                    Name = reader.GetString(1),
-                    PlantType = reader.IsDBNull(2) ? null : reader.GetString(2),
-                    MoistureThreshold = reader.GetFloat(3),
-                    IsActive = reader.GetBoolean(4),
-                    SensorDeviceName = reader.IsDBNull(5) ? null : reader.GetString(5)
-                };
+                var zone = ReadZone(reader);
 
                 Logger.LogInformation("Created zone {ZoneId}", zone.Id);
                 return zone;
@@ -334,6 +298,7 @@ public class SensorDataService
             Logger.LogError(ex, "Failed to end irrigation event");
         }
     }
+
     public async Task<bool> UpdateZoneAsync(
         int zoneId,
         string name,
@@ -375,6 +340,7 @@ public class SensorDataService
             return false;
         }
     }
+
     public async Task<List<SystemLog>> GetRecentLogsAsync(int count = 20)
     {
         var logs = new List<SystemLog>();
@@ -396,13 +362,7 @@ public class SensorDataService
 
             while (await reader.ReadAsync())
             {
-                logs.Add(new SystemLog
-                {
-                    Id = reader.GetInt32(0),
-                    Level = reader.GetString(1),
-                    Message = reader.GetString(2),
-                    LoggedAt = reader.GetDateTime(3)
-                });
+                logs.Add(ReadSystemLog(reader));
             }
         }
         catch (Exception ex)
@@ -412,6 +372,7 @@ public class SensorDataService
 
         return logs;
     }
+
     public async Task<List<IrrigationEvent>> GetRecentIrrigationEventsAsync(int zoneId, int count)
     {
         var events = new List<IrrigationEvent>();
@@ -435,17 +396,7 @@ public class SensorDataService
 
             while (await reader.ReadAsync())
             {
-                events.Add(new IrrigationEvent
-                {
-                    Id = reader.GetInt32(0),
-                    ZoneId = reader.GetInt32(1),
-                    StartedAt = reader.GetDateTime(2),
-                    EndedAt = reader.IsDBNull(3) ? null : reader.GetDateTime(3),
-                    DurationSec = reader.IsDBNull(4) ? null : reader.GetInt32(4),
-                    TriggerReason = reader.IsDBNull(5) ? null : reader.GetString(5),
-                    MoistureBefore = reader.IsDBNull(6) ? null : reader.GetFloat(6),
-                    MoistureAfter = reader.IsDBNull(7) ? null : reader.GetFloat(7)
-                });
+                events.Add(ReadIrrigationEvent(reader));
             }
         }
         catch (Exception ex)
@@ -477,17 +428,7 @@ public class SensorDataService
 
             while (await reader.ReadAsync())
             {
-                events.Add(new IrrigationEvent
-                {
-                    Id = reader.GetInt32(0),
-                    ZoneId = reader.GetInt32(1),
-                    StartedAt = reader.GetDateTime(2),
-                    EndedAt = reader.IsDBNull(3) ? null : reader.GetDateTime(3),
-                    DurationSec = reader.IsDBNull(4) ? null : reader.GetInt32(4),
-                    TriggerReason = reader.IsDBNull(5) ? null : reader.GetString(5),
-                    MoistureBefore = reader.IsDBNull(6) ? null : reader.GetFloat(6),
-                    MoistureAfter = reader.IsDBNull(7) ? null : reader.GetFloat(7)
-                });
+                events.Add(ReadIrrigationEvent(reader));
             }
         }
         catch (Exception ex)
@@ -534,20 +475,7 @@ public class SensorDataService
             await using var cmd = new NpgsqlCommand(sql, conn);
             await using var reader = await cmd.ExecuteReaderAsync();
 
-            if (await reader.ReadAsync())
-            {
-                return new SystemSettings
-                {
-                    Id = reader.GetInt32(0),
-                    AutoWateringEnabled = reader.GetBoolean(1),
-                    SystemMode = reader.GetString(2),
-                    DefaultWateringDuration = reader.GetInt32(3),
-                    NightModeEnabled = reader.GetBoolean(4),
-                    NightModeStartHour = reader.GetInt32(5),
-                    NightModeEndHour = reader.GetInt32(6),
-                    EcoModeEnabled = reader.GetBoolean(7)
-                };
-            }
+            return await reader.ReadAsync() ? ReadSystemSettings(reader) : null;
         }
         catch (Exception ex)
         {
@@ -833,15 +761,7 @@ public class SensorDataService
 
             while (await reader.ReadAsync())
             {
-                memories.Add(new PatternMemory
-                {
-                    Id = reader.GetInt32(0),
-                    CreatedAt = reader.GetDateTime(1),
-                    Summary = reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
-                    SuggestedThreshold = reader.IsDBNull(3) ? null : Convert.ToSingle(reader.GetDouble(3)),
-                    AverageMoisture = reader.IsDBNull(4) ? null : Convert.ToSingle(reader.GetDouble(4)),
-                    Notes = reader.IsDBNull(5) ? null : reader.GetString(5)
-                });
+                memories.Add(ReadPatternMemory(reader));
             }
         }
         catch (Exception ex)
@@ -1008,15 +928,7 @@ public class SensorDataService
             await using var cmd = new NpgsqlCommand(sql, conn);
             await using var reader = await cmd.ExecuteReaderAsync();
 
-            if (await reader.ReadAsync())
-            {
-                return new DisplaySettings
-                {
-                    Mode = reader.GetString(0),
-                    SelectedZoneId = reader.IsDBNull(1) ? null : reader.GetInt32(1),
-                    RefreshInterval = reader.GetInt32(2)
-                };
-            }
+            return await reader.ReadAsync() ? ReadDisplaySettings(reader) : null;
         }
         catch (Exception ex)
         {
@@ -1221,6 +1133,110 @@ public class SensorDataService
         return reader.IsDBNull(ordinal)
             ? null
             : Convert.ToSingle(reader.GetValue(ordinal));
+    }
+
+    private static SensorReading ReadSensorReading(NpgsqlDataReader reader)
+    {
+        return new SensorReading
+        {
+            Id = reader.GetInt32(0),
+            ZoneId = reader.GetInt32(1),
+            Moisture = ReadNullableFloat(reader, 2),
+            Temperature = ReadNullableFloat(reader, 3),
+            Humidity = ReadNullableFloat(reader, 4),
+            Pressure = ReadNullableFloat(reader, 5),
+            RecordedAt = reader.GetDateTime(6),
+            Device = reader.IsDBNull(7) ? null : reader.GetString(7)
+        };
+    }
+
+    private static Zone ReadZone(NpgsqlDataReader reader)
+    {
+        return new Zone
+        {
+            Id = reader.GetInt32(0),
+            Name = reader.GetString(1),
+            PlantType = reader.IsDBNull(2) ? null : reader.GetString(2),
+            MoistureThreshold = reader.GetFloat(3),
+            IsActive = reader.GetBoolean(4),
+            SensorDeviceName = reader.IsDBNull(5) ? null : reader.GetString(5)
+        };
+    }
+
+    private static SystemLog ReadSystemLog(NpgsqlDataReader reader)
+    {
+        return new SystemLog
+        {
+            Id = reader.GetInt32(0),
+            Level = reader.GetString(1),
+            Message = reader.GetString(2),
+            LoggedAt = reader.GetDateTime(3)
+        };
+    }
+
+    private static IrrigationEvent ReadIrrigationEvent(NpgsqlDataReader reader)
+    {
+        return new IrrigationEvent
+        {
+            Id = reader.GetInt32(0),
+            ZoneId = reader.GetInt32(1),
+            StartedAt = reader.GetDateTime(2),
+            EndedAt = reader.IsDBNull(3) ? null : reader.GetDateTime(3),
+            DurationSec = reader.IsDBNull(4) ? null : reader.GetInt32(4),
+            TriggerReason = reader.IsDBNull(5) ? null : reader.GetString(5),
+            MoistureBefore = reader.IsDBNull(6) ? null : reader.GetFloat(6),
+            MoistureAfter = reader.IsDBNull(7) ? null : reader.GetFloat(7)
+        };
+    }
+
+    private static SystemSettings ReadSystemSettings(NpgsqlDataReader reader)
+    {
+        return new SystemSettings
+        {
+            Id = reader.GetInt32(0),
+            AutoWateringEnabled = reader.GetBoolean(1),
+            SystemMode = reader.GetString(2),
+            DefaultWateringDuration = reader.GetInt32(3),
+            NightModeEnabled = reader.GetBoolean(4),
+            NightModeStartHour = reader.GetInt32(5),
+            NightModeEndHour = reader.GetInt32(6),
+            EcoModeEnabled = reader.GetBoolean(7)
+        };
+    }
+
+    private static PatternMemory ReadPatternMemory(NpgsqlDataReader reader)
+    {
+        return new PatternMemory
+        {
+            Id = reader.GetInt32(0),
+            CreatedAt = reader.GetDateTime(1),
+            Summary = reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
+            SuggestedThreshold = reader.IsDBNull(3) ? null : Convert.ToSingle(reader.GetDouble(3)),
+            AverageMoisture = reader.IsDBNull(4) ? null : Convert.ToSingle(reader.GetDouble(4)),
+            Notes = reader.IsDBNull(5) ? null : reader.GetString(5)
+        };
+    }
+
+    private static DisplaySettings ReadDisplaySettings(NpgsqlDataReader reader)
+    {
+        return new DisplaySettings
+        {
+            Mode = reader.GetString(0),
+            SelectedZoneId = reader.IsDBNull(1) ? null : reader.GetInt32(1),
+            RefreshInterval = reader.GetInt32(2)
+        };
+    }
+
+    private static ActiveWateringBlock ReadActiveWateringBlock(NpgsqlDataReader reader)
+    {
+        return new ActiveWateringBlock
+        {
+            Id = reader.GetInt32(0),
+            Reason = reader.GetString(1),
+            Source = reader.GetString(2),
+            ActiveUntil = reader.GetDateTime(3),
+            CreatedAt = reader.GetDateTime(4)
+        };
     }
 
     private async Task EnsureAiTablesAsync()
@@ -1713,17 +1729,7 @@ public class SensorDataService
             cmd.Parameters.AddWithValue("now", NpgsqlTypes.NpgsqlDbType.Timestamp, UtcTimestampNow());
             await using var reader = await cmd.ExecuteReaderAsync();
             
-            if (await reader.ReadAsync())
-            {
-                return new ActiveWateringBlock
-                {
-                    Id = reader.GetInt32(0),
-                    Reason = reader.GetString(1),
-                    Source = reader.GetString(2),
-                    ActiveUntil = reader.GetDateTime(3),
-                    CreatedAt = reader.GetDateTime(4)
-                };
-            }
+            return await reader.ReadAsync() ? ReadActiveWateringBlock(reader) : null;
         }
         catch (Exception ex)
         {
@@ -1753,14 +1759,7 @@ public class SensorDataService
             await using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
-                blocks.Add(new ActiveWateringBlock
-                {
-                    Id = reader.GetInt32(0),
-                    Reason = reader.GetString(1),
-                    Source = reader.GetString(2),
-                    ActiveUntil = reader.GetDateTime(3),
-                    CreatedAt = reader.GetDateTime(4)
-                });
+                blocks.Add(ReadActiveWateringBlock(reader));
             }
         }
         catch (Exception ex)

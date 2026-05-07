@@ -17,6 +17,10 @@ public class WeatherForecastService
     private DateTimeOffset CacheExpiry = DateTimeOffset.MinValue;
     private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(20);
     private static readonly WeatherIntegrationSettings DefaultSettings = new();
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
 
     public WeatherForecastService(IHttpClientFactory httpClientFactory, SensorDataService dataService, ILogger<WeatherForecastService> logger)
     {
@@ -33,19 +37,17 @@ public class WeatherForecastService
 
     public async Task<WeatherWateringAdvice> GetAdviceAsync(bool forceRefresh = false)
     {
-        if (!forceRefresh && CachedAdvice != null && DateTimeOffset.UtcNow < CacheExpiry)
+        if (TryGetCachedAdvice(forceRefresh, out var cachedAdvice))
         {
-            CachedAdvice.LastUpdated = DateTime.UtcNow;
-            return CachedAdvice;
+            return cachedAdvice;
         }
 
         await AdviceLock.WaitAsync();
         try
         {
-            if (!forceRefresh && CachedAdvice != null && DateTimeOffset.UtcNow < CacheExpiry)
+            if (TryGetCachedAdvice(forceRefresh, out cachedAdvice))
             {
-                CachedAdvice.LastUpdated = DateTime.UtcNow;
-                return CachedAdvice;
+                return cachedAdvice;
             }
 
             var settings = NormalizeSettings(await DataService.GetWeatherSettingsAsync());
@@ -62,17 +64,15 @@ public class WeatherForecastService
             if (!settings.EnableWeatherIntegration)
             {
                 advice.AdviceText = "Weather integration is disabled.";
-                CachedAdvice = advice;
-                CacheExpiry = DateTimeOffset.UtcNow.Add(CacheDuration);
-                return advice;
+                return CacheAdvice(advice);
             }
 
             try
             {
                 var query = new Dictionary<string, string?>
                 {
-                    ["latitude"] = settings.Latitude.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                    ["longitude"] = settings.Longitude.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    ["latitude"] = settings.Latitude.ToString(CultureInfo.InvariantCulture),
+                    ["longitude"] = settings.Longitude.ToString(CultureInfo.InvariantCulture),
                     ["hourly"] = "temperature_2m,precipitation_probability,precipitation,rain,showers,weather_code",
                     ["forecast_hours"] = Math.Max(settings.RainLookaheadHours, 24).ToString(CultureInfo.InvariantCulture),
                     ["timezone"] = "auto"
@@ -87,23 +87,16 @@ public class WeatherForecastService
                 {
                     Logger.LogWarning("Weather API request failed with status {StatusCode}: {Body}", response.StatusCode, responseText);
                     advice.AdviceText = "Weather forecast unavailable; continuing with normal irrigation safety.";
-                    CachedAdvice = advice;
-                    CacheExpiry = DateTimeOffset.UtcNow.Add(CacheDuration);
-                    return advice;
+                    return CacheAdvice(advice);
                 }
 
-                var forecast = JsonSerializer.Deserialize<WeatherForecastResult>(responseText, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
+                var forecast = JsonSerializer.Deserialize<WeatherForecastResult>(responseText, JsonOptions);
 
                 if (forecast?.Hourly == null || forecast.Hourly.Time.Count == 0)
                 {
                     Logger.LogWarning("Weather API returned no hourly forecast data.");
                     advice.AdviceText = "Weather forecast returned no data; continuing with normal irrigation safety.";
-                    CachedAdvice = advice;
-                    CacheExpiry = DateTimeOffset.UtcNow.Add(CacheDuration);
-                    return advice;
+                    return CacheAdvice(advice);
                 }
 
                 var hourlyForecasts = BuildHourlyForecasts(forecast.Hourly);
@@ -113,9 +106,7 @@ public class WeatherForecastService
                 if (lookaheadForecasts.Count == 0)
                 {
                     advice.AdviceText = "Weather forecast does not contain enough hourly data; continuing with normal irrigation safety.";
-                    CachedAdvice = advice;
-                    CacheExpiry = DateTimeOffset.UtcNow.Add(CacheDuration);
-                    return advice;
+                    return CacheAdvice(advice);
                 }
 
                 var maxRainProbability = lookaheadForecasts.Max(item => item.PrecipitationProbability);
@@ -152,23 +143,39 @@ public class WeatherForecastService
                     ? $"Rain is likely soon, prefer not watering. Forecast shows {advice.MaxRainProbabilityPercent}% probability and {FormatRainMm(advice.ExpectedRainMm)} expected within {settings.RainLookaheadHours} hours."
                     : $"No rain is likely soon. Forecast shows {advice.MaxRainProbabilityPercent}% probability and {FormatRainMm(advice.ExpectedRainMm)} expected over the next {settings.RainLookaheadHours} hours.";
 
-                CachedAdvice = advice;
-                CacheExpiry = DateTimeOffset.UtcNow.Add(CacheDuration);
-                return advice;
+                return CacheAdvice(advice);
             }
             catch (Exception ex)
             {
                 Logger.LogWarning(ex, "Failed to fetch weather forecast.");
                 advice.AdviceText = "Weather forecast failed; continuing with normal irrigation safety.";
-                CachedAdvice = advice;
-                CacheExpiry = DateTimeOffset.UtcNow.Add(TimeSpan.FromMinutes(5));
-                return advice;
+                return CacheAdvice(advice, TimeSpan.FromMinutes(5));
             }
         }
         finally
         {
             AdviceLock.Release();
         }
+    }
+
+    private bool TryGetCachedAdvice(bool forceRefresh, out WeatherWateringAdvice advice)
+    {
+        if (!forceRefresh && CachedAdvice != null && DateTimeOffset.UtcNow < CacheExpiry)
+        {
+            CachedAdvice.LastUpdated = DateTime.UtcNow;
+            advice = CachedAdvice;
+            return true;
+        }
+
+        advice = default!;
+        return false;
+    }
+
+    private WeatherWateringAdvice CacheAdvice(WeatherWateringAdvice advice, TimeSpan? duration = null)
+    {
+        CachedAdvice = advice;
+        CacheExpiry = DateTimeOffset.UtcNow.Add(duration ?? CacheDuration);
+        return advice;
     }
 
     private static List<WeatherHourForecast> BuildHourlyForecasts(WeatherForecastHourly hourly)
