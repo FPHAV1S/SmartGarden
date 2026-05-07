@@ -61,7 +61,13 @@ public class AutoWateringService : BackgroundService
     {
         var settings = await DataService.GetSystemSettingsAsync();
         
-        if (settings == null || !settings.AutoWateringEnabled)
+        if (settings == null)
+        {
+            Logger.LogWarning("Auto-watering settings could not be loaded - skipping check");
+            return;
+        }
+
+        if (!settings.AutoWateringEnabled)
         {
             Logger.LogInformation("Auto-watering is disabled in settings - skipping check");
             return;
@@ -110,19 +116,24 @@ public class AutoWateringService : BackgroundService
             var finalDecision = await DecisionService.EvaluateAsync(reading, "auto-watering-service");
             if (!finalDecision.FinalShouldWaterAfterSafety || finalDecision.RecommendedDurationSeconds <= 0)
             {
-                Logger.LogInformation(
-                    "Zone {ZoneId}: Final decision is not to water. Reason: {Reason}. Safety: {SafetyNotes}",
-                    zone.Id,
-                    finalDecision.Reason,
-                    string.IsNullOrWhiteSpace(finalDecision.SafetyNotes) ? "none" : finalDecision.SafetyNotes);
+                if (!finalDecision.WasFallbackUsed)
+                {
+                    Logger.LogInformation(
+                        "Zone {ZoneId}: Final AI decision is not to water. Reason: {Reason}. Safety: {SafetyNotes}",
+                        zone.Id,
+                        finalDecision.Reason,
+                        string.IsNullOrWhiteSpace(finalDecision.SafetyNotes) ? "none" : finalDecision.SafetyNotes);
+                }
                 continue;
             }
 
-            Logger.LogInformation(
-                "Zone {ZoneId}: Final safe decision allows watering for {Duration}s. Fallback used: {Fallback}",
-                zone.Id,
-                finalDecision.RecommendedDurationSeconds,
-                finalDecision.WasFallbackUsed);
+            if (!finalDecision.WasFallbackUsed)
+            {
+                Logger.LogInformation(
+                    "Zone {ZoneId}: Final AI decision allows watering for {Duration}s.",
+                    zone.Id,
+                    finalDecision.RecommendedDurationSeconds);
+            }
 
             var triggerReason = finalDecision.AiDecision != null && !finalDecision.WasFallbackUsed
                 ? "AI Auto"

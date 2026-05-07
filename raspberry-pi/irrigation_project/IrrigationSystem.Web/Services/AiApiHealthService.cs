@@ -9,7 +9,7 @@ namespace IrrigationSystem.Web.Services;
 public class AiApiHealthService
 {
     private static readonly TimeSpan OpenAiCheckTimeout = TimeSpan.FromSeconds(45);
-    private static readonly TimeSpan OllamaCheckTimeout = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan OllamaCheckTimeout = TimeSpan.FromSeconds(90);
     private static readonly TimeSpan OllamaFailurePause = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan QuotaOrRateLimitPause = TimeSpan.FromHours(1);
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -40,6 +40,11 @@ public class AiApiHealthService
     public AiApiCheckResult? GetLastResult()
     {
         return LastResult;
+    }
+
+    public void ResetPause()
+    {
+        LastResult = null;
     }
 
     public AiApiCheckResult? GetActivePause(AiIrrigationOptions? settings = null)
@@ -73,9 +78,9 @@ public class AiApiHealthService
 
         var retryAfterText = FormatLocalTime(retryAfter);
         var message = exception.IsQuotaExceeded
-            ? $"OpenAI API quota is exhausted for this account/project. AI decisions are paused until {retryAfterText}; rule fallback continues."
+            ? $"OpenAI API quota is exhausted for this account/project. AI decisions are paused until {retryAfterText}."
             : exception.IsQuotaOrRateLimited
-                ? $"OpenAI API returned 429 Too Many Requests. AI decisions are paused until {retryAfterText}; rule fallback continues."
+                ? $"OpenAI API returned 429 Too Many Requests. AI decisions are paused until {retryAfterText}."
                 : exception.Message;
 
         return await StoreAndLogAsync(new AiApiCheckResult
@@ -99,8 +104,8 @@ public class AiApiHealthService
         var retryAfter = DateTime.UtcNow.Add(OllamaFailurePause);
         var retryAfterText = FormatLocalTime(retryAfter);
         var message = exception is TimeoutException
-            ? $"Ollama analysis timed out at {baseUrl}. AI decisions are paused until {retryAfterText}; rule fallback continues."
-            : $"Ollama analysis failed at {baseUrl}: {exception.Message}. AI decisions are paused until {retryAfterText}; rule fallback continues.";
+            ? $"Ollama analysis timed out at {baseUrl}. AI decisions are paused until {retryAfterText}."
+            : $"Ollama analysis failed at {baseUrl}: {exception.Message}. AI decisions are paused until {retryAfterText}.";
 
         return await StoreAndLogAsync(new AiApiCheckResult
         {
@@ -115,6 +120,7 @@ public class AiApiHealthService
 
     public async Task<AiApiCheckResult> CheckAsync(
         AiIrrigationOptions? settingsOverride = null,
+        bool verifyGeneration = true,
         CancellationToken cancellationToken = default)
     {
         await CheckLock.WaitAsync(cancellationToken);
@@ -122,7 +128,7 @@ public class AiApiHealthService
         {
             var settings = settingsOverride ?? await DataService.GetAiIrrigationOptionsAsync(Options.Value);
             return settings.UsesOllama
-                ? await CheckOllamaAsync(settings, cancellationToken)
+                ? await CheckOllamaAsync(settings, verifyGeneration, cancellationToken)
                 : await CheckOpenAiAsync(settings, cancellationToken);
         }
         finally
@@ -192,7 +198,7 @@ public class AiApiHealthService
                 : (DateTime?)null;
             var retryAfterText = FormatLocalTime(retryAfter);
             var message = statusCode == 429 && apiError.Contains("quota", StringComparison.OrdinalIgnoreCase)
-                ? $"OpenAI API quota is exhausted for this account/project. AI decisions are paused until {retryAfterText}; rule fallback continues."
+                ? $"OpenAI API quota is exhausted for this account/project. AI decisions are paused until {retryAfterText}."
                 : $"OpenAI API check failed with {statusCode} {response.ReasonPhrase}: {apiError}";
 
             return await StoreAndLogAsync(new AiApiCheckResult
@@ -233,6 +239,7 @@ public class AiApiHealthService
 
     private async Task<AiApiCheckResult> CheckOllamaAsync(
         AiIrrigationOptions settings,
+        bool verifyGeneration,
         CancellationToken cancellationToken)
     {
         var model = GetConfiguredModel(settings);
@@ -263,8 +270,17 @@ public class AiApiHealthService
                         KeySource = baseUrl,
                         StatusCode = (int)response.StatusCode,
                         RetryAfter = retryAfter,
-                        Message = $"Ollama is reachable at {baseUrl}, but model {model} is not installed. Run 'ollama pull {model}'. AI decisions are paused until {retryAfterText}; rule fallback continues."
+                        Message = $"Ollama is reachable at {baseUrl}, but model {model} is not installed. Run 'ollama pull {model}'. AI decisions are paused until {retryAfterText}."
                     });
+                }
+
+                if (verifyGeneration)
+                {
+                    var generationCheck = await CheckOllamaGenerationAsync(baseUrl, model, timeout.Token);
+                    if (!generationCheck.IsSuccess)
+                    {
+                        return await StoreAndLogAsync(generationCheck);
+                    }
                 }
 
                 return await StoreAndLogAsync(new AiApiCheckResult
@@ -274,7 +290,9 @@ public class AiApiHealthService
                     Model = model,
                     KeySource = baseUrl,
                     StatusCode = (int)response.StatusCode,
-                    Message = $"Ollama is reachable at {baseUrl} and model {model} is installed."
+                    Message = verifyGeneration
+                        ? $"Ollama is reachable at {baseUrl}, model {model} is installed, and generation works."
+                        : $"Ollama is reachable at {baseUrl} and model {model} is installed."
                 });
             }
 
@@ -288,7 +306,7 @@ public class AiApiHealthService
                 KeySource = baseUrl,
                 StatusCode = (int)response.StatusCode,
                 RetryAfter = failedRetryAfter,
-                Message = $"Ollama check failed with {(int)response.StatusCode} {response.ReasonPhrase}: {ExtractOllamaError(responseBody)}. AI decisions are paused until {failedRetryAfterText}; rule fallback continues."
+                Message = $"Ollama check failed with {(int)response.StatusCode} {response.ReasonPhrase}: {ExtractOllamaError(responseBody)}. AI decisions are paused until {failedRetryAfterText}."
             });
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
@@ -302,7 +320,7 @@ public class AiApiHealthService
                 Model = model,
                 KeySource = baseUrl,
                 RetryAfter = retryAfter,
-                Message = $"Ollama check timed out after {OllamaCheckTimeout.TotalSeconds:0} seconds at {baseUrl}. AI decisions are paused until {retryAfterText}; rule fallback continues."
+                Message = $"Ollama check timed out after {OllamaCheckTimeout.TotalSeconds:0} seconds at {baseUrl}. AI decisions are paused until {retryAfterText}."
             });
         }
         catch (Exception ex)
@@ -317,7 +335,7 @@ public class AiApiHealthService
                 Model = model,
                 KeySource = baseUrl,
                 RetryAfter = retryAfter,
-                Message = $"Ollama check failed at {baseUrl}: {ex.Message}. AI decisions are paused until {retryAfterText}; rule fallback continues."
+                Message = $"Ollama check failed at {baseUrl}: {ex.Message}. AI decisions are paused until {retryAfterText}."
             });
         }
     }
@@ -332,6 +350,78 @@ public class AiApiHealthService
             $"AI provider check: {result.Message}");
 
         return result;
+    }
+
+    private static async Task<AiApiCheckResult> CheckOllamaGenerationAsync(
+        string baseUrl,
+        string model,
+        CancellationToken cancellationToken)
+    {
+        var requestBody = new
+        {
+            model,
+            stream = false,
+            think = false,
+            messages = new[]
+            {
+                new { role = "user", content = "Reply with exactly OK." }
+            },
+            options = new
+            {
+                temperature = 0,
+                num_predict = 8
+            }
+        };
+
+        using var client = new HttpClient();
+        using var request = new HttpRequestMessage(HttpMethod.Post, BuildOllamaApiUri(baseUrl, "api/chat"));
+        request.Content = JsonContent.Create(requestBody, options: JsonOptions);
+
+        using var response = await client.SendAsync(request, cancellationToken);
+        var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (response.IsSuccessStatusCode && OllamaChatReturnedText(responseBody))
+        {
+            return new AiApiCheckResult
+            {
+                IsConfigured = true,
+                IsSuccess = true,
+                Model = model,
+                KeySource = baseUrl,
+                StatusCode = (int)response.StatusCode,
+                Message = $"Ollama generation works for model {model}."
+            };
+        }
+
+        var retryAfter = DateTime.UtcNow.Add(OllamaFailurePause);
+        var retryAfterText = FormatLocalTime(retryAfter);
+
+        return new AiApiCheckResult
+        {
+            IsConfigured = true,
+            IsSuccess = false,
+            Model = model,
+            KeySource = baseUrl,
+            StatusCode = (int)response.StatusCode,
+            RetryAfter = retryAfter,
+            Message = $"Ollama model {model} is installed but did not generate a usable response. AI decisions are paused until {retryAfterText}."
+        };
+    }
+
+    private static bool OllamaChatReturnedText(string responseJson)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(responseJson);
+            return document.RootElement.TryGetProperty("message", out var message) &&
+                message.TryGetProperty("content", out var content) &&
+                content.ValueKind == JsonValueKind.String &&
+                !string.IsNullOrWhiteSpace(content.GetString());
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 
     private bool ResultMatchesSettings(AiApiCheckResult result, AiIrrigationOptions settings)

@@ -184,7 +184,7 @@
                             <RadzenMarkers MarkerType="MarkerType.Circle" Fill="#2E8B57" Size="4" />
                         </RadzenLineSeries>
                         <RadzenCategoryAxis FormatString="{0:HH:mm}" />
-                        <RadzenValueAxis>
+                        <RadzenValueAxis FormatString="{0:F1}">
                             <RadzenGridLines Visible="true" />
                         </RadzenValueAxis>
                     </RadzenChart>
@@ -242,7 +242,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var data in HistoryData.OrderByDescending(d => d.RecordedAt))
+                    @foreach (var data in ChartData.OrderByDescending(d => d.RecordedAt))
                     {
                         <tr>
                             <td>@FormatLocalTime(data.RecordedAt, "yyyy-MM-dd HH:mm")</td>

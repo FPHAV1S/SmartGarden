@@ -37,6 +37,34 @@ public class IrrigationDecisionService
         string source,
         CancellationToken cancellationToken = default)
     {
+        return await EvaluateCoreAsync(
+            latestReading,
+            source,
+            persistResult: true,
+            forceAiAttempt: false,
+            cancellationToken);
+    }
+
+    public async Task<IrrigationDecisionResult> PreviewAsync(
+        SensorReading latestReading,
+        string source,
+        CancellationToken cancellationToken = default)
+    {
+        return await EvaluateCoreAsync(
+            latestReading,
+            source,
+            persistResult: false,
+            forceAiAttempt: true,
+            cancellationToken);
+    }
+
+    private async Task<IrrigationDecisionResult> EvaluateCoreAsync(
+        SensorReading latestReading,
+        string source,
+        bool persistResult,
+        bool forceAiAttempt,
+        CancellationToken cancellationToken = default)
+    {
         var settings = await DataService.GetAiIrrigationOptionsAsync(Options.Value);
         var zone = await DataService.GetZoneAsync(latestReading.ZoneId);
         var systemSettings = await DataService.GetSystemSettingsAsync() ?? new SystemSettings();
@@ -62,32 +90,39 @@ public class IrrigationDecisionService
         var keyLookup = settings.RequiresApiKey
             ? ApiKeyProvider.GetApiKey(settings.ApiKeyEnvironmentVariable)
             : null;
-        var activeApiPause = AiApiHealth.GetActivePause(settings);
+        var activeApiPause = forceAiAttempt ? null : AiApiHealth.GetActivePause(settings);
+        var aiLockTaken = false;
 
         if (!settings.EnableAiDecisionMaking)
         {
-            aiErrorMessage = "AI decision making is disabled; using rule fallback.";
+            aiErrorMessage = "AI decision making is disabled.";
         }
         else if (settings.RequiresApiKey && keyLookup?.IsConfigured != true)
         {
-            aiErrorMessage = $"{keyLookup?.Source ?? "OpenAI API key"} is not configured; using rule fallback.";
+            aiErrorMessage = $"{keyLookup?.Source ?? "OpenAI API key"} is not configured.";
         }
         else if (activeApiPause != null)
         {
             aiErrorMessage = $"{activeApiPause.Message} Next automatic AI retry after {FormatLocalTime(activeApiPause.RetryAfter)}.";
         }
-        else if (await IsAiCallCoolingDownAsync(settings))
+        else if (!forceAiAttempt && await IsAiCallCoolingDownAsync(settings))
         {
-            aiErrorMessage = $"AI call skipped because the minimum interval is {settings.MinimumMinutesBetweenAiCalls} minutes; using rule fallback.";
+            aiErrorMessage = $"AI call skipped because the minimum interval is {settings.MinimumMinutesBetweenAiCalls} minutes.";
         }
-        else if (!AiAnalysisLock.Wait(0))
+        else if (!forceAiAttempt && !AiAnalysisLock.Wait(0))
         {
-            aiErrorMessage = "AI call skipped because another AI analysis is already running; using rule fallback.";
+            aiErrorMessage = "AI call skipped because another AI analysis is already running.";
         }
         else
         {
             try
             {
+                if (forceAiAttempt)
+                {
+                    await AiAnalysisLock.WaitAsync(cancellationToken);
+                }
+
+                aiLockTaken = true;
                 aiWasAttempted = true;
                 Logger.LogInformation(
                     "Calling {Provider} irrigation analysis from {Source} for zone {ZoneId} with latest moisture {Moisture}",
@@ -104,7 +139,7 @@ public class IrrigationDecisionService
                 aiErrorMessage = apiResult.Message;
                 Logger.LogWarning(
                     ex,
-                    "AI irrigation analysis failed for zone {ZoneId}; falling back to rule-based logic",
+                    "AI irrigation analysis failed for zone {ZoneId}",
                     latestReading.ZoneId);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -117,7 +152,7 @@ public class IrrigationDecisionService
                 aiErrorMessage = apiResult.Message;
                 Logger.LogWarning(
                     ex,
-                    "AI irrigation analysis failed for zone {ZoneId}; falling back to rule-based logic",
+                    "AI irrigation analysis failed for zone {ZoneId}",
                     latestReading.ZoneId);
             }
             catch (Exception ex)
@@ -125,12 +160,15 @@ public class IrrigationDecisionService
                 aiErrorMessage = ex.Message;
                 Logger.LogWarning(
                     ex,
-                    "AI irrigation analysis failed for zone {ZoneId}; falling back to rule-based logic",
+                    "AI irrigation analysis failed for zone {ZoneId}",
                     latestReading.ZoneId);
             }
             finally
             {
-                AiAnalysisLock.Release();
+                if (aiLockTaken)
+                {
+                    AiAnalysisLock.Release();
+                }
             }
         }
 
@@ -146,17 +184,49 @@ public class IrrigationDecisionService
             aiErrorMessage,
             weatherAdvice);
 
-        await DataService.InsertAiDecisionLogAsync(finalDecision);
-        await TrySavePatternMemoryAsync(finalDecision, recentReadings, settings);
+        finalDecision = SuppressFallbackDecision(finalDecision, aiErrorMessage);
 
-        Logger.LogInformation(
-            "Final irrigation decision for zone {ZoneId}: moisture={Moisture}, finalShouldWater={FinalShouldWater}, duration={Duration}s, fallback={Fallback}, safetyNotes={SafetyNotes}",
-            finalDecision.ZoneId,
-            finalDecision.MoisturePercent,
-            finalDecision.FinalShouldWaterAfterSafety,
-            finalDecision.RecommendedDurationSeconds,
-            finalDecision.WasFallbackUsed,
-            string.IsNullOrWhiteSpace(finalDecision.SafetyNotes) ? "none" : finalDecision.SafetyNotes);
+        if (persistResult && ShouldPersistAiDecision(finalDecision))
+        {
+            await DataService.InsertAiDecisionLogAsync(finalDecision);
+            await TrySavePatternMemoryAsync(finalDecision, recentReadings, settings);
+        }
+
+        if (!finalDecision.WasFallbackUsed)
+        {
+            Logger.LogInformation(
+                "Final AI irrigation decision for zone {ZoneId}: moisture={Moisture}, finalShouldWater={FinalShouldWater}, duration={Duration}s, safetyNotes={SafetyNotes}",
+                finalDecision.ZoneId,
+                finalDecision.MoisturePercent,
+                finalDecision.FinalShouldWaterAfterSafety,
+                finalDecision.RecommendedDurationSeconds,
+                string.IsNullOrWhiteSpace(finalDecision.SafetyNotes) ? "none" : finalDecision.SafetyNotes);
+        }
+
+        return finalDecision;
+    }
+
+    private static bool ShouldPersistAiDecision(IrrigationDecisionResult finalDecision)
+    {
+        return finalDecision.AiDecision != null && !finalDecision.WasFallbackUsed;
+    }
+
+    private static IrrigationDecisionResult SuppressFallbackDecision(
+        IrrigationDecisionResult finalDecision,
+        string? aiErrorMessage)
+    {
+        if (!finalDecision.WasFallbackUsed)
+        {
+            return finalDecision;
+        }
+
+        finalDecision.FinalShouldWaterAfterSafety = false;
+        finalDecision.RecommendedValveState = "OFF";
+        finalDecision.RecommendedDurationSeconds = 0;
+        finalDecision.Reason = "AI did not produce an accepted decision, so automatic watering stayed off.";
+        finalDecision.SafetyNotes = string.IsNullOrWhiteSpace(aiErrorMessage)
+            ? "AI did not produce an accepted decision."
+            : aiErrorMessage;
 
         return finalDecision;
     }
@@ -170,6 +240,11 @@ public class IrrigationDecisionService
 
         var latestAttempt = await DataService.GetLatestAttemptedAiDecisionAsync();
         if (latestAttempt == null)
+        {
+            return false;
+        }
+
+        if (settings.CooldownsResetAt.HasValue && latestAttempt.Timestamp <= settings.CooldownsResetAt.Value)
         {
             return false;
         }

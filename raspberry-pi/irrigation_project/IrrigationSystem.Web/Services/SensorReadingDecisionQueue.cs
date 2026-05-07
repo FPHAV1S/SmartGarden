@@ -61,10 +61,13 @@ public sealed class SensorReadingDecisionQueue : BackgroundService
                     stoppingToken);
 
                 var command = await TryApplyWateringDecisionAsync(finalDecision);
-                Logger.LogInformation(
-                    "Processed queued sensor decision for reading {ReadingId}: {Message}",
-                    workItem.Reading.Id,
-                    command.Message);
+                if (!finalDecision.WasFallbackUsed)
+                {
+                    Logger.LogInformation(
+                        "Processed queued AI sensor decision for reading {ReadingId}: {Message}",
+                        workItem.Reading.Id,
+                        command.Message);
+                }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -111,11 +114,14 @@ public sealed class SensorReadingDecisionQueue : BackgroundService
             _ = CompleteIrrigationEventLaterAsync(eventId, finalDecision.ZoneId, durationSeconds);
         }
 
-        Logger.LogInformation(
-            "Final decision opened valve for zone {ZoneId} for {DurationSeconds}s from sensor reading {SensorReadingId}.",
-            finalDecision.ZoneId,
-            durationSeconds,
-            finalDecision.SensorReadingId);
+        if (!finalDecision.WasFallbackUsed)
+        {
+            Logger.LogInformation(
+                "Final AI decision opened valve for zone {ZoneId} for {DurationSeconds}s from sensor reading {SensorReadingId}.",
+                finalDecision.ZoneId,
+                durationSeconds,
+                finalDecision.SensorReadingId);
+        }
 
         return new WateringCommandResult(true, true, $"Valve open command sent for {durationSeconds}s.");
     }

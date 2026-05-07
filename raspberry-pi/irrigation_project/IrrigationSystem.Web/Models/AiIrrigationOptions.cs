@@ -21,6 +21,7 @@ public class AiIrrigationOptions
     public bool EnableWateringCooldown { get; set; } = true;
     public int MinimumMinutesBetweenWaterings { get; set; } = 120;
     public int DefaultFallbackDurationSeconds { get; set; } = 10;
+    public DateTime? CooldownsResetAt { get; set; }
 
     public bool UsesOpenAi =>
         string.Equals(Provider, OpenAiProvider, StringComparison.OrdinalIgnoreCase);

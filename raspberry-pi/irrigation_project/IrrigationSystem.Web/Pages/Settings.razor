@@ -11,6 +11,7 @@
 @inject OpenAiApiKeyProvider ApiKeyProvider
 @inject IOptions<AiIrrigationOptions> AiDefaults
 @inject WeatherForecastService Weather
+@inject IrrigationDecisionService DecisionService
 @implements IDisposable
 
 <PageTitle>Settings - Irrigation System</PageTitle>
@@ -164,7 +165,7 @@
                         <span class="toggle-slider-sm"></span>
                         <span class="toggle-text">Enable AI Decision Making</span>
                     </label>
-                    <small>Sensor readings still use rule fallback when this is off or the provider is unavailable</small>
+                    <small>Sensor readings keep safety checks when this is off or the provider is unavailable</small>
                 </div>
 
                 <div class="setting-item">
@@ -278,6 +279,9 @@
                 <button class="btn-warning" @onclick="TestAiApi" disabled="@IsTestingAiApi">
                     @(IsTestingAiApi ? "Testing AI Provider..." : "Test AI Provider")
                 </button>
+                <button class="btn-secondary" @onclick="ResetAiCooldowns" disabled="@IsResettingAiCooldowns">
+                    @(IsResettingAiCooldowns ? "Resetting Cooldowns..." : "Reset Cooldowns")
+                </button>
                 <button class="btn-secondary" @onclick="LoadAiSettings">Refresh AI Status</button>
             </div>
 
@@ -285,6 +289,88 @@
             {
                 <div class="success-message">AI settings saved.</div>
             }
+
+            @if (AiCooldownsReset)
+            {
+                <div class="success-message">AI and watering cooldowns reset.</div>
+            }
+
+            <div class="mt-2">
+                <h4>AI Situation Test</h4>
+                <div class="settings-grid">
+                    <div class="setting-item">
+                        <label>Zone</label>
+                        <select @bind="AiTestZoneId" class="form-input">
+                            @foreach (var zone in Zones)
+                            {
+                                <option value="@zone.Id">@zone.Name (@zone.Id)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <label>Moisture (%)</label>
+                        <input type="number" min="0" max="100" step="0.1" @bind="AiTestMoisture" class="form-input" />
+                    </div>
+                    <div class="setting-item">
+                        <label>Temperature (C)</label>
+                        <input type="number" step="0.1" @bind="AiTestTemperature" class="form-input" />
+                    </div>
+                    <div class="setting-item">
+                        <label>Humidity (%)</label>
+                        <input type="number" min="0" max="100" step="0.1" @bind="AiTestHumidity" class="form-input" />
+                    </div>
+                    <div class="setting-item">
+                        <label>Pressure (hPa)</label>
+                        <input type="number" step="0.1" @bind="AiTestPressure" class="form-input" />
+                    </div>
+                </div>
+
+                <div class="settings-actions">
+                    <button class="btn-warning" @onclick="TestAiSituation" disabled="@IsTestingAiSituation">
+                        @(IsTestingAiSituation ? "Testing Situation..." : "Test AI Situation")
+                    </button>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(AiSituationError))
+                {
+                    <div class="warning-message">@AiSituationError</div>
+                }
+
+                @if (AiSituationResult != null)
+                {
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label">Final valve:</span>
+                            <span class="info-value">@AiSituationResult.RecommendedValveState</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Duration:</span>
+                            <span class="info-value">@AiSituationResult.RecommendedDurationSeconds s</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">AI attempted:</span>
+                            <span class="info-value">@(AiSituationResult.AiWasAttempted ? "Yes" : "No")</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Decision source:</span>
+                            <span class="info-value">@(AiSituationResult.WasFallbackUsed ? "Safety rules" : "AI")</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Confidence:</span>
+                            <span class="info-value">@AiSituationResult.Confidence.ToString("F2")</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Risk:</span>
+                            <span class="info-value">@AiSituationResult.RiskLevel</span>
+                        </div>
+                    </div>
+                    <div class="info-message">@AiSituationResult.Reason</div>
+                    @if (!string.IsNullOrWhiteSpace(AiSituationResult.SafetyNotes))
+                    {
+                        <div class="warning-message">@AiSituationResult.SafetyNotes</div>
+                    }
+                }
+            </div>
 
             @if (LatestAiApiCheck != null)
             {
@@ -496,7 +582,9 @@
     private WeatherIntegrationSettings? WeatherConfig;
     private AiIrrigationDecisionLog? LatestAiDecision;
     private AiApiCheckResult? LatestAiApiCheck;
+    private IrrigationDecisionResult? AiSituationResult;
     private List<SystemLog> SystemLogs = new();
+    private List<Zone> Zones = new();
     
     private bool IsLoadingLogs = true;
     private bool IsRunning = false;
@@ -505,8 +593,12 @@
     private bool CleanupComplete = false;
     private bool IsSavingAiSettings = false;
     private bool IsTestingAiApi = false;
+    private bool IsTestingAiSituation = false;
+    private bool IsResettingAiCooldowns = false;
     private bool AiSettingsSaved = false;
+    private bool AiCooldownsReset = false;
     private string? AiSettingsError;
+    private string? AiSituationError;
     private bool IsSavingWeatherSettings = false;
     private bool WeatherSettingsSaved = false;
     private string? WeatherSettingsError;
@@ -517,6 +609,11 @@
 
     private int CleanupRetentionSeconds = 30 * 24 * 60 * 60;
     private int DeletedRecords = 0;
+    private int AiTestZoneId = 1;
+    private float AiTestMoisture = 20;
+    private float AiTestTemperature = 24;
+    private float AiTestHumidity = 60;
+    private float? AiTestPressure = 1013.25f;
     
     private System.Threading.Timer? SaveTimer;
 
@@ -547,7 +644,13 @@
 
     private async Task LoadZones()
     {
-        TotalZones = (await DataService.GetZonesAsync()).Count;
+        Zones = await DataService.GetZonesAsync();
+        TotalZones = Zones.Count;
+
+        if (Zones.Count > 0 && !Zones.Any(zone => zone.Id == AiTestZoneId))
+        {
+            AiTestZoneId = Zones[0].Id;
+        }
     }
 
     private async Task LoadAiSettings()
@@ -750,6 +853,87 @@
         finally
         {
             IsTestingAiApi = false;
+        }
+    }
+
+    private async Task ResetAiCooldowns()
+    {
+        IsResettingAiCooldowns = true;
+        AiCooldownsReset = false;
+        AiSettingsError = null;
+
+        try
+        {
+            AiApiHealth.ResetPause();
+            var resetAt = await DataService.ResetAiIrrigationCooldownsAsync();
+
+            if (resetAt.HasValue)
+            {
+                await LoadAiSettings();
+                await LoadLogs();
+                AiCooldownsReset = true;
+                await InvokeAsync(StateHasChanged);
+                await Task.Delay(2500);
+                AiCooldownsReset = false;
+            }
+            else
+            {
+                AiSettingsError = "Cooldowns could not be reset. Check the system logs for details.";
+            }
+        }
+        finally
+        {
+            IsResettingAiCooldowns = false;
+        }
+    }
+
+    private async Task TestAiSituation()
+    {
+        if (AiConfig == null)
+        {
+            return;
+        }
+
+        IsTestingAiSituation = true;
+        AiSituationError = null;
+        AiSituationResult = null;
+
+        try
+        {
+            if (Zones.Count == 0)
+            {
+                await LoadZones();
+            }
+
+            var zone = Zones.FirstOrDefault(zone => zone.Id == AiTestZoneId);
+            if (zone == null)
+            {
+                AiSituationError = "Choose an active zone before testing an AI situation.";
+                return;
+            }
+
+            var reading = new SensorReading
+            {
+                ZoneId = zone.Id,
+                Moisture = Math.Clamp(AiTestMoisture, 0, 100),
+                Temperature = AiTestTemperature,
+                Humidity = Math.Clamp(AiTestHumidity, 0, 100),
+                Pressure = AiTestPressure,
+                RecordedAt = DateTime.UtcNow,
+                Device = "settings-ai-test"
+            };
+
+            AiSituationResult = await DecisionService.PreviewAsync(reading, "settings-ai-situation-test");
+            LatestAiApiCheck = AiApiHealth.GetLastResult();
+            await LoadLogs();
+        }
+        catch (Exception ex)
+        {
+            AiSituationError = $"AI situation test failed: {ex.Message}";
+        }
+        finally
+        {
+            IsTestingAiSituation = false;
         }
     }
 

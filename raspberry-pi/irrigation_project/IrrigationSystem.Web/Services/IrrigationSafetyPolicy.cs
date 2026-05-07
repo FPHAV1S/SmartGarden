@@ -179,7 +179,7 @@ public static class IrrigationSafetyPolicy
         }
         else if (aiDecision != null && aiDecision.Confidence < options.LowConfidenceThreshold)
         {
-            notes.Add($"AI confidence {aiDecision.Confidence:F2} was below {options.LowConfidenceThreshold:F2}; using rule fallback.");
+            notes.Add($"AI confidence {aiDecision.Confidence:F2} was below {options.LowConfidenceThreshold:F2}; automatic watering stayed off.");
             useFallback = true;
         }
 
@@ -276,6 +276,9 @@ public static class IrrigationSafetyPolicy
         }
 
         var lastWatering = recentEvents
+            .Where(irrigationEvent =>
+                !options.CooldownsResetAt.HasValue ||
+                irrigationEvent.StartedAt > options.CooldownsResetAt.Value)
             .OrderByDescending(irrigationEvent => irrigationEvent.StartedAt)
             .FirstOrDefault();
 

@@ -831,6 +831,15 @@ input:checked + .toggle-slider:before {
     border-left: 4px solid #f39c12;
 }
 
+.info-message {
+    background: #eef5ff;
+    color: #1f4f82;
+    padding: 12px;
+    border-radius: 5px;
+    margin-top: 15px;
+    border-left: 4px solid #3498db;
+}
+
 .settings-actions {
     display: flex;
     align-items: center;

@@ -9,7 +9,8 @@ namespace IrrigationSystem.Web.Services;
 public class OpenAiIrrigationService : IAiIrrigationService
 {
     private const string SystemPrompt = "You are an irrigation assistant for a student smart garden project. You analyze soil moisture history and recommend safe watering decisions. You must return only valid JSON. You are not allowed to ignore safety limits. Prefer conservative watering. If data is unclear, recommend not watering. Do not include markdown, explanations outside JSON, or thinking tags.";
-    private static readonly TimeSpan OllamaAnalysisTimeout = TimeSpan.FromSeconds(45);
+    private const string OllamaSystemPrompt = "Return only one valid JSON object for an irrigation decision. No markdown, no extra text. Prefer OFF when uncertain.";
+    private static readonly TimeSpan OllamaAnalysisTimeout = TimeSpan.FromSeconds(120);
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -135,7 +136,7 @@ public class OpenAiIrrigationService : IAiIrrigationService
 
         try
         {
-            var userPrompt = await BuildUserPromptAsync(latestReading, recentReadings, settings, timeout.Token);
+            var userPrompt = await BuildOllamaUserPromptAsync(latestReading, recentReadings, settings, timeout.Token);
             var requestBody = new
             {
                 model = string.IsNullOrWhiteSpace(settings.Model) ? "qwen3:1.7b" : settings.Model,
@@ -143,14 +144,15 @@ public class OpenAiIrrigationService : IAiIrrigationService
                 think = false,
                 messages = new[]
                 {
-                    new { role = "system", content = SystemPrompt },
+                    new { role = "system", content = OllamaSystemPrompt },
                     new { role = "user", content = userPrompt }
                 },
-                format = CreateDecisionSchema(),
+                format = "json",
                 options = new
                 {
-                    temperature = 0.2,
-                    num_predict = 360
+                    temperature = 0,
+                    num_ctx = 1024,
+                    num_predict = 180
                 }
             };
 
@@ -187,6 +189,85 @@ public class OpenAiIrrigationService : IAiIrrigationService
             throw new TimeoutException(
                 $"Ollama irrigation analysis timed out after {OllamaAnalysisTimeout.TotalSeconds:0} seconds.");
         }
+    }
+
+    private async Task<string> BuildOllamaUserPromptAsync(
+        SensorReading latestReading,
+        List<SensorReading> recentReadings,
+        AiIrrigationOptions settings,
+        CancellationToken cancellationToken)
+    {
+        var zones = await DataService.GetZonesAsync();
+        var zone = zones.FirstOrDefault(z => z.Id == latestReading.ZoneId);
+        var systemSettings = await DataService.GetSystemSettingsAsync() ?? new SystemSettings();
+        var recentEvents = await DataService.GetRecentIrrigationEventsAsync(
+            latestReading.ZoneId,
+            Math.Min(3, Math.Max(1, settings.RecentWateringEvents)));
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var weatherSettings = await DataService.GetWeatherSettingsAsync();
+        var weatherAdvice = await Weather.GetAdviceAsync();
+        var context = new
+        {
+            nowUtc = DateTimeOffset.UtcNow.ToString("O"),
+            latest = new
+            {
+                zoneId = latestReading.ZoneId,
+                moisture = Round(latestReading.Moisture),
+                temperature = Round(latestReading.Temperature),
+                humidity = Round(latestReading.Humidity),
+                atUtc = latestReading.RecordedAt.ToString("O")
+            },
+            recentMoisture = recentReadings
+                .OrderBy(reading => reading.RecordedAt)
+                .TakeLast(8)
+                .Select(reading => new
+                {
+                    m = Round(reading.Moisture),
+                    atUtc = reading.RecordedAt.ToString("O")
+                }),
+            zone = new
+            {
+                name = zone?.Name,
+                plant = zone?.PlantType,
+                active = zone?.IsActive,
+                threshold = zone?.MoistureThreshold
+            },
+            rules = new
+            {
+                autoWatering = systemSettings.AutoWateringEnabled,
+                defaultDurationSec = systemSettings.DefaultWateringDuration,
+                maxDurationSec = settings.MaxDurationSeconds,
+                highMoistureBlock = settings.HighMoistureBlockPercent,
+                cooldownEnabled = settings.EnableWateringCooldown,
+                minMinutesBetweenWaterings = settings.MinimumMinutesBetweenWaterings,
+                lowConfidenceThreshold = settings.LowConfidenceThreshold
+            },
+            recentWatering = recentEvents.Select(irrigationEvent => new
+            {
+                startedUtc = irrigationEvent.StartedAt.ToString("O"),
+                durationSec = irrigationEvent.DurationSec,
+                before = Round(irrigationEvent.MoistureBefore),
+                after = Round(irrigationEvent.MoistureAfter)
+            }),
+            weather = new
+            {
+                enabled = weatherSettings.EnableWeatherIntegration,
+                available = weatherAdvice.IsWeatherDataAvailable,
+                rainLikelySoon = weatherAdvice.RainLikelySoon,
+                rainProbability = weatherAdvice.MaxRainProbabilityPercent,
+                expectedRainMm = Round(weatherAdvice.ExpectedRainMm),
+                advice = weatherAdvice.AdviceText
+            }
+        };
+
+        return "Decide watering from this context. Return JSON with exactly these keys: " +
+            "shouldWater boolean, recommendedValveState ON or OFF, recommendedDurationSeconds integer 0-120, " +
+            "confidence number 0-1, reason short string, learnedObservation short string, " +
+            "suggestedMoistureThreshold number 0-100, riskLevel LOW/MEDIUM/HIGH. " +
+            "Use ON only when zone is active, auto watering is enabled, moisture is dry, no cooldown blocks it, and rain is not likely. " +
+            "Otherwise use OFF. Context: " + JsonSerializer.Serialize(context, JsonOptions);
     }
 
     private async Task<string> BuildUserPromptAsync(
@@ -319,6 +400,11 @@ public class OpenAiIrrigationService : IAiIrrigationService
         return isDefaultBurgas
             ? "Burgas, Bulgaria"
             : FormattableString.Invariant($"lat {settings.Latitude:F4}, lon {settings.Longitude:F4}");
+    }
+
+    private static double? Round(float? value)
+    {
+        return value.HasValue ? Math.Round(value.Value, 1) : null;
     }
 
     private static object CreateOpenAiJsonSchemaFormat()

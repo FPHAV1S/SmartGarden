@@ -22,6 +22,7 @@ var tests = new TestCase[]
     new("Low AI confidence falls back to rules", Tests.LowAiConfidenceFallsBackToRules),
     new("Watering cooldown blocks repeated automatic watering when enabled", Tests.WateringCooldownBlocksRepeatedAutomaticWateringWhenEnabled),
     new("Watering cooldown can be disabled", Tests.WateringCooldownCanBeDisabled),
+    new("Cooldown reset allows a fresh automatic watering decision", Tests.CooldownResetAllowsFreshAutomaticWateringDecision),
     new("API failure falls back to rules", Tests.ApiFailureFallsBackToRules),
     new("Open-Meteo hourly JSON maps to weather model", Tests.OpenMeteoHourlyJsonMapsToWeatherModel),
     new("Weather forecast exposes temperature for verification", Tests.WeatherForecastExposesTemperatureForVerification),
@@ -37,6 +38,7 @@ var tests = new TestCase[]
     new("History and login cutoffs are parameterized", Tests.HistoryAndLoginCutoffsAreParameterized),
     new("Generated build outputs are ignored", Tests.GeneratedBuildOutputsAreIgnored),
     new("Settings page exposes AI management", Tests.SettingsPageExposesAiManagement),
+    new("Fallback-only AI decisions stay out of AI logs", Tests.FallbackOnlyAiDecisionsStayOutOfAiLogs),
     new("ESP32 sketch posts to the web sensor API", Tests.Esp32SketchPostsToWebSensorApi),
     new("ESP32 sketch subscribes to web valve commands", Tests.Esp32SketchSubscribesToWebValveCommands),
     new("Sensor API applies safe watering decisions through MQTT", Tests.SensorApiAppliesSafeWateringDecisionsThroughMqtt),
@@ -282,6 +284,34 @@ internal static class Tests
         return Task.CompletedTask;
     }
 
+    public static Task CooldownResetAllowsFreshAutomaticWateringDecision()
+    {
+        var recentEvents = new[]
+        {
+            new IrrigationEvent
+            {
+                Id = 27,
+                ZoneId = 1,
+                StartedAt = DateTime.UtcNow.AddMinutes(-10),
+                DurationSec = 10,
+                TriggerReason = "Auto"
+            }
+        };
+        var aiDecision = CreateAiDecision(shouldWater: true, durationSeconds: 30, confidence: 0.95);
+
+        var result = ApplySafety(
+            aiDecision,
+            moisture: 20,
+            recentEvents: recentEvents,
+            cooldownsResetAt: DateTime.UtcNow.AddMinutes(-1));
+
+        Assert.True(result.FinalShouldWaterAfterSafety, "Resetting cooldowns should ignore watering events before the reset timestamp.");
+        Assert.Equal("ON", result.RecommendedValveState, "Cooldown reset should let an otherwise safe decision open the valve.");
+        Assert.False(result.SafetyNotes.Contains("cooldown", StringComparison.OrdinalIgnoreCase), "Reset cooldown should not report a stale cooldown block.");
+
+        return Task.CompletedTask;
+    }
+
     public static Task ApiFailureFallsBackToRules()
     {
         var result = ApplySafety(null, aiWasAttempted: true, aiErrorMessage: "OpenAI API returned 503 Service Unavailable");
@@ -393,6 +423,7 @@ internal static class Tests
             "sensor_readings",
             "irrigation_events",
             "ai_irrigation_decision_logs",
+            "ai_irrigation_settings",
             "pattern_memory",
             "system_settings",
             "system_logs",
@@ -410,6 +441,8 @@ internal static class Tests
         Assert.Contains("pressure double precision", schema);
         Assert.Contains("sensor_device_name character varying(80)", schema);
         Assert.Contains("device character varying(80)", schema);
+        Assert.Contains("cooldowns_reset_at timestamp without time zone", schema);
+        Assert.Contains("INSERT INTO public.system_settings", schema);
         Assert.Contains("OPENAI_API_KEY", File.ReadAllText(FindRepoFile("README.md")));
 
         return Task.CompletedTask;
@@ -567,7 +600,8 @@ internal static class Tests
         Assert.False(historyPage.Contains("<option value=\"2\">Zone 2</option>"), "History zone filter should come from configured zones.");
         Assert.False(historyPage.Contains("<option value=\"3\">Zone 3</option>"), "History zone filter should come from configured zones.");
 
-        Assert.Contains("TotalZones = (await DataService.GetZonesAsync()).Count", settingsPage);
+        Assert.Contains("Zones = await DataService.GetZonesAsync();", settingsPage);
+        Assert.Contains("TotalZones = Zones.Count;", settingsPage);
         Assert.False(settingsPage.Contains("<span class=\"info-value\">3</span>"), "System information should not hardcode three zones.");
 
         Assert.Contains("Add Zone", zonesPage);
@@ -685,21 +719,32 @@ internal static class Tests
         Assert.Contains("API Key Environment Variable Name", settingsPage);
         Assert.Contains("Enable Watering Cooldown", settingsPage);
         Assert.Contains("Test AI Provider", settingsPage);
+        Assert.Contains("Reset Cooldowns", settingsPage);
+        Assert.Contains("AI Situation Test", settingsPage);
+        Assert.Contains("Test AI Situation", settingsPage);
         Assert.Contains("LooksLikeSecretApiKey", settingsPage);
         Assert.Contains("ApiKeyProvider.GetApiKey", settingsPage);
         Assert.Contains("SaveAiSettings", settingsPage);
+        Assert.Contains("ResetAiCooldowns", settingsPage);
+        Assert.Contains("TestAiSituation", settingsPage);
         Assert.Contains("ai_irrigation_settings", dataService);
         Assert.Contains("UpdateAiIrrigationOptionsAsync", dataService);
+        Assert.Contains("ResetAiIrrigationCooldownsAsync", dataService);
+        Assert.Contains("EnsureSystemSettingsRowAsync", dataService);
+        Assert.Contains("cooldowns_reset_at", dataService);
         Assert.Contains("enable_watering_cooldown", dataService);
         Assert.Contains("NormalizeAiProvider", dataService);
         Assert.Contains("NormalizeOllamaBaseUrl", dataService);
         Assert.Contains("NormalizeApiKeyEnvironmentVariableName", dataService);
         Assert.Contains("GetAiIrrigationOptionsAsync(Options.Value)", decisionService);
+        Assert.Contains("PreviewAsync", decisionService);
+        Assert.Contains("CooldownsResetAt", decisionService);
         Assert.Contains("settings.RequiresApiKey", decisionService);
         Assert.Contains("AiApiHealth.GetActivePause", decisionService);
         Assert.Contains("RecordOpenAiFailureAsync", decisionService);
         Assert.Contains("RecordOllamaFailureAsync", decisionService);
         Assert.Contains("AiAnalysisLock", decisionService);
+        Assert.Contains("ResetPause", settingsPage);
 
         var program = File.ReadAllText(FindRepoFile(
             "raspberry-pi",
@@ -736,6 +781,52 @@ internal static class Tests
         Assert.Contains("OllamaFailurePause", healthService);
         Assert.Contains("OllamaAnalysisTimeout", aiService);
         Assert.Contains("api/chat", aiService);
+
+        return Task.CompletedTask;
+    }
+
+    public static Task FallbackOnlyAiDecisionsStayOutOfAiLogs()
+    {
+        var decisionService = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Services",
+            "IrrigationDecisionService.cs"));
+        var queueService = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Services",
+            "SensorReadingDecisionQueue.cs"));
+        var autoWateringService = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Services",
+            "AutoWateringService.cs"));
+        var healthService = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Services",
+            "AiApiHealthService.cs"));
+
+        Assert.Contains("persistResult && ShouldPersistAiDecision(finalDecision)", decisionService);
+        Assert.Contains("finalDecision.AiDecision != null && !finalDecision.WasFallbackUsed", decisionService);
+        Assert.Contains("SuppressFallbackDecision(finalDecision, aiErrorMessage)", decisionService);
+        Assert.Contains("FinalShouldWaterAfterSafety = false", decisionService);
+        Assert.Contains("AI did not produce an accepted decision, so automatic watering stayed off.", decisionService);
+        Assert.Contains("if (!finalDecision.WasFallbackUsed)", decisionService);
+        Assert.Contains("Final AI irrigation decision", decisionService);
+        Assert.False(decisionService.Contains("fallback={Fallback}"), "Fallback-only decisions should not be written to the final decision console log.");
+
+        Assert.Contains("if (!finalDecision.WasFallbackUsed)", queueService);
+        Assert.Contains("Processed queued AI sensor decision", queueService);
+        Assert.Contains("Final AI decision opened valve", queueService);
+        Assert.Contains("Final AI decision", autoWateringService);
+
+        Assert.False(healthService.Contains("rule fallback continues"), "Provider failure logs should not advertise rule fallback.");
 
         return Task.CompletedTask;
     }
@@ -923,7 +1014,8 @@ internal static class Tests
         string? aiErrorMessage = null,
         WeatherWateringAdvice? weatherAdvice = null,
         IReadOnlyList<IrrigationEvent>? recentEvents = null,
-        bool enableWateringCooldown = true)
+        bool enableWateringCooldown = true,
+        DateTime? cooldownsResetAt = null)
     {
         recentEvents ??= Array.Empty<IrrigationEvent>();
         var reading = new SensorReading
@@ -955,7 +1047,8 @@ internal static class Tests
             HighMoistureBlockPercent = 60,
             MaxDurationSeconds = 120,
             EnableWateringCooldown = enableWateringCooldown,
-            MinimumMinutesBetweenWaterings = 120
+            MinimumMinutesBetweenWaterings = 120,
+            CooldownsResetAt = cooldownsResetAt
         };
         var fallback = IrrigationSafetyPolicy.BuildRuleBasedDecision(
             reading,

@@ -525,6 +525,7 @@ public class SensorDataService
         {
             await using var conn = new NpgsqlConnection(ConnectionString);
             await conn.OpenAsync();
+            await EnsureSystemSettingsRowAsync(conn);
 
             var sql = @"SELECT id, auto_watering_enabled, system_mode, default_watering_duration, 
                         night_mode_enabled, night_mode_start_hour, night_mode_end_hour, eco_mode_enabled 
@@ -604,7 +605,7 @@ public class SensorDataService
                             minimum_minutes_between_ai_calls, recent_history_hours, recent_watering_events,
                             pattern_memory_count, high_moisture_block_percent, max_duration_seconds,
                             low_confidence_threshold, enable_watering_cooldown, minimum_minutes_between_waterings,
-                            default_fallback_duration_seconds
+                            default_fallback_duration_seconds, cooldowns_reset_at
                         FROM ai_irrigation_settings
                         WHERE id = 1";
 
@@ -650,6 +651,7 @@ public class SensorDataService
                             enable_watering_cooldown,
                             minimum_minutes_between_waterings,
                             default_fallback_duration_seconds,
+                            cooldowns_reset_at,
                             updated_at)
                         VALUES (
                             1,
@@ -668,6 +670,7 @@ public class SensorDataService
                             @enable_watering_cooldown,
                             @minimum_watering_interval,
                             @fallback_duration,
+                            @cooldowns_reset_at,
                             NOW())
                         ON CONFLICT (id) DO UPDATE
                         SET enable_ai_decision_making = EXCLUDED.enable_ai_decision_making,
@@ -685,6 +688,7 @@ public class SensorDataService
                             enable_watering_cooldown = EXCLUDED.enable_watering_cooldown,
                             minimum_minutes_between_waterings = EXCLUDED.minimum_minutes_between_waterings,
                             default_fallback_duration_seconds = EXCLUDED.default_fallback_duration_seconds,
+                            cooldowns_reset_at = EXCLUDED.cooldowns_reset_at,
                             updated_at = NOW()";
 
             await using var cmd = new NpgsqlCommand(sql, conn);
@@ -702,6 +706,40 @@ public class SensorDataService
         {
             Logger.LogError(ex, "Failed to update AI irrigation settings");
             return false;
+        }
+    }
+
+    public async Task<DateTime?> ResetAiIrrigationCooldownsAsync()
+    {
+        var resetAt = UtcTimestampNow();
+
+        try
+        {
+            await EnsureAiTablesAsync();
+
+            await using var conn = new NpgsqlConnection(ConnectionString);
+            await conn.OpenAsync();
+
+            var sql = @"INSERT INTO ai_irrigation_settings (id, cooldowns_reset_at, updated_at)
+                        VALUES (1, @reset_at, NOW())
+                        ON CONFLICT (id) DO UPDATE
+                        SET cooldowns_reset_at = EXCLUDED.cooldowns_reset_at,
+                            updated_at = NOW()";
+
+            await using var cmd = new NpgsqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("reset_at", NpgsqlTypes.NpgsqlDbType.Timestamp, resetAt);
+            await cmd.ExecuteNonQueryAsync();
+
+            await LogSystemMessageAsync(
+                "INFO",
+                $"AI and watering cooldowns reset at {FormatLocalTimestamp(resetAt, "MM/dd HH:mm:ss")}");
+
+            return resetAt;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to reset AI irrigation cooldowns");
+            return null;
         }
     }
 
@@ -994,6 +1032,7 @@ public class SensorDataService
         {
             await using var conn = new NpgsqlConnection(ConnectionString);
             await conn.OpenAsync();
+            await EnsureSystemSettingsRowAsync(conn);
 
             var sql = @"UPDATE system_settings 
                         SET auto_watering_enabled = @auto_watering,
@@ -1034,6 +1073,26 @@ public class SensorDataService
             return false;
         }
     }
+
+    private static async Task EnsureSystemSettingsRowAsync(NpgsqlConnection conn)
+    {
+        var sql = @"
+            INSERT INTO system_settings (
+                id,
+                auto_watering_enabled,
+                system_mode,
+                default_watering_duration,
+                night_mode_enabled,
+                night_mode_start_hour,
+                night_mode_end_hour,
+                eco_mode_enabled)
+            VALUES (1, true, 'auto', 10, false, 18, 8, false)
+            ON CONFLICT (id) DO NOTHING";
+
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
     public async Task<SensorReading> InsertSensorReadingAsync(
         int zoneId,
         float moisture,
@@ -1240,6 +1299,7 @@ public class SensorDataService
                     enable_watering_cooldown boolean DEFAULT true NOT NULL,
                     minimum_minutes_between_waterings integer DEFAULT 120 NOT NULL,
                     default_fallback_duration_seconds integer DEFAULT 10 NOT NULL,
+                    cooldowns_reset_at timestamp without time zone,
                     updated_at timestamp without time zone DEFAULT now() NOT NULL,
                     CONSTRAINT ai_irrigation_settings_singleton CHECK (id = 1)
                 );
@@ -1247,7 +1307,8 @@ public class SensorDataService
                 ALTER TABLE ai_irrigation_settings
                     ADD COLUMN IF NOT EXISTS provider character varying(20) DEFAULT 'Ollama' NOT NULL,
                     ADD COLUMN IF NOT EXISTS ollama_base_url character varying(200) DEFAULT 'http://localhost:11434' NOT NULL,
-                    ADD COLUMN IF NOT EXISTS enable_watering_cooldown boolean DEFAULT true NOT NULL;
+                    ADD COLUMN IF NOT EXISTS enable_watering_cooldown boolean DEFAULT true NOT NULL,
+                    ADD COLUMN IF NOT EXISTS cooldowns_reset_at timestamp without time zone;
 
                 UPDATE ai_irrigation_settings
                 SET provider = 'Ollama',
@@ -1288,7 +1349,8 @@ public class SensorDataService
             LowConfidenceThreshold = Math.Clamp(source.LowConfidenceThreshold, 0, 1),
             EnableWateringCooldown = source.EnableWateringCooldown,
             MinimumMinutesBetweenWaterings = Math.Clamp(source.MinimumMinutesBetweenWaterings, 0, 1440),
-            DefaultFallbackDurationSeconds = Math.Clamp(source.DefaultFallbackDurationSeconds, 1, 3600)
+            DefaultFallbackDurationSeconds = Math.Clamp(source.DefaultFallbackDurationSeconds, 1, 3600),
+            CooldownsResetAt = source.CooldownsResetAt
         };
     }
 
@@ -1382,6 +1444,7 @@ public class SensorDataService
                         enable_watering_cooldown,
                         minimum_minutes_between_waterings,
                         default_fallback_duration_seconds,
+                        cooldowns_reset_at,
                         updated_at)
                     VALUES (
                         1,
@@ -1400,6 +1463,7 @@ public class SensorDataService
                         @enable_watering_cooldown,
                         @minimum_watering_interval,
                         @fallback_duration,
+                        @cooldowns_reset_at,
                         NOW())
                     ON CONFLICT (id) DO NOTHING";
 
@@ -1425,6 +1489,9 @@ public class SensorDataService
         cmd.Parameters.AddWithValue("enable_watering_cooldown", settings.EnableWateringCooldown);
         cmd.Parameters.AddWithValue("minimum_watering_interval", settings.MinimumMinutesBetweenWaterings);
         cmd.Parameters.AddWithValue("fallback_duration", settings.DefaultFallbackDurationSeconds);
+        cmd.Parameters.AddWithValue("cooldowns_reset_at", settings.CooldownsResetAt.HasValue
+            ? (object)ToPostgresTimestamp(settings.CooldownsResetAt.Value)
+            : DBNull.Value);
     }
 
     private static AiIrrigationOptions ReadAiIrrigationOptions(NpgsqlDataReader reader)
@@ -1445,7 +1512,8 @@ public class SensorDataService
             LowConfidenceThreshold = reader.GetDouble(11),
             EnableWateringCooldown = reader.GetBoolean(12),
             MinimumMinutesBetweenWaterings = reader.GetInt32(13),
-            DefaultFallbackDurationSeconds = reader.GetInt32(14)
+            DefaultFallbackDurationSeconds = reader.GetInt32(14),
+            CooldownsResetAt = reader.IsDBNull(15) ? null : reader.GetDateTime(15)
         });
     }
 

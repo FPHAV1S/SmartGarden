@@ -316,6 +316,35 @@ CREATE TABLE public.pattern_memory (
 ALTER TABLE public.pattern_memory OWNER TO postgres;
 
 --
+-- Name: ai_irrigation_settings; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.ai_irrigation_settings (
+    id integer DEFAULT 1 PRIMARY KEY,
+    enable_ai_decision_making boolean DEFAULT false NOT NULL,
+    provider character varying(20) DEFAULT 'Ollama'::character varying NOT NULL,
+    model character varying(100) DEFAULT 'qwen3:1.7b'::character varying NOT NULL,
+    ollama_base_url character varying(200) DEFAULT 'http://localhost:11434'::character varying NOT NULL,
+    api_key_environment_variable character varying(100) DEFAULT 'OPENAI_API_KEY'::character varying NOT NULL,
+    minimum_minutes_between_ai_calls integer DEFAULT 15 NOT NULL,
+    recent_history_hours integer DEFAULT 24 NOT NULL,
+    recent_watering_events integer DEFAULT 10 NOT NULL,
+    pattern_memory_count integer DEFAULT 5 NOT NULL,
+    high_moisture_block_percent double precision DEFAULT 60 NOT NULL,
+    max_duration_seconds integer DEFAULT 120 NOT NULL,
+    low_confidence_threshold double precision DEFAULT 0.65 NOT NULL,
+    enable_watering_cooldown boolean DEFAULT true NOT NULL,
+    minimum_minutes_between_waterings integer DEFAULT 120 NOT NULL,
+    default_fallback_duration_seconds integer DEFAULT 10 NOT NULL,
+    cooldowns_reset_at timestamp without time zone,
+    updated_at timestamp without time zone DEFAULT now() NOT NULL,
+    CONSTRAINT ai_irrigation_settings_singleton CHECK (id = 1)
+);
+
+
+ALTER TABLE public.ai_irrigation_settings OWNER TO postgres;
+
+--
 -- Name: zones_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -424,6 +453,20 @@ ALTER TABLE ONLY public.system_logs
 
 ALTER TABLE ONLY public.system_settings
     ADD CONSTRAINT system_settings_pkey PRIMARY KEY (id);
+
+INSERT INTO public.system_settings (
+    id,
+    auto_watering_enabled,
+    system_mode,
+    default_watering_duration,
+    night_mode_enabled,
+    night_mode_start_hour,
+    night_mode_end_hour,
+    eco_mode_enabled
+) VALUES (1, true, 'auto', 10, false, 18, 8, false)
+ON CONFLICT (id) DO NOTHING;
+
+SELECT pg_catalog.setval('public.system_settings_id_seq', 1, true);
 
 
 --
