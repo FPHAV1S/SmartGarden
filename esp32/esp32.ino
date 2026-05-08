@@ -12,7 +12,7 @@ const char* ssid = "GardenLaptop";
 const char* password = "GardenBrain123";
 const char* espDeviceName = "esp32-zone-1";
 const char* wifiHostname = espDeviceName;
-const char* firmwareBuild = "laptop-hotspot-static-radio-auth-debug-2026-05-07";
+const char* firmwareBuild = "soft-psu-startup-2026-05-08";
 
 // ESP connects to the Windows laptop Mobile Hotspot.
 // The laptop can still use the phone hotspot as its upstream internet connection.
@@ -51,8 +51,11 @@ const uint16_t httpRequestTimeoutMs = 6000;
 const unsigned long mqttReconnectIntervalMs = 2000;
 const unsigned long bmeRetryIntervalMs = 30000;
 const unsigned long wifiReconnectIntervalMs = 5000;
+const unsigned long powerSettleDelayMs = 5000;
 const int wifiConnectAttempts = 20;
 const int wifiStatusLogEveryAttempts = 5;
+const bool scanWifiBeforeConnect = false;
+const int wifiTxPowerQuarterDbm = 44;  // 11 dBm; lowers startup current spikes near the laptop hotspot.
 
 #define SOIL_PIN 0
 #define BME_SDA_PIN 8
@@ -67,6 +70,9 @@ const bool MOSFET_ACTIVE_HIGH = true;
 // Your real soil sensor calibration values
 const int dryValue = 3730;
 const int wetValue = 200;
+const int soilSampleCount = 25;
+const int soilSampleDelayMs = 4;
+const float dryAirDeadbandPercent = 12.0;
 
 WebServer server(80);
 Adafruit_BME280 bme;
@@ -114,6 +120,11 @@ const char* wifiAuthText(int auth);
 String sensorApiUrl();
 
 void setup() {
+  pinMode(MOSFET1_PIN, OUTPUT);
+  pinMode(MOSFET2_PIN, OUTPUT);
+  setValve(1, false);
+  setValve(2, false);
+
   Serial.begin(115200);
   Serial.setDebugOutput(true);
   delay(2000);
@@ -130,15 +141,15 @@ void setup() {
   Serial.println("Serial is alive at 115200 baud.");
 
   analogReadResolution(12);
+  analogSetPinAttenuation(SOIL_PIN, ADC_11db);
   Wire.begin(BME_SDA_PIN, BME_SCL_PIN);
   Wire.setClock(100000);
   initializeBme280();
 
-  pinMode(MOSFET1_PIN, OUTPUT);
-  pinMode(MOSFET2_PIN, OUTPUT);
-
-  setValve(1, false);
-  setValve(2, false);
+  Serial.print("Waiting ");
+  Serial.print(powerSettleDelayMs / 1000);
+  Serial.println(" seconds for PSU voltage to settle before WiFi startup.");
+  delay(powerSettleDelayMs);
 
   WiFi.mode(WIFI_STA);
   configureWifiRadio();
@@ -307,8 +318,14 @@ void connectToWifi() {
   Serial.print("Connecting to ");
   Serial.print(ssid);
   Serial.println("...");
-  scanForWifiNetwork();
-  Serial.println("Connecting to the laptop hotspot with static IP after scan diagnostics.");
+  if (scanWifiBeforeConnect) {
+    scanForWifiNetwork();
+    Serial.println("Connecting to the laptop hotspot with static IP after scan diagnostics.");
+  } else {
+    targetNetworkFound = false;
+    targetChannel = 0;
+    Serial.println("Skipping startup WiFi scan to reduce cold-boot current draw.");
+  }
 
   if (tryWifiConnection()) {
     return;
@@ -463,7 +480,7 @@ void configureWifiRadio() {
   WiFi.setMinSecurity(WIFI_AUTH_WPA2_PSK);
   esp_wifi_set_ps(WIFI_PS_NONE);
   esp_wifi_set_protocol(WIFI_IF_STA, WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N);
-  esp_wifi_set_max_tx_power(60);  // 15 dBm, gentler than max power for nearby hotspots.
+  esp_wifi_set_max_tx_power(wifiTxPowerQuarterDbm);
 }
 
 void scanForWifiNetwork() {
@@ -859,14 +876,42 @@ void updateSensorData() {
 }
 
 float readSoilMoisturePercent() {
-  soilRaw = analogRead(SOIL_PIN);
+  soilRaw = readSoilRawAverage();
 
   float percent = ((float)(dryValue - soilRaw) / (dryValue - wetValue)) * 100.0;
 
   if (percent < 0) percent = 0;
   if (percent > 100) percent = 100;
+  if (percent <= dryAirDeadbandPercent) percent = 0;
 
   return percent;
+}
+
+int readSoilRawAverage() {
+  long total = 0;
+  int lowest = 4095;
+  int highest = 0;
+
+  analogRead(SOIL_PIN);
+  delay(soilSampleDelayMs);
+
+  for (int i = 0; i < soilSampleCount; i++) {
+    int sample = analogRead(SOIL_PIN);
+    total += sample;
+
+    if (sample < lowest) lowest = sample;
+    if (sample > highest) highest = sample;
+
+    delay(soilSampleDelayMs);
+  }
+
+  if (soilSampleCount > 2) {
+    total -= lowest;
+    total -= highest;
+    return total / (soilSampleCount - 2);
+  }
+
+  return total / soilSampleCount;
 }
 
 void openValveForDuration(int valveNumber, int durationSeconds) {

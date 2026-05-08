@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "XnvWMbhb9Os=",
+  "dgSpecHash": "tzS31K/YX1E=",
   "success": true,
   "projectFilePath": "C:\\Users\\dpenis\\Documents\\SmartGarden\\raspberry-pi\\irrigation_project\\IrrigationSystem.Worker\\IrrigationSystem.Worker.csproj",
   "expectedPackageFiles": [
@@ -37,7 +37,8 @@
     "C:\\Users\\dpenis\\.nuget\\packages\\system.diagnostics.eventlog\\8.0.1\\system.diagnostics.eventlog.8.0.1.nupkg.sha512",
     "C:\\Users\\dpenis\\.nuget\\packages\\microsoft.netcore.app.ref\\8.0.24\\microsoft.netcore.app.ref.8.0.24.nupkg.sha512",
     "C:\\Users\\dpenis\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\8.0.24\\microsoft.windowsdesktop.app.ref.8.0.24.nupkg.sha512",
-    "C:\\Users\\dpenis\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\8.0.24\\microsoft.aspnetcore.app.ref.8.0.24.nupkg.sha512"
+    "C:\\Users\\dpenis\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\8.0.24\\microsoft.aspnetcore.app.ref.8.0.24.nupkg.sha512",
+    "C:\\Users\\dpenis\\.nuget\\packages\\microsoft.netcore.app.host.win-x64\\8.0.24\\microsoft.netcore.app.host.win-x64.8.0.24.nupkg.sha512"
   ],
   "logs": []
 }
