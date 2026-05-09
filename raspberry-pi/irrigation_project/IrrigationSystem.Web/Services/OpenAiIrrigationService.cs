@@ -393,12 +393,12 @@ public class OpenAiIrrigationService : IAiIrrigationService
 
     private static string BuildWeatherLocation(WeatherIntegrationSettings settings)
     {
-        var isDefaultBurgas =
-            Math.Abs(settings.Latitude - 42.5048) < 0.0001 &&
-            Math.Abs(settings.Longitude - 27.4626) < 0.0001;
+        var isDefaultLovech =
+            Math.Abs(settings.Latitude - 43.1369) < 0.0001 &&
+            Math.Abs(settings.Longitude - 24.7142) < 0.0001;
 
-        return isDefaultBurgas
-            ? "Burgas, Bulgaria"
+        return isDefaultLovech
+            ? "Lovech, Bulgaria"
             : FormattableString.Invariant($"lat {settings.Latitude:F4}, lon {settings.Longitude:F4}");
     }
 

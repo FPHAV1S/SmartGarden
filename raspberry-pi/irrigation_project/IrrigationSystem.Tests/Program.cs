@@ -27,6 +27,7 @@ var tests = new TestCase[]
     new("Open-Meteo hourly JSON maps to weather model", Tests.OpenMeteoHourlyJsonMapsToWeatherModel),
     new("Weather forecast exposes temperature for verification", Tests.WeatherForecastExposesTemperatureForVerification),
     new("Weather forecast safety blocks automatic watering", Tests.WeatherForecastSafetyBlocksAutomaticWatering),
+    new("Weather defaults use Lovech coordinates", Tests.WeatherDefaultsUseLovechCoordinates),
     new("Database schema contains required tables", Tests.DatabaseSchemaContainsRequiredTables),
     new("Web appsettings uses the expected local database", Tests.WebAppSettingsUseExpectedDatabase),
     new("Setup script keeps the PostgreSQL password aligned with appsettings", Tests.SetupScriptKeepsDatabasePasswordAligned),
@@ -410,6 +411,48 @@ internal static class Tests
         Assert.False(result.FinalShouldWaterAfterSafety, "Weather safety should block automatic watering even when AI recommends watering.");
         Assert.Equal("OFF", result.RecommendedValveState, "Weather safety should force the valve off.");
         Assert.Contains("weather forecasts rain", result.SafetyNotes);
+
+        return Task.CompletedTask;
+    }
+
+    public static Task WeatherDefaultsUseLovechCoordinates()
+    {
+        var weatherModels = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Models",
+            "WeatherModels.cs"));
+        var dataService = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Services",
+            "SensorDataService.cs"));
+        var settingsPage = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Pages",
+            "Settings.razor"));
+        var aiService = File.ReadAllText(FindRepoFile(
+            "raspberry-pi",
+            "irrigation_project",
+            "IrrigationSystem.Web",
+            "Services",
+            "OpenAiIrrigationService.cs"));
+        var readme = File.ReadAllText(FindRepoFile("README.md"));
+
+        Assert.Contains("public double Latitude { get; set; } = 43.1369;", weatherModels);
+        Assert.Contains("public double Longitude { get; set; } = 24.7142;", weatherModels);
+        Assert.Contains("latitude double precision DEFAULT 43.1369 NOT NULL", dataService);
+        Assert.Contains("longitude double precision DEFAULT 24.7142 NOT NULL", dataService);
+        Assert.Contains("WHERE id = 1 AND latitude = 42.5048 AND longitude = 27.4626", dataService);
+        Assert.Contains(": 43.1369", settingsPage);
+        Assert.Contains(": 24.7142", settingsPage);
+        Assert.Contains("Lovech, Bulgaria", aiService);
+        Assert.Contains("Lovech, Bulgaria", readme);
+        Assert.False(readme.Contains("Burgas, Bulgaria", StringComparison.Ordinal), "README should not describe Burgas as the default weather location.");
 
         return Task.CompletedTask;
     }
@@ -835,12 +878,28 @@ internal static class Tests
     {
         var sketch = File.ReadAllText(FindRepoFile("esp32", "esp32.ino"));
 
-        Assert.Contains("const char* ssid = \"GardenBrain\";", sketch);
+        Assert.Contains("const char* ssid = \"GardenLaptop\";", sketch);
         Assert.Contains("const char* password = \"GardenBrain123\";", sketch);
         Assert.Contains("const char* espDeviceName = \"esp32-zone-1\";", sketch);
         Assert.Contains("const int sensorZoneId = 1;", sketch);
-        Assert.Contains("const char* laptopServerIp = \"10.163.174.210\";", sketch);
-        Assert.Contains("Using DHCP from the phone hotspot.", sketch);
+        Assert.Contains("const char* laptopServerIp = \"192.168.137.1\";", sketch);
+        Assert.Contains("const unsigned long sendIntervalMs = 10000;", sketch);
+        Assert.Contains("const unsigned long startupSendIntervalMs = 30000;", sketch);
+        Assert.Contains("const unsigned long reducedLoadAfterBootMs = 300000;", sketch);
+        Assert.Contains("const unsigned long mqttStartupDelayMs = 120000;", sketch);
+        Assert.Contains("const int maxConsecutiveHttpFailuresBeforeWifiReset = 3;", sketch);
+        Assert.Contains("const unsigned long powerSettleDelayMs = 30000;", sketch);
+        Assert.Contains("before sensor and WiFi startup", sketch);
+        Assert.Contains("const int wifiTxPowerQuarterDbm = 32;", sketch);
+        Assert.Contains("const unsigned long standalonePowerGuardMs = 300000;", sketch);
+        Assert.Contains("WiFi.setSleep(true);", sketch);
+        Assert.Contains("esp_wifi_set_ps(WIFI_PS_MIN_MODEM);", sketch);
+        Assert.Contains("Using static IP 192.168.137.100.", sketch);
+        Assert.Contains("MQTT delayed during standalone power stabilization", sketch);
+        Assert.Contains("recordHttpResult(lastHttpCode >= 200 && lastHttpCode < 300);", sketch);
+        Assert.Contains("Resetting WiFi after repeated HTTP failures", sketch);
+        Assert.Contains("currentSendIntervalMs()", sketch);
+        Assert.Contains("mqttAllowed()", sketch);
         Assert.Contains("sensorApiUrl()", sketch);
         Assert.Contains("\\\"device\\\":\\\"\" + String(espDeviceName)", sketch);
         Assert.Contains("\\\"zoneId\\\"", sketch);
@@ -848,6 +907,8 @@ internal static class Tests
         Assert.Contains("\\\"humidity\\\"", sketch);
         Assert.Contains("\\\"pressure\\\"", sketch);
         Assert.Contains("\\\"soilMoisture\\\"", sketch);
+        Assert.Contains("\\\"networkStatus\\\"", sketch);
+        Assert.Contains("\\\"sendIntervalMs\\\"", sketch);
         Assert.Contains("http.errorToString", sketch);
         Assert.Contains("http.setReuse(false)", sketch);
 

@@ -811,10 +811,10 @@
     {
         settings.Latitude = double.IsFinite(settings.Latitude) && settings.Latitude >= -90 && settings.Latitude <= 90
             ? settings.Latitude
-            : 42.5048;
+            : 43.1369;
         settings.Longitude = double.IsFinite(settings.Longitude) && settings.Longitude >= -180 && settings.Longitude <= 180
             ? settings.Longitude
-            : 27.4626;
+            : 24.7142;
         settings.RainProbabilityThresholdPercent = Math.Clamp(settings.RainProbabilityThresholdPercent, 0, 100);
         settings.RainLookaheadHours = Math.Clamp(settings.RainLookaheadHours, 1, 48);
         settings.ExpectedRainMmThreshold = Math.Clamp(settings.ExpectedRainMmThreshold, 0, 100);

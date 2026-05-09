@@ -232,8 +232,8 @@ returns invalid JSON, the system keeps working with the old rule-based logic.
 ### Open-Meteo Weather Integration
 
 The dashboard can now fetch hourly rain forecasts from Open-Meteo without an
-API key. The weather integration is enabled by default for Burgas, Bulgaria
-(latitude `42.5048`, longitude `27.4626`).
+API key. The weather integration is enabled by default for Lovech, Bulgaria
+(latitude `43.1369`, longitude `24.7142`).
 
 When rain is likely in the configured lookahead window or expected rainfall
 exceeds the configured threshold, automatic watering is blocked by safety
@@ -321,32 +321,37 @@ Upload `esp32/esp32.ino` to the ESP32.
 The checked-in sketch expects:
 
 ```text
-Wi-Fi SSID: GardenBrain
+Wi-Fi SSID: GardenLaptop
 Wi-Fi password: GardenBrain123
-ESP32 IP: assigned by the phone hotspot with DHCP
-Laptop/API IP: 10.163.174.210
-Phone hotspot gateway: 10.163.174.88
-API URL: http://10.163.174.210:5000/api/sensor-readings
+ESP32 IP: 192.168.137.100 static
+Laptop/API IP: 192.168.137.1
+Laptop hotspot gateway: 192.168.137.1
+API URL: http://192.168.137.1:5000/api/sensor-readings
 ```
 
-Configure the phone hotspot separately so that it provides the `GardenBrain`
-network on 2.4 GHz, then connect the laptop to that same hotspot. If `ipconfig`
-shows a different Wi-Fi IPv4 for the laptop after reconnecting, update
-`laptopServerIp` in the sketch before flashing. If the web app or MQTT broker
-runs on a different host, set `laptopServerIp` to that host's hotspot-network IP.
+Configure Windows Mobile Hotspot so the laptop provides the `GardenLaptop`
+network, then let the laptop use the phone hotspot as its upstream internet
+connection if needed. If `ipconfig` shows a different hotspot IPv4 for the
+laptop, update `laptopServerIp`, `gateway`, and `primaryDns` in the sketch before
+flashing. If the web app or MQTT broker runs on a different host, set
+`laptopServerIp` to that host's hotspot-network IP.
 
 After upload, the ESP32:
 
-- posts a JSON reading every 2 seconds;
+- waits 30 seconds before sensor/Wi-Fi startup so an external PSU can settle;
+- posts one JSON reading after Wi-Fi connects, then posts every 30 seconds for
+  the first five minutes and every 10 seconds after that;
 - receives a quick API acknowledgement after the reading is stored while
   AI/watering decisions continue in the web app background queue;
-- exposes a status page at the ESP32 IP printed in Serial Monitor;
+- exposes a status page at the ESP32 IP printed in Serial Monitor, usually
+  `http://192.168.137.100/`;
 - exposes latest JSON data at `http://<esp32-ip>/data`;
 - can send a reading immediately from `http://<esp32-ip>/send-now`;
 - can open or close valves locally from
   `http://<esp32-ip>/valve?valve=1&state=open&duration=10`;
-- subscribes to MQTT topic `irrigation/zone/+/valve` so dashboard and
-  auto-watering commands can drive the valve pins.
+- delays MQTT for the first 120 seconds after boot, then subscribes to
+  `irrigation/zone/+/valve` so dashboard and auto-watering commands can drive
+  the valve pins.
 
 Each ESP32 should have a unique `espDeviceName` in `esp32/esp32.ino`, for
 example `esp32-zone-1` or `esp32-greenhouse`. The Zones page has a matching
@@ -465,7 +470,7 @@ dotnet run
 - installs PostgreSQL if `psql` is missing;
 - installs Mosquitto and `mosquitto-clients` if they are missing;
 - configures Mosquitto to listen on `0.0.0.0:1883` for ESP32 clients on the
-  GardenBrain network;
+  GardenLaptop network;
 - creates or updates the `postgres` PostgreSQL role with password `1203`;
 - creates `irrigation_db` if needed;
 - loads `raspberry-pi/irrigation_db.sql`;
@@ -569,7 +574,7 @@ sudo grep -RIn 'listener 1883\|port 1883' /etc/mosquitto
 ```
 
 A common cause is more than one Mosquitto config file trying to listen on
-`1883`. Keep one listener for GardenBrain, for example:
+`1883`. Keep one listener for GardenLaptop, for example:
 
 ```text
 listener 1883 0.0.0.0
@@ -598,17 +603,19 @@ sudo netfilter-persistent save
 
 Check that:
 
-- the phone hotspot SSID is exactly `GardenBrain`;
+- Windows Mobile Hotspot is enabled and the SSID is exactly `GardenLaptop`;
 - the hotspot password is exactly `GardenBrain123`;
-- the laptop hotspot Wi-Fi IP is `10.163.174.210`;
+- the laptop hotspot Wi-Fi IP is `192.168.137.1`;
 - the web app is running on port `5000`;
-- the ESP32 got a DHCP address from the hotspot, printed as
-  `ESP32-C3 IP address` in Serial Monitor.
+- the ESP32 is using static IP `192.168.137.100`, printed as
+  `ESP32-C3 IP address` in Serial Monitor;
+- the ESP32 `/data` page shows `resetReason` other than `brownout` and
+  `networkStatus` changes back to `HTTP OK` after a send.
 
 If the serial monitor prints `HTTP status: -1`, the ESP32 HTTP client did not
 receive a normal HTTP response. In the checked-in sketch, the `Response:` line
 prints the underlying client error, such as `connection refused` or `read
-Timeout`. Confirm that `http://10.163.174.210:5000/api/zones` opens from the
+Timeout`. Confirm that `http://192.168.137.1:5000/api/zones` opens from the
 laptop and that Windows Firewall allows inbound TCP `5000` on the hotspot
 network.
 

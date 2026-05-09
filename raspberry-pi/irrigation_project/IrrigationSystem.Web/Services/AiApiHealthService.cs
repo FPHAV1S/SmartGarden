@@ -105,7 +105,9 @@ public class AiApiHealthService
         var retryAfterText = FormatLocalTime(retryAfter);
         var message = exception is TimeoutException
             ? $"Ollama analysis timed out at {baseUrl}. AI decisions are paused until {retryAfterText}."
-            : $"Ollama analysis failed at {baseUrl}: {exception.Message}. AI decisions are paused until {retryAfterText}.";
+            : exception is HttpRequestException
+                ? $"Ollama is not reachable at {baseUrl}. Start Ollama or update the Ollama Base URL. AI decisions are paused until {retryAfterText}."
+                : $"Ollama analysis failed at {baseUrl}: {exception.Message}. AI decisions are paused until {retryAfterText}.";
 
         return await StoreAndLogAsync(new AiApiCheckResult
         {
@@ -121,12 +123,25 @@ public class AiApiHealthService
     public async Task<AiApiCheckResult> CheckAsync(
         AiIrrigationOptions? settingsOverride = null,
         bool verifyGeneration = true,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool skipWhenDisabled = false)
     {
         await CheckLock.WaitAsync(cancellationToken);
         try
         {
             var settings = settingsOverride ?? await DataService.GetAiIrrigationOptionsAsync(Options.Value);
+            if (skipWhenDisabled && !settings.EnableAiDecisionMaking)
+            {
+                return await StoreAndLogAsync(new AiApiCheckResult
+                {
+                    IsConfigured = false,
+                    IsSuccess = true,
+                    Model = GetConfiguredModel(settings),
+                    KeySource = GetProviderSource(settings),
+                    Message = "AI provider startup check skipped because AI decision making is disabled."
+                });
+            }
+
             return settings.UsesOllama
                 ? await CheckOllamaAsync(settings, verifyGeneration, cancellationToken)
                 : await CheckOpenAiAsync(settings, cancellationToken);
@@ -323,6 +338,25 @@ public class AiApiHealthService
                 Message = $"Ollama check timed out after {OllamaCheckTimeout.TotalSeconds:0} seconds at {baseUrl}. AI decisions are paused until {retryAfterText}."
             });
         }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(
+                "Ollama health check could not reach {BaseUrl}: {ErrorMessage}",
+                baseUrl,
+                ex.Message);
+
+            var retryAfter = DateTime.UtcNow.Add(OllamaFailurePause);
+            var retryAfterText = FormatLocalTime(retryAfter);
+            return await StoreAndLogAsync(new AiApiCheckResult
+            {
+                IsConfigured = true,
+                IsSuccess = false,
+                Model = model,
+                KeySource = baseUrl,
+                RetryAfter = retryAfter,
+                Message = $"Ollama is not reachable at {baseUrl}. Start Ollama or update the Ollama Base URL. AI decisions are paused until {retryAfterText}."
+            });
+        }
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Ollama health check failed");
@@ -437,6 +471,13 @@ public class AiApiHealthService
             : ApiKeyProvider.GetApiKey(settings.ApiKeyEnvironmentVariable).Source;
 
         return string.Equals(result.KeySource, expectedSource, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string GetProviderSource(AiIrrigationOptions settings)
+    {
+        return settings.UsesOllama
+            ? GetOllamaBaseUrl(settings)
+            : ApiKeyProvider.GetApiKey(settings.ApiKeyEnvironmentVariable).Source;
     }
 
     private static string GetConfiguredModel(AiIrrigationOptions settings)

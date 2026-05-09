@@ -20,7 +20,8 @@ public class AiApiStartupCheckService : BackgroundService
             await Task.Delay(TimeSpan.FromSeconds(3), stoppingToken);
             var result = await HealthService.CheckAsync(
                 verifyGeneration: false,
-                cancellationToken: stoppingToken);
+                cancellationToken: stoppingToken,
+                skipWhenDisabled: true);
 
             if (result.IsSuccess)
             {

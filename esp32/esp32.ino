@@ -6,13 +6,14 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
 #include <esp_wifi.h>
+#include <esp_system.h>
 #include <math.h>
 
 const char* ssid = "GardenLaptop";
 const char* password = "GardenBrain123";
 const char* espDeviceName = "esp32-zone-1";
 const char* wifiHostname = espDeviceName;
-const char* firmwareBuild = "soft-psu-startup-2026-05-08";
+const char* firmwareBuild = "live-moisture-readings-2026-05-09";
 
 // ESP connects to the Windows laptop Mobile Hotspot.
 // The laptop can still use the phone hotspot as its upstream internet connection.
@@ -45,17 +46,24 @@ const ZoneValveMapping zoneValveMap[] = {
   { 2, 2 }
 };
 
-const unsigned long sendIntervalMs = 2000;
+const unsigned long sendIntervalMs = 5000;
+const unsigned long startupSendIntervalMs = 5000;
+const unsigned long reducedLoadAfterBootMs = 300000;
+const unsigned long serialHeartbeatIntervalMs = 5000;
+const unsigned long disconnectedSensorLogIntervalMs = 5000;
+const int debugLogLineCount = 80;
 const uint16_t httpConnectTimeoutMs = 2000;
-const uint16_t httpRequestTimeoutMs = 6000;
-const unsigned long mqttReconnectIntervalMs = 2000;
+const uint16_t httpRequestTimeoutMs = 4000;
+const unsigned long mqttStartupDelayMs = 120000;
+const unsigned long mqttReconnectIntervalMs = 30000;
 const unsigned long bmeRetryIntervalMs = 30000;
 const unsigned long wifiReconnectIntervalMs = 5000;
-const unsigned long powerSettleDelayMs = 5000;
-const int wifiConnectAttempts = 20;
+const unsigned long powerSettleDelayMs = 30000;
+const int maxConsecutiveHttpFailuresBeforeWifiReset = 3;
+const int wifiConnectAttempts = 40;
 const int wifiStatusLogEveryAttempts = 5;
-const bool scanWifiBeforeConnect = false;
-const int wifiTxPowerQuarterDbm = 44;  // 11 dBm; lowers startup current spikes near the laptop hotspot.
+const bool scanWifiBeforeConnect = true;
+const int wifiTxPowerQuarterDbm = 78;  // 19.5 dBm; stronger association with Windows Mobile Hotspot.
 
 #define SOIL_PIN 0
 #define BME_SDA_PIN 8
@@ -67,12 +75,21 @@ const int wifiTxPowerQuarterDbm = 44;  // 11 dBm; lowers startup current spikes 
 // Most XY-MOS modules use HIGH = ON, LOW = OFF
 const bool MOSFET_ACTIVE_HIGH = true;
 
-// Your real soil sensor calibration values
+// Raw ADC values for this sensor. Dry reads high, wet reads low.
 const int dryValue = 3730;
 const int wetValue = 200;
 const int soilSampleCount = 25;
 const int soilSampleDelayMs = 4;
-const float dryAirDeadbandPercent = 12.0;
+// Keep this at 0 while calibrating so small changes are visible.
+const float dryAirDeadbandPercent = 0.0;
+const int soilAdcUnstableRangeLimit = 250;
+const int soilShortRawLimit = 50;
+// Keep this false while testing by moving the probe between dry/wet conditions.
+const bool emergencyHoldLastSoilReading = false;
+const float emergencyStartupSoilFallbackPercent = 0.0;
+const float suspiciousWetSpikePercent = 25.0;
+const float maxAcceptedMoistureJumpPercent = 10.0;
+const unsigned long standalonePowerGuardMs = 300000;
 
 WebServer server(80);
 Adafruit_BME280 bme;
@@ -86,6 +103,8 @@ bool targetNetworkFound = false;
 
 int readingCount = 0;
 unsigned long lastSend = 0;
+unsigned long lastSerialHeartbeat = 0;
+unsigned long lastDisconnectedSensorLog = 0;
 unsigned long lastWifiReconnectAttempt = 0;
 unsigned long lastMqttReconnectAttempt = 0;
 unsigned long lastBmeInitAttempt = 0;
@@ -93,6 +112,10 @@ unsigned long lastBmeInitAttempt = 0;
 int lastHttpCode = 0;
 String lastResponse = "No request sent yet";
 String lastMqttCommand = "No MQTT valve command received yet";
+String networkStatus = "No network attempts yet";
+int consecutiveHttpFailures = 0;
+unsigned long lastHttpAttemptAt = 0;
+unsigned long lastSuccessfulHttpPostAt = 0;
 
 bool bmeReady = false;
 uint8_t bmeAddress = 0;
@@ -103,12 +126,22 @@ float humidity = 60.0;     // fallback until the first BME280 reading succeeds
 float pressureHpa = 0.0;
 
 int soilRaw = 0;
+int soilRawMin = 0;
+int soilRawMax = 0;
+int soilRawRange = 0;
 float soilMoisture = 0.0;
+String soilStatus = "No soil reading yet";
+String bootResetReason = "unknown";
+bool hasAcceptedSoilReading = false;
 
 bool valve1State = false;
 bool valve2State = false;
 unsigned long valve1AutoOffAt = 0;
 unsigned long valve2AutoOffAt = 0;
+
+String debugLogLines[debugLogLineCount];
+int debugLogNextIndex = 0;
+int debugLogStoredLines = 0;
 
 void handleWifiEvent(WiFiEvent_t event, WiFiEventInfo_t info);
 const char* wifiDisconnectReasonText(uint8_t reason);
@@ -118,38 +151,59 @@ String bssidText(const uint8_t* bssid);
 String targetBssidText();
 const char* wifiAuthText(int auth);
 String sensorApiUrl();
+const char* resetReasonText(esp_reset_reason_t reason);
+float fallbackSoilMoisture();
+unsigned long currentSendIntervalMs();
+bool mqttAllowed();
+void recordHttpResult(bool success);
+bool waitForWifiJoin(const char* attemptLabel);
+void logWifiConnected();
+void waitWithSerialProgress(unsigned long durationMs, const char* label);
+void printSerialHeartbeat();
+void addDebugLog(String message);
+String debugLogText();
+void handleLogs();
 
 void setup() {
-  pinMode(MOSFET1_PIN, OUTPUT);
-  pinMode(MOSFET2_PIN, OUTPUT);
-  setValve(1, false);
-  setValve(2, false);
-
   Serial.begin(115200);
   Serial.setDebugOutput(true);
   delay(2000);
 
   Serial.println();
+  Serial.println("GardenBrain ESP32-C3 booting at 115200 baud.");
+  addDebugLog("Booting at 115200 baud");
+
+  pinMode(MOSFET1_PIN, OUTPUT);
+  pinMode(MOSFET2_PIN, OUTPUT);
+  setValve(1, false);
+  setValve(2, false);
+
+  bootResetReason = resetReasonText(esp_reset_reason());
+
   Serial.print("GardenBrain ESP32-C3 device: ");
   Serial.println(espDeviceName);
   Serial.print("Firmware build: ");
   Serial.println(firmwareBuild);
+  addDebugLog(String("Firmware build: ") + firmwareBuild);
+  Serial.print("Boot reset reason: ");
+  Serial.println(bootResetReason);
+  addDebugLog(String("Boot reset reason: ") + bootResetReason);
   Serial.print("Sensor zone: ");
   Serial.println(sensorZoneId);
   Serial.println("Soil Moisture + BME280 + XY-MOS + MQTT valve commands");
   Serial.println("BME280 I2C pins: SDA GPIO8, SCL GPIO9");
   Serial.println("Serial is alive at 115200 baud.");
 
+  Serial.print("Waiting ");
+  Serial.print(powerSettleDelayMs / 1000);
+  Serial.println(" seconds for PSU voltage to settle before sensor and WiFi startup.");
+  waitWithSerialProgress(powerSettleDelayMs, "PSU settle");
+
   analogReadResolution(12);
   analogSetPinAttenuation(SOIL_PIN, ADC_11db);
   Wire.begin(BME_SDA_PIN, BME_SCL_PIN);
   Wire.setClock(100000);
   initializeBme280();
-
-  Serial.print("Waiting ");
-  Serial.print(powerSettleDelayMs / 1000);
-  Serial.println(" seconds for PSU voltage to settle before WiFi startup.");
-  delay(powerSettleDelayMs);
 
   WiFi.mode(WIFI_STA);
   configureWifiRadio();
@@ -166,6 +220,7 @@ void setup() {
 
   server.on("/", handleRoot);
   server.on("/data", handleData);
+  server.on("/logs", handleLogs);
   server.on("/send-now", handleSendNow);
   server.on("/valve", handleValve);
   server.onNotFound(handleNotFound);
@@ -175,9 +230,10 @@ void setup() {
   Serial.println("Local web server started.");
   Serial.print("Open ESP32 page: http://");
   Serial.println(WiFi.localIP());
+  addDebugLog(String("Local web server started: http://") + WiFi.localIP().toString());
 
   if (WiFi.status() == WL_CONNECTED) {
-    connectToMqtt();
+    lastMqttCommand = "MQTT delayed during standalone power stabilization";
     updateSensorData();
     sendReading();
     lastSend = millis();
@@ -186,6 +242,7 @@ void setup() {
 
 void loop() {
   server.handleClient();
+  printSerialHeartbeat();
 
   if (WiFi.status() != WL_CONNECTED) {
     unsigned long now = millis();
@@ -193,16 +250,24 @@ void loop() {
       Serial.println("WiFi disconnected. Reconnecting...");
       connectToWifi();
     }
+
+    if (now - lastDisconnectedSensorLog >= disconnectedSensorLogIntervalMs) {
+      lastDisconnectedSensorLog = now;
+      updateSensorData();
+      Serial.println("WiFi is offline, so this reading was logged locally but not posted.");
+    }
   }
 
   if (WiFi.status() == WL_CONNECTED) {
-    ensureMqttConnected();
-    mqttClient.loop();
+    if (mqttAllowed()) {
+      ensureMqttConnected();
+      mqttClient.loop();
+    }
   }
 
   handleValveAutoOff();
 
-  if (WiFi.status() == WL_CONNECTED && millis() - lastSend >= sendIntervalMs) {
+  if (WiFi.status() == WL_CONNECTED && millis() - lastSend >= currentSendIntervalMs()) {
     lastSend = millis();
 
     updateSensorData();
@@ -331,6 +396,8 @@ void connectToWifi() {
     return;
   }
 
+  addDebugLog(String("Failed to connect to ") + ssid + " status " + String(WiFi.status()) + " (" + wifiStatusText(WiFi.status()) + ")");
+
   Serial.print("Failed to connect to ");
   Serial.println(ssid);
   Serial.print("WiFi status code: ");
@@ -364,8 +431,6 @@ void resetWifiStation() {
 }
 
 bool tryWifiConnection() {
-  resetWifiStation();
-
   Serial.println("Using static IP 192.168.137.100.");
   if (!WiFi.config(localIp, gateway, subnet, primaryDns, secondaryDns)) {
     Serial.println("Static IP configuration failed.");
@@ -390,6 +455,40 @@ bool tryWifiConnection() {
   Serial.print(wifiStatusText(beginStatus));
   Serial.println("). This is the immediate state; the connection attempt continues below.");
 
+  if (waitForWifiJoin(targetNetworkFound ? "scanned AP" : "normal SSID")) {
+    return true;
+  }
+
+  if (targetNetworkFound) {
+    Serial.println("Scanned AP join failed. Retrying once with normal SSID/password join.");
+    addDebugLog("Scanned AP join failed; retrying without channel/BSSID lock");
+    WiFi.disconnect(false);
+    delay(500);
+    targetNetworkFound = false;
+
+    beginStatus = WiFi.begin(ssid, password);
+
+    Serial.print("Fallback WiFi.begin returned ");
+    Serial.print(beginStatus);
+    Serial.print(" (");
+    Serial.print(wifiStatusText(beginStatus));
+    Serial.println(").");
+
+    if (waitForWifiJoin("fallback normal SSID")) {
+      return true;
+    }
+  }
+
+  Serial.print("Attempt ended with status ");
+  Serial.print(WiFi.status());
+  Serial.print(" (");
+  Serial.print(wifiStatusText(WiFi.status()));
+  Serial.println(")");
+  addDebugLog(String("WiFi attempt ended with status ") + String(WiFi.status()) + " (" + wifiStatusText(WiFi.status()) + ")");
+  return false;
+}
+
+bool waitForWifiJoin(const char* attemptLabel) {
   int attempts = 0;
   int lastStatus = -1;
 
@@ -412,26 +511,28 @@ bool tryWifiConnection() {
   Serial.println();
 
   if (WiFi.status() == WL_CONNECTED) {
-    WiFi.setAutoReconnect(true);
-    Serial.println("Connected successfully.");
-    Serial.print("ESP32-C3 IP address: ");
-    Serial.println(WiFi.localIP());
-    Serial.print("Gateway: ");
-    Serial.println(WiFi.gatewayIP());
-    Serial.print("Laptop API target: ");
-    Serial.println(sensorApiUrl());
-    Serial.print("Signal strength: ");
-    Serial.print(WiFi.RSSI());
-    Serial.println(" dBm");
+    addDebugLog(String("WiFi join succeeded using ") + attemptLabel);
+    logWifiConnected();
     return true;
   }
 
-  Serial.print("Attempt ended with status ");
-  Serial.print(WiFi.status());
-  Serial.print(" (");
-  Serial.print(wifiStatusText(WiFi.status()));
-  Serial.println(")");
+  addDebugLog(String("WiFi join failed using ") + attemptLabel + ": " + wifiStatusText(WiFi.status()));
   return false;
+}
+
+void logWifiConnected() {
+  WiFi.setAutoReconnect(true);
+  addDebugLog(String("WiFi connected. IP ") + WiFi.localIP().toString() + ", RSSI " + String(WiFi.RSSI()) + " dBm");
+  Serial.println("Connected successfully.");
+  Serial.print("ESP32-C3 IP address: ");
+  Serial.println(WiFi.localIP());
+  Serial.print("Gateway: ");
+  Serial.println(WiFi.gatewayIP());
+  Serial.print("Laptop API target: ");
+  Serial.println(sensorApiUrl());
+  Serial.print("Signal strength: ");
+  Serial.print(WiFi.RSSI());
+  Serial.println(" dBm");
 }
 
 void handleWifiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
@@ -444,6 +545,7 @@ void handleWifiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
   Serial.print(" (");
   Serial.print(wifiDisconnectReasonText(info.wifi_sta_disconnected.reason));
   Serial.println(")");
+  addDebugLog(String("WiFi disconnected: ") + String(info.wifi_sta_disconnected.reason) + " (" + wifiDisconnectReasonText(info.wifi_sta_disconnected.reason) + ")");
 }
 
 const char* wifiDisconnectReasonText(uint8_t reason) {
@@ -539,12 +641,16 @@ void scanForWifiNetwork() {
     Serial.print(ssid);
     Serial.println(" was not found by the ESP32-C3 scan.");
     Serial.println("Check that Windows Mobile Hotspot is on and set to 2.4 GHz if that option exists.");
+    addDebugLog(String(ssid) + " not found in WiFi scan. Check hotspot is on, 2.4 GHz, and SSID spelling.");
   } else if (matches > 1) {
     Serial.print("Warning: found ");
     Serial.print(matches);
     Serial.print(" networks named ");
     Serial.print(ssid);
     Serial.println(". Rename the laptop hotspot if the ESP may be choosing the wrong one.");
+    addDebugLog(String("Found ") + String(matches) + " networks named " + ssid + "; using strongest RSSI " + String(targetRssi) + " dBm");
+  } else {
+    addDebugLog(String("Found ") + ssid + " on channel " + String(targetChannel) + " BSSID " + targetBssidText() + " RSSI " + String(targetRssi) + " dBm");
   }
 
   WiFi.scanDelete();
@@ -602,6 +708,33 @@ String sensorApiUrl() {
   return String("http://") + laptopServerIp + ":" + String(apiPort) + apiPath;
 }
 
+const char* resetReasonText(esp_reset_reason_t reason) {
+  switch (reason) {
+    case ESP_RST_POWERON:
+      return "power on";
+    case ESP_RST_EXT:
+      return "external reset";
+    case ESP_RST_SW:
+      return "software reset";
+    case ESP_RST_PANIC:
+      return "panic";
+    case ESP_RST_INT_WDT:
+      return "interrupt watchdog";
+    case ESP_RST_TASK_WDT:
+      return "task watchdog";
+    case ESP_RST_WDT:
+      return "watchdog";
+    case ESP_RST_DEEPSLEEP:
+      return "deep sleep wake";
+    case ESP_RST_BROWNOUT:
+      return "brownout";
+    case ESP_RST_SDIO:
+      return "SDIO";
+    default:
+      return "unknown";
+  }
+}
+
 const char* wifiStatusText(int status) {
   switch (status) {
     case WL_IDLE_STATUS:
@@ -624,6 +757,10 @@ const char* wifiStatusText(int status) {
 }
 
 void ensureMqttConnected() {
+  if (!mqttAllowed()) {
+    return;
+  }
+
   if (mqttClient.connected()) {
     return;
   }
@@ -638,6 +775,11 @@ void ensureMqttConnected() {
 }
 
 void connectToMqtt() {
+  if (!mqttAllowed()) {
+    lastMqttCommand = "MQTT delayed during standalone power stabilization";
+    return;
+  }
+
   if (WiFi.status() != WL_CONNECTED || mqttClient.connected()) {
     return;
   }
@@ -860,10 +1002,20 @@ void updateSensorData() {
 
   Serial.print(" | Soil raw: ");
   Serial.print(soilRaw);
+  Serial.print(" (");
+  Serial.print(soilRawMin);
+  Serial.print("-");
+  Serial.print(soilRawMax);
+  Serial.print(", range ");
+  Serial.print(soilRawRange);
+  Serial.print(")");
 
   Serial.print(" | Moisture: ");
   Serial.print(soilMoisture);
   Serial.print("%");
+
+  Serial.print(" | Soil status: ");
+  Serial.print(soilStatus);
 
   Serial.print(" | BME280: ");
   Serial.print(bmeReady ? "OK" : "offline");
@@ -873,10 +1025,29 @@ void updateSensorData() {
 
   Serial.print(" | Valve 2: ");
   Serial.println(valve2State ? "ON" : "OFF");
+
+  addDebugLog(
+    String("Reading #") + String(readingCount) +
+    ": moisture " + String(soilMoisture, 1) +
+    "%, raw " + String(soilRaw) +
+    ", temp " + String(temperature, 1) +
+    " C, humidity " + String(humidity, 1) +
+    "%, soil " + soilStatus
+  );
 }
 
 float readSoilMoisturePercent() {
   soilRaw = readSoilRawAverage();
+
+  if (soilRawRange > soilAdcUnstableRangeLimit) {
+    soilStatus = "ADC unstable/noisy; check PSU, ground, and sensor wiring";
+    return fallbackSoilMoisture();
+  }
+
+  if (soilRaw <= soilShortRawLimit) {
+    soilStatus = "ADC near 0; sensor output may be shorted, floating, or unpowered";
+    return fallbackSoilMoisture();
+  }
 
   float percent = ((float)(dryValue - soilRaw) / (dryValue - wetValue)) * 100.0;
 
@@ -884,7 +1055,29 @@ float readSoilMoisturePercent() {
   if (percent > 100) percent = 100;
   if (percent <= dryAirDeadbandPercent) percent = 0;
 
+  if (emergencyHoldLastSoilReading) {
+    if (!hasAcceptedSoilReading && millis() < standalonePowerGuardMs && percent >= suspiciousWetSpikePercent) {
+      soilStatus = "Startup/standalone wet spike ignored; using emergency fallback";
+      return emergencyStartupSoilFallbackPercent;
+    }
+
+    if (hasAcceptedSoilReading && percent - soilMoisture > maxAcceptedMoistureJumpPercent) {
+      soilStatus = "Sudden wet spike ignored; holding previous moisture";
+      return soilMoisture;
+    }
+  }
+
+  hasAcceptedSoilReading = true;
+  soilStatus = "OK";
   return percent;
+}
+
+float fallbackSoilMoisture() {
+  if (hasAcceptedSoilReading) {
+    return soilMoisture;
+  }
+
+  return emergencyStartupSoilFallbackPercent;
 }
 
 int readSoilRawAverage() {
@@ -904,6 +1097,10 @@ int readSoilRawAverage() {
 
     delay(soilSampleDelayMs);
   }
+
+  soilRawMin = lowest;
+  soilRawMax = highest;
+  soilRawRange = highest - lowest;
 
   if (soilSampleCount > 2) {
     total -= lowest;
@@ -956,6 +1153,7 @@ void setValve(int valveNumber, bool state) {
   Serial.print("Valve ");
   Serial.print(valveNumber);
   Serial.println(state ? " ON" : " OFF");
+  addDebugLog(String("Valve ") + String(valveNumber) + (state ? " ON" : " OFF"));
 }
 
 void setValveAutoOffAt(int valveNumber, unsigned long autoOffAt) {
@@ -997,6 +1195,7 @@ unsigned long secondsUntilAutoOff(int valveNumber) {
 void sendReading() {
   HTTPClient http;
   String apiUrl = sensorApiUrl();
+  lastHttpAttemptAt = millis();
   String payload = buildPayload();
 
   Serial.print("POST ");
@@ -1006,11 +1205,13 @@ void sendReading() {
   if (!http.begin(apiUrl)) {
     lastHttpCode = -7;
     lastResponse = "HTTP begin failed; check laptopServerIp/apiPort";
+    addDebugLog(String("HTTP begin failed for ") + apiUrl);
 
     Serial.print("HTTP status: ");
     Serial.println(lastHttpCode);
     Serial.print("Response: ");
     Serial.println(lastResponse);
+    recordHttpResult(false);
     return;
   }
 
@@ -1032,13 +1233,143 @@ void sendReading() {
 
   Serial.print("Response: ");
   Serial.println(lastResponse);
+  addDebugLog(String("HTTP POST result: ") + String(lastHttpCode) + " - " + lastResponse.substring(0, 120));
 
   http.end();
+  recordHttpResult(lastHttpCode >= 200 && lastHttpCode < 300);
+}
+
+void recordHttpResult(bool success) {
+  if (success) {
+    consecutiveHttpFailures = 0;
+    lastSuccessfulHttpPostAt = millis();
+    networkStatus = "HTTP OK";
+    addDebugLog("HTTP OK");
+    return;
+  }
+
+  consecutiveHttpFailures++;
+  networkStatus = "HTTP failure " + String(consecutiveHttpFailures) + "/" + String(maxConsecutiveHttpFailuresBeforeWifiReset);
+  addDebugLog(networkStatus);
+
+  if (consecutiveHttpFailures >= maxConsecutiveHttpFailuresBeforeWifiReset) {
+    Serial.println("Repeated HTTP failures; resetting WiFi before the next send.");
+    networkStatus = "Resetting WiFi after repeated HTTP failures";
+    addDebugLog(networkStatus);
+    consecutiveHttpFailures = 0;
+    mqttClient.disconnect();
+    WiFi.disconnect(false);
+    lastWifiReconnectAttempt = 0;
+  }
+}
+
+unsigned long currentSendIntervalMs() {
+  return millis() < reducedLoadAfterBootMs
+      ? startupSendIntervalMs
+      : sendIntervalMs;
+}
+
+bool mqttAllowed() {
+  return millis() >= mqttStartupDelayMs;
+}
+
+void waitWithSerialProgress(unsigned long durationMs, const char* label) {
+  unsigned long startedAt = millis();
+  unsigned long nextLogAt = 0;
+
+  while (millis() - startedAt < durationMs) {
+    unsigned long elapsedMs = millis() - startedAt;
+
+    if (elapsedMs >= nextLogAt) {
+      Serial.print(label);
+      Serial.print(": ");
+      Serial.print(elapsedMs / 1000);
+      Serial.print("/");
+      Serial.print(durationMs / 1000);
+      Serial.println("s");
+      Serial.flush();
+      nextLogAt += 1000;
+    }
+
+    delay(100);
+  }
+
+  Serial.print(label);
+  Serial.println(": complete");
+}
+
+void printSerialHeartbeat() {
+  unsigned long now = millis();
+  if (now - lastSerialHeartbeat < serialHeartbeatIntervalMs) {
+    return;
+  }
+
+  lastSerialHeartbeat = now;
+
+  Serial.print("Heartbeat | uptime: ");
+  Serial.print(now / 1000);
+  Serial.print("s | WiFi: ");
+  Serial.print(wifiStatusText(WiFi.status()));
+
+  if (WiFi.status() == WL_CONNECTED) {
+    long nextSendInSeconds = 0;
+    unsigned long elapsedSinceSend = now - lastSend;
+    unsigned long interval = currentSendIntervalMs();
+    if (elapsedSinceSend < interval) {
+      nextSendInSeconds = (long)((interval - elapsedSinceSend + 999UL) / 1000UL);
+    }
+
+    Serial.print(" | IP: ");
+    Serial.print(WiFi.localIP());
+    Serial.print(" | RSSI: ");
+    Serial.print(WiFi.RSSI());
+    Serial.print(" dBm | next HTTP POST in: ");
+    Serial.print(nextSendInSeconds);
+    Serial.print("s | last HTTP: ");
+    Serial.print(lastHttpCode);
+  } else {
+    Serial.print(" | retry target SSID: ");
+    Serial.print(ssid);
+  }
+
+  Serial.print(" | network: ");
+  Serial.println(networkStatus);
+}
+
+void addDebugLog(String message) {
+  String line = String(millis() / 1000) + "s " + message;
+
+  if (line.length() > 220) {
+    line = line.substring(0, 220);
+  }
+
+  debugLogLines[debugLogNextIndex] = line;
+  debugLogNextIndex = (debugLogNextIndex + 1) % debugLogLineCount;
+  if (debugLogStoredLines < debugLogLineCount) {
+    debugLogStoredLines++;
+  }
+
+  Serial.println(line);
+}
+
+String debugLogText() {
+  String text;
+  text.reserve(debugLogStoredLines * 80);
+
+  for (int i = 0; i < debugLogStoredLines; i++) {
+    int index = (debugLogNextIndex - debugLogStoredLines + i + debugLogLineCount) % debugLogLineCount;
+    text += debugLogLines[index];
+    text += "\n";
+  }
+
+  return text;
 }
 
 String buildPayload() {
   String json = "{";
   json += "\"device\":\"" + String(espDeviceName) + "\",";
+  json += "\"firmwareBuild\":\"" + String(firmwareBuild) + "\",";
+  json += "\"resetReason\":\"" + escapeJson(bootResetReason) + "\",";
   json += "\"zoneId\":" + String(sensorZoneId) + ",";
   json += "\"readingCount\":" + String(readingCount) + ",";
   json += "\"temperature\":" + String(temperature, 2) + ",";
@@ -1048,6 +1379,16 @@ String buildPayload() {
   json += "\"bme280Status\":\"" + escapeJson(bmeStatus) + "\",";
   json += "\"soilMoisture\":" + String(soilMoisture, 2) + ",";
   json += "\"soilRaw\":" + String(soilRaw) + ",";
+  json += "\"soilRawMin\":" + String(soilRawMin) + ",";
+  json += "\"soilRawMax\":" + String(soilRawMax) + ",";
+  json += "\"soilRawRange\":" + String(soilRawRange) + ",";
+  json += "\"soilStatus\":\"" + escapeJson(soilStatus) + "\",";
+  json += "\"networkStatus\":\"" + escapeJson(networkStatus) + "\",";
+  json += "\"consecutiveHttpFailures\":" + String(consecutiveHttpFailures) + ",";
+  json += "\"sendIntervalMs\":" + String(currentSendIntervalMs()) + ",";
+  json += "\"mqttAllowed\":" + String(mqttAllowed() ? "true" : "false") + ",";
+  json += "\"lastHttpAttemptAgo\":" + String(lastHttpAttemptAt == 0 ? -1 : (long)((millis() - lastHttpAttemptAt) / 1000)) + ",";
+  json += "\"lastSuccessfulHttpPostAgo\":" + String(lastSuccessfulHttpPostAt == 0 ? -1 : (long)((millis() - lastSuccessfulHttpPostAt) / 1000)) + ",";
   json += "\"valve1\":" + String(valve1State ? "true" : "false") + ",";
   json += "\"valve2\":" + String(valve2State ? "true" : "false") + ",";
   json += "\"rssi\":" + String(WiFi.RSSI()) + ",";
@@ -1084,14 +1425,22 @@ void handleRoot() {
   html += "document.getElementById('pressure').innerText=d.pressure.toFixed(1);";
   html += "document.getElementById('bmeStatus').innerText=d.bme280Status;";
   html += "document.getElementById('raw').innerText=d.soilRaw;";
+  html += "document.getElementById('rawRange').innerText=d.soilRawMin+'-'+d.soilRawMax+' (range '+d.soilRawRange+')';";
   html += "document.getElementById('soil').innerText=d.soilMoisture.toFixed(1);";
+  html += "document.getElementById('soilStatus').innerText=d.soilStatus;";
+  html += "document.getElementById('resetReason').innerText=d.resetReason;";
   html += "document.getElementById('v1').innerText=d.valve1?'ON':'OFF';";
   html += "document.getElementById('v2').innerText=d.valve2?'ON':'OFF';";
   html += "document.getElementById('v1auto').innerText=d.valve1AutoOffIn;";
   html += "document.getElementById('v2auto').innerText=d.valve2AutoOffIn;";
   html += "document.getElementById('rssi').innerText=d.rssi;";
-  html += "document.getElementById('mqtt').innerText=d.mqttConnected?'Connected':'Disconnected';";
+  html += "document.getElementById('mqtt').innerText=d.mqttAllowed?(d.mqttConnected?'Connected':'Disconnected'):'Delayed';";
   html += "document.getElementById('mqttCommand').innerText=d.lastMqttCommand;";
+  html += "document.getElementById('networkStatus').innerText=d.networkStatus;";
+  html += "document.getElementById('sendInterval').innerText=(d.sendIntervalMs/1000).toFixed(0);";
+  html += "document.getElementById('httpFailures').innerText=d.consecutiveHttpFailures;";
+  html += "document.getElementById('lastHttpAttempt').innerText=d.lastHttpAttemptAgo<0?'never':d.lastHttpAttemptAgo+'s ago';";
+  html += "document.getElementById('lastHttpSuccess').innerText=d.lastSuccessfulHttpPostAgo<0?'never':d.lastSuccessfulHttpPostAgo+'s ago';";
   html += "document.getElementById('http').innerText=d.lastHttpCode;";
   html += "document.getElementById('response').innerText=d.lastResponse;";
   html += "});}";
@@ -1119,6 +1468,9 @@ void handleRoot() {
   html += "<p>API target: ";
   html += sensorApiUrl();
   html += "</p>";
+  html += "<p>Reset reason: <span id='resetReason'>";
+  html += escapeHtml(bootResetReason);
+  html += "</span></p>";
   html += "<p>MQTT broker: ";
   html += mqttServer;
   html += ":";
@@ -1143,7 +1495,11 @@ void handleRoot() {
   html += String(pressureHpa, 1);
   html += "</span> hPa</p>";
   html += "<p>Soil Raw: <span id='raw' class='value'>0</span></p>";
+  html += "<p>Soil Raw Min/Max: <span id='rawRange'>0-0 (range 0)</span></p>";
   html += "<p>Soil Moisture: <span id='soil' class='value'>0</span> %</p>";
+  html += "<p>Soil Status: <span id='soilStatus'>";
+  html += escapeHtml(soilStatus);
+  html += "</span></p>";
   html += "<p>BME280: <span id='bmeStatus'>";
   html += escapeHtml(bmeStatus);
   html += "</span></p>";
@@ -1166,12 +1522,23 @@ void handleRoot() {
 
   html += "<div class='card'>";
   html += "<p>Signal Strength: <span id='rssi'>0</span> dBm</p>";
+  html += "<p>Network Status: <span id='networkStatus'>";
+  html += escapeHtml(networkStatus);
+  html += "</span></p>";
+  html += "<p>Current Send Interval: <span id='sendInterval'>";
+  html += String(currentSendIntervalMs() / 1000);
+  html += "</span>s</p>";
+  html += "<p>HTTP Failures: <span id='httpFailures'>";
+  html += String(consecutiveHttpFailures);
+  html += "</span></p>";
+  html += "<p>Last HTTP Attempt: <span id='lastHttpAttempt'>never</span></p>";
+  html += "<p>Last HTTP Success: <span id='lastHttpSuccess'>never</span></p>";
   html += "<p>Last MQTT Command: <span id='mqttCommand'>";
   html += escapeHtml(lastMqttCommand);
   html += "</span></p>";
   html += "<p>Last HTTP Status: <span id='http'>0</span></p>";
   html += "<p>Last Response: <span id='response'>No request sent yet</span></p>";
-  html += "<p><a href='/send-now'>Send now</a> | <a href='/data'>JSON data</a></p>";
+  html += "<p><a href='/send-now'>Send now</a> | <a href='/data'>JSON data</a> | <a href='/logs'>Debug logs</a></p>";
   html += "</div>";
 
   html += "</body></html>";
@@ -1182,6 +1549,8 @@ void handleRoot() {
 void handleData() {
   String json = "{";
   json += "\"device\":\"" + String(espDeviceName) + "\",";
+  json += "\"firmwareBuild\":\"" + String(firmwareBuild) + "\",";
+  json += "\"resetReason\":\"" + escapeJson(bootResetReason) + "\",";
   json += "\"sensorZoneId\":" + String(sensorZoneId) + ",";
   json += "\"status\":\"" + String(WiFi.status() == WL_CONNECTED ? "online" : "offline") + "\",";
   json += "\"ip\":\"" + WiFi.localIP().toString() + "\",";
@@ -1190,6 +1559,12 @@ void handleData() {
   json += "\"mqttConnected\":" + String(mqttClient.connected() ? "true" : "false") + ",";
   json += "\"mqttTopic\":\"" + String(valveCommandTopic) + "\",";
   json += "\"lastMqttCommand\":\"" + escapeJson(lastMqttCommand) + "\",";
+  json += "\"mqttAllowed\":" + String(mqttAllowed() ? "true" : "false") + ",";
+  json += "\"networkStatus\":\"" + escapeJson(networkStatus) + "\",";
+  json += "\"consecutiveHttpFailures\":" + String(consecutiveHttpFailures) + ",";
+  json += "\"sendIntervalMs\":" + String(currentSendIntervalMs()) + ",";
+  json += "\"lastHttpAttemptAgo\":" + String(lastHttpAttemptAt == 0 ? -1 : (long)((millis() - lastHttpAttemptAt) / 1000)) + ",";
+  json += "\"lastSuccessfulHttpPostAgo\":" + String(lastSuccessfulHttpPostAt == 0 ? -1 : (long)((millis() - lastSuccessfulHttpPostAt) / 1000)) + ",";
   json += "\"readingCount\":" + String(readingCount) + ",";
   json += "\"temperature\":" + String(temperature, 2) + ",";
   json += "\"humidity\":" + String(humidity, 2) + ",";
@@ -1197,7 +1572,11 @@ void handleData() {
   json += "\"bme280Ready\":" + String(bmeReady ? "true" : "false") + ",";
   json += "\"bme280Status\":\"" + escapeJson(bmeStatus) + "\",";
   json += "\"soilRaw\":" + String(soilRaw) + ",";
+  json += "\"soilRawMin\":" + String(soilRawMin) + ",";
+  json += "\"soilRawMax\":" + String(soilRawMax) + ",";
+  json += "\"soilRawRange\":" + String(soilRawRange) + ",";
   json += "\"soilMoisture\":" + String(soilMoisture, 2) + ",";
+  json += "\"soilStatus\":\"" + escapeJson(soilStatus) + "\",";
   json += "\"valve1\":" + String(valve1State ? "true" : "false") + ",";
   json += "\"valve2\":" + String(valve2State ? "true" : "false") + ",";
   json += "\"valve1AutoOffIn\":" + String(secondsUntilAutoOff(1)) + ",";
@@ -1208,6 +1587,10 @@ void handleData() {
   json += "}";
 
   server.send(200, "application/json", json);
+}
+
+void handleLogs() {
+  server.send(200, "text/plain", debugLogText());
 }
 
 void handleValve() {

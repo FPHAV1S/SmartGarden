@@ -1575,8 +1575,8 @@ public class SensorDataService
                 CREATE TABLE IF NOT EXISTS weather_settings (
                     id integer PRIMARY KEY DEFAULT 1,
                     enable_weather_integration boolean DEFAULT true NOT NULL,
-                    latitude double precision DEFAULT 42.5048 NOT NULL,
-                    longitude double precision DEFAULT 27.4626 NOT NULL,
+                    latitude double precision DEFAULT 43.1369 NOT NULL,
+                    longitude double precision DEFAULT 24.7142 NOT NULL,
                     rain_probability_threshold_percent integer DEFAULT 60 NOT NULL,
                     rain_lookahead_hours integer DEFAULT 6 NOT NULL,
                     expected_rain_mm_threshold double precision DEFAULT 1.0 NOT NULL,
@@ -1586,6 +1586,12 @@ public class SensorDataService
                 );
 
                 INSERT INTO weather_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
+
+                UPDATE weather_settings
+                SET latitude = 43.1369,
+                    longitude = 24.7142,
+                    updated_at = NOW()
+                WHERE id = 1 AND latitude = 42.5048 AND longitude = 27.4626;
 
                 CREATE TABLE IF NOT EXISTS watering_blocks (
                     id SERIAL PRIMARY KEY,
@@ -1777,10 +1783,10 @@ public class SensorDataService
             EnableWeatherIntegration = settings.EnableWeatherIntegration,
             Latitude = double.IsFinite(settings.Latitude) && settings.Latitude >= -90 && settings.Latitude <= 90
                 ? settings.Latitude
-                : 42.5048,
+                : 43.1369,
             Longitude = double.IsFinite(settings.Longitude) && settings.Longitude >= -180 && settings.Longitude <= 180
                 ? settings.Longitude
-                : 27.4626,
+                : 24.7142,
             RainProbabilityThresholdPercent = Math.Clamp(settings.RainProbabilityThresholdPercent, 0, 100),
             RainLookaheadHours = Math.Clamp(settings.RainLookaheadHours, 1, 48),
             ExpectedRainMmThreshold = Math.Clamp(settings.ExpectedRainMmThreshold, 0, 100),

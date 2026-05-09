@@ -67,8 +67,8 @@ public class WeatherWateringAdvice
 public class WeatherIntegrationSettings
 {
     public bool EnableWeatherIntegration { get; set; } = true;
-    public double Latitude { get; set; } = 42.5048;
-    public double Longitude { get; set; } = 27.4626;
+    public double Latitude { get; set; } = 43.1369;
+    public double Longitude { get; set; } = 24.7142;
     public int RainProbabilityThresholdPercent { get; set; } = 60;
     public int RainLookaheadHours { get; set; } = 6;
     public float ExpectedRainMmThreshold { get; set; } = 1.0f;

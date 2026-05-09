@@ -150,10 +150,20 @@ public class IrrigationDecisionService
             {
                 var apiResult = await AiApiHealth.RecordOllamaFailureAsync(ex, settings);
                 aiErrorMessage = apiResult.Message;
-                Logger.LogWarning(
-                    ex,
-                    "AI irrigation analysis failed for zone {ZoneId}",
-                    latestReading.ZoneId);
+                if (ex is HttpRequestException or TimeoutException)
+                {
+                    Logger.LogWarning(
+                        "AI irrigation analysis failed for zone {ZoneId}: {Message}",
+                        latestReading.ZoneId,
+                        apiResult.Message);
+                }
+                else
+                {
+                    Logger.LogWarning(
+                        ex,
+                        "AI irrigation analysis failed for zone {ZoneId}",
+                        latestReading.ZoneId);
+                }
             }
             catch (Exception ex)
             {
