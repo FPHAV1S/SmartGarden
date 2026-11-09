@@ -1,6 +1,7 @@
 Attribute VB_Name = "modBuild"
 Option Compare Database
 Option Explicit
+' Late binding: no reference to the DAO / ACE library is needed.
 
 ' ------------------------------------------------------------------
 ' Project helper module.
@@ -35,7 +36,7 @@ Public Function FillPrice()
 End Function
 
 Private Function TableExists(ByVal nm As String) As Boolean
-    Dim t As DAO.TableDef
+    Dim t As Object
     For Each t In CurrentDb.TableDefs
         If t.Name = nm Then TableExists = True: Exit Function
     Next
@@ -66,9 +67,9 @@ Public Sub BuildAll()
 End Sub
 
 Private Sub BuildQueries()
-    Dim db As DAO.Database, rs As DAO.Recordset
+    Dim db As Object, rs As Object
     Set db = CurrentDb
-    Set rs = db.OpenRecordset("SELECT * FROM zBuild_Queries ORDER BY Seq", dbOpenSnapshot)
+    Set rs = db.OpenRecordset("SELECT * FROM zBuild_Queries ORDER BY Seq", 4)
     Do Until rs.EOF
         On Error Resume Next
         db.QueryDefs.Delete rs!QName
@@ -82,8 +83,8 @@ Private Sub BuildQueries()
 End Sub
 
 Private Sub BuildObjects()
-    Dim rs As DAO.Recordset
-    Set rs = CurrentDb.OpenRecordset("SELECT * FROM zBuild_Objects ORDER BY Seq", dbOpenSnapshot)
+    Dim rs As Object
+    Set rs = CurrentDb.OpenRecordset("SELECT * FROM zBuild_Objects ORDER BY Seq", 4)
     Do Until rs.EOF
         If rs!ObjType = "FORM" Then
             BuildForm rs
@@ -99,7 +100,7 @@ Private Function HasSection(ByVal nm As String, ByVal s1 As Integer, ByVal s2 As
     HasSection = DCount("*", "zBuild_Controls", "ObjName='" & nm & "' AND (Section=" & s1 & " OR Section=" & s2 & ")") > 0
 End Function
 
-Private Sub BuildForm(rsO As DAO.Recordset)
+Private Sub BuildForm(rsO As Object)
     Dim frm As Form, tmp As String, nm As String
     nm = rsO!ObjName
     DeleteIfExists acForm, nm
@@ -126,7 +127,7 @@ Private Sub BuildForm(rsO As DAO.Recordset)
     DoCmd.Rename nm, acForm, tmp
 End Sub
 
-Private Sub BuildReport(rsO As DAO.Recordset)
+Private Sub BuildReport(rsO As Object)
     Dim rpt As Report, tmp As String, nm As String, parts() As String, i As Integer, lvl As Long, p() As String
     nm = rsO!ObjName
     DeleteIfExists acReport, nm
@@ -189,8 +190,8 @@ Private Sub SetSectionHeights(obj As Object, ByVal nm As String)
 End Sub
 
 Private Sub AddControls(obj As Object, ByVal nm As String, ByVal isReport As Boolean)
-    Dim rs As DAO.Recordset, ctl As Control, t As Integer, extra() As String, i As Integer, kv() As String
-    Set rs = CurrentDb.OpenRecordset("SELECT * FROM zBuild_Controls WHERE ObjName='" & nm & "' ORDER BY Seq", dbOpenSnapshot)
+    Dim rs As Object, ctl As Control, t As Integer, extra() As String, i As Integer, kv() As String
+    Set rs = CurrentDb.OpenRecordset("SELECT * FROM zBuild_Controls WHERE ObjName='" & nm & "' ORDER BY Seq", 4)
     Do Until rs.EOF
         Select Case rs!CtlType
             Case "LABEL": t = acLabel
@@ -238,13 +239,13 @@ Private Sub AddControls(obj As Object, ByVal nm As String, ByVal isReport As Boo
 End Sub
 
 Private Sub SetStartupForm()
-    Dim db As DAO.Database
+    Dim db As Object
     Set db = CurrentDb
     On Error Resume Next
     db.Properties("StartUpForm") = "F_Menu"
     If Err.Number <> 0 Then
         Err.Clear
-        db.Properties.Append db.CreateProperty("StartUpForm", dbText, "F_Menu")
+        db.Properties.Append db.CreateProperty("StartUpForm", 10, "F_Menu")
     End If
     Err.Clear
 End Sub
@@ -262,7 +263,7 @@ End Sub
 ' number of affected records and the row count before/after.
 ' ------------------------------------------------------------------
 Public Sub RunActionTests()
-    Dim db As DAO.Database, rs As DAO.Recordset, qd As DAO.QueryDef
+    Dim db As Object, rs As Object, qd As Object
     Dim vals() As String, i As Integer, before As Long, after As Long, affected As Long
     If InStr(1, CurrentProject.Name, "_TEST", vbTextCompare) = 0 Then
         MsgBox "RunActionTests works only in the *_TEST.accdb copy.", vbExclamation
@@ -276,7 +277,7 @@ Public Sub RunActionTests()
     If Not TableExists("Test_Log") Then
         db.Execute "CREATE TABLE Test_Log (Step LONG, QueryName TEXT(64), Params TEXT(255), CountedTable TEXT(64), RowsBefore LONG, RecordsAffected LONG, RowsAfter LONG, RunAt DATETIME)"
     End If
-    Set rs = db.OpenRecordset("SELECT * FROM zBuild_Tests ORDER BY Seq", dbOpenSnapshot)
+    Set rs = db.OpenRecordset("SELECT * FROM zBuild_Tests ORDER BY Seq", 4)
     Do Until rs.EOF
         If rs!QName = "A4_MakeSnapshotQ5" Then
             DoCmd.SetWarnings False
@@ -295,11 +296,11 @@ Public Sub RunActionTests()
                 End If
             Next
         End If
-        qd.Execute dbFailOnError
+        qd.Execute 128
         affected = qd.RecordsAffected
         after = CountRows(rs!CountTable)
         db.Execute "INSERT INTO Test_Log (Step, QueryName, Params, CountedTable, RowsBefore, RecordsAffected, RowsAfter, RunAt) VALUES (" & _
-            rs!Seq & ", '" & rs!QName & "', '" & Nz(rs!ParamValues, "") & "', '" & rs!CountTable & "', " & before & ", " & affected & ", " & after & ", Now())", dbFailOnError
+            rs!Seq & ", '" & rs!QName & "', '" & Nz(rs!ParamValues, "") & "', '" & rs!CountTable & "', " & before & ", " & affected & ", " & after & ", Now())", 128
         rs.MoveNext
     Loop
     rs.Close
