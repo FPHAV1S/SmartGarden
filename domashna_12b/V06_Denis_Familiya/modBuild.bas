@@ -220,6 +220,9 @@ Private Sub AddControls(obj As Object, ByVal nm As String, ByVal isReport As Boo
                 ctl.Caption = Nz(rs!Caption, "")
                 ctl.OnClick = "=OpenObj(""" & rs!Source & """)"
         End Select
+        ' Not every control type has every property (e.g. a check box has
+        ' no FontSize), so these optional settings never stop the build.
+        On Error Resume Next
         If Nz(rs!FontSize, 0) > 0 Then ctl.FontSize = rs!FontSize
         If Nz(rs!Bold, False) Then ctl.FontBold = True
         If Nz(rs!Extra, "") <> "" Then
@@ -231,8 +234,11 @@ Private Sub AddControls(obj As Object, ByVal nm As String, ByVal isReport As Boo
                 Else
                     ctl.Properties(kv(0)) = kv(1)
                 End If
+                If Err.Number <> 0 Then Debug.Print "Skipped " & nm & "." & ctl.Name & "." & kv(0) & ": " & Err.Description: Err.Clear
             Next
         End If
+        Err.Clear
+        On Error GoTo 0
         rs.MoveNext
     Loop
     rs.Close
