@@ -1,0 +1,17 @@
+КАКВО ИМА В ПАПКАТА
+- V06_Denis_Familiya.accdb        – основната база (таблици, полета, правила, връзки, данни)
+- V06_Denis_Familiya_TEST.accdb – тестово копие (с умишлено сгрешен ред за контролната заявка)
+- modBuild.bas    – VBA модул, който създава заявките Q1–Q6, QC, A1–A4, формите и отчетите
+- V06_Denis_Familiya_Dokumentacia.docx – документацията (жълтите полета = места за снимки/имена)
+
+СТЪПКИ (около 5 минути, нужен е Microsoft Access на Windows)
+1. Отвори V06_Denis_Familiya.accdb -> Enable Content.
+2. Alt+F11 -> File -> Import File... -> modBuild.bas
+3. Ctrl+G -> напиши BuildAll -> Enter. Изчакай "Build finished".
+   (създават се заявките, формите, отчетите и F_Menu; отчетите се записват като PDF до базата)
+4. Затвори Access.
+5. Отвори V06_Denis_Familiya_TEST.accdb -> Enable Content -> Alt+F11 -> Import File -> modBuild.bas
+   -> Ctrl+G -> BuildAll -> Enter -> после RunActionTests -> Enter. Отваря се Test_Log.
+6. Направи снимките, означени в жълто в документацията, и попълни "[попълнете]" в тестовия протокол.
+7. Преименувай файловете с твоята фамилия (Familiya -> истинската), вкл. в документацията.
+8. ZIP: основна база + TEST + документация (DOCX/PDF) + двата PDF отчета -> V06_Denis_Familiya.zip
